@@ -1,0 +1,11 @@
+{
+  "market": "india_remote",
+  "posting": "Synthetic Data Engineer role. Python required. Production Spark operations required. Remote within India; eligibility must be checked separately.",
+  "facts": [
+    {"id": "project-1", "claim": "Built a Python CSV reconciliation exercise with offline tests.", "source": "Synthetic project exercise; not employment experience", "reviewed": true}
+  ],
+  "requirements": [
+    {"id": "python", "quote": "Python required.", "fact_ids": ["project-1"]},
+    {"id": "spark", "quote": "Production Spark operations required.", "fact_ids": []}
+  ]
+}
