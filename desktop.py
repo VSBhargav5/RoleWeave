@@ -1,5 +1,6 @@
 """RoleWeave: manually save and review jobs locally on Windows."""
 import argparse
+from datetime import date
 import json
 from pathlib import Path
 import sqlite3
@@ -8,6 +9,8 @@ from tkinter import filedialog, messagebox, ttk
 
 from job_store import JobStore
 from evidence_editor import EvidenceEditor
+from applications import STAGES
+from application_tracker import ApplicationTracker
 from roleweave import MAX_BYTES, review_snapshot
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
@@ -27,14 +30,27 @@ class JobShelf(ttk.Frame):
             row=1, column=0, columnspan=2, sticky="w", pady=(4, 12))
         left = ttk.Frame(self, padding=(0, 0, 16, 0))
         left.grid(row=2, column=0, sticky="nsew")
+        self.search = tk.StringVar()
+        search = ttk.Entry(left, textvariable=self.search)
+        ttk.Label(left, text="Search title, company, URL or latest note").pack(anchor="w")
+        search.pack(fill="x")
+        search.bind("<Return>", lambda _event: self.refresh())
+        ttk.Button(left, text="Search / refresh", command=self.refresh).pack(fill="x", pady=4)
         self.filter = tk.StringVar(value="All markets")
         chooser = ttk.Combobox(left, textvariable=self.filter, state="readonly",
                                values=["All markets", *MARKET_LABELS], width=30)
         chooser.pack(fill="x")
         chooser.bind("<<ComboboxSelected>>", lambda _event: self.refresh())
-        self.jobs = tk.Listbox(left, width=34, height=18, exportselection=False)
+        self.stage_filter = tk.StringVar(value="All stages")
+        stage_filter = ttk.Combobox(left, textvariable=self.stage_filter, values=["All stages", *STAGES], state="readonly")
+        stage_filter.pack(fill="x", pady=4)
+        stage_filter.bind("<<ComboboxSelected>>", lambda _event: self.refresh())
+        self.due_only = tk.BooleanVar(value=False)
+        ttk.Checkbutton(left, text="Follow-ups due today or earlier", variable=self.due_only, command=self.refresh).pack(anchor="w")
+        self.jobs = tk.Listbox(left, width=34, height=10, exportselection=False)
         self.jobs.pack(fill="both", expand=True, pady=8)
         self.jobs.bind("<<ListboxSelect>>", self.open_selected)
+        ttk.Button(left, text="Application notes / follow-up…", command=self.open_tracker).pack(fill="x", pady=4)
         ttk.Button(left, text="Export original review JSON…", command=self.export_selected).pack(fill="x")
         ttk.Button(left, text="Back up full shelf…", command=self.backup_shelf).pack(fill="x", pady=(8, 0))
         ttk.Button(left, text="Restore shelf backup…", command=self.restore_shelf).pack(fill="x", pady=4)
@@ -71,10 +87,35 @@ class JobShelf(ttk.Frame):
         self.refresh()
 
     def refresh(self):
-        self.rows = self.store.list_jobs(MARKET_LABELS.get(self.filter.get()))
+        try:
+            rows = self.store.list_jobs(MARKET_LABELS.get(self.filter.get()),
+                                        stage=None if self.stage_filter.get() == "All stages" else self.stage_filter.get(),
+                                        query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+            return
+        self.rows = rows
         self.jobs.delete(0, "end")
         for item in self.rows:
-            self.jobs.insert("end", f"{item['company']} · {item['title']}")
+            due = f" · follow-up {item['follow_up']}" if item['follow_up'] else ""
+            self.jobs.insert("end", f"[{item['stage']}] {item['company']} · {item['title']}{due}")
+
+    def tracking_changed(self, identifier):
+        self.refresh()
+        for index, item in enumerate(self.rows):
+            if item["id"] == identifier:
+                self.jobs.selection_set(index)
+                break
+
+    def open_tracker(self):
+        if not self.jobs.curselection():
+            self.status.set("Select a saved review to track. Tracking does not submit applications.")
+            return
+        try:
+            return ApplicationTracker(self.winfo_toplevel(), self.store,
+                                      self.rows[self.jobs.curselection()[0]]["id"], self.tracking_changed)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not open tracking", str(exc))
 
     def details(self):
         return [self.fields[key].get() for key in self.fields]
@@ -200,7 +241,7 @@ class JobShelf(ttk.Frame):
         try:
             added, skipped = self.store.restore(path)
             self.refresh()
-            self.status.set(f"Restored {added} snapshots; skipped {skipped} already saved. Existing jobs were preserved.")
+            self.status.set(f"Restored {added} snapshots; skipped {skipped} already saved. Compatible tracking history restored; existing jobs preserved.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not restore", str(exc))
 
