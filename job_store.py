@@ -10,6 +10,7 @@ import sqlite3
 from uuid import uuid4
 
 from roleweave import MARKETS, review_snapshot, text
+from applications import EVENT_FIELDS, current_application, validate_event, validate_history
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
 BACKUP_FORMAT = "roleweave-backup-v1"
@@ -51,6 +52,11 @@ class JobStore:
                 captured_at TEXT NOT NULL, input_sha256 TEXT NOT NULL,
                 snapshot BLOB NOT NULL,
                 UNIQUE(title, company, source_url, input_sha256))""")
+            db.execute("""CREATE TABLE IF NOT EXISTS application_events (
+                id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id),
+                revision INTEGER NOT NULL, stage TEXT NOT NULL, note TEXT NOT NULL,
+                follow_up TEXT NOT NULL, recorded_at TEXT NOT NULL,
+                UNIQUE(job_id, revision))""")
 
     def save(self, snapshot, title, company, source_url=""):
         result = review_snapshot(snapshot)
@@ -98,6 +104,31 @@ class JobStore:
         # Exclusive creation prevents silently replacing an earlier export.
         with Path(destination).open("xb") as target:
             target.write(item["snapshot"])
+
+    def application_history(self, identifier):
+        self.load(identifier)
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            rows = db.execute("SELECT * FROM application_events WHERE job_id=? ORDER BY revision", (identifier,))
+            events = [dict(row) for row in rows]
+        validate_history(events)
+        return events
+
+    def record_application(self, identifier, stage, note="", follow_up=""):
+        self.load(identifier)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("PRAGMA foreign_keys=ON")
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute("SELECT * FROM application_events WHERE job_id=? ORDER BY revision", (identifier,)).fetchall()
+            history = [dict(zip(EVENT_FIELDS, row)) for row in rows]
+            validate_history(history)
+            event = {"id": str(uuid4()), "job_id": identifier, "revision": len(history) + 1,
+                     "stage": stage, "note": note, "follow_up": follow_up,
+                     "recorded_at": datetime.now(timezone.utc).isoformat()}
+            validate_event(event)
+            db.execute("INSERT INTO application_events VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       tuple(event[field] for field in EVENT_FIELDS))
+        return event
 
     def backup(self, destination):
         records = []
