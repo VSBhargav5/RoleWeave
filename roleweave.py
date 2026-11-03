@@ -1,5 +1,6 @@
 """Offline, human-reviewed requirement evidence. Python 3.11+, standard library."""
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -65,6 +66,38 @@ def read_review(path):
     with Path(path).open("rb") as source:
         snapshot = source.read(MAX_BYTES + 1)
     return review_snapshot(snapshot)
+
+
+def revise_fact(data, identifier, claim, source, reviewed):
+    """Return a corrected draft; changed or revoked claims lose existing links."""
+    review(data)
+    draft = copy.deepcopy(data)
+    fact = next((item for item in draft["facts"] if item["id"] == identifier), None)
+    if fact is None:
+        raise ValueError("Select an existing fact to revise")
+    changed = fact["claim"] != claim or fact["source"] != source
+    fact.update(claim=claim, source=source, reviewed=reviewed)
+    removed = 0
+    if changed or reviewed is False:
+        for requirement in draft["requirements"]:
+            if identifier in requirement["fact_ids"]:
+                requirement["fact_ids"].remove(identifier)
+                removed += 1
+    review(draft)
+    return draft, removed
+
+
+def remove_fact(data, identifier):
+    """Remove only an unlinked fact from a new draft, preserving all originals."""
+    review(data)
+    if not any(fact["id"] == identifier for fact in data["facts"]):
+        raise ValueError("Select an existing fact to remove")
+    if any(identifier in item["fact_ids"] for item in data["requirements"]):
+        raise ValueError("Unlink this fact from every requirement before removing it")
+    draft = copy.deepcopy(data)
+    draft["facts"] = [fact for fact in draft["facts"] if fact["id"] != identifier]
+    review(draft)
+    return draft
 
 
 def review_snapshot(snapshot):

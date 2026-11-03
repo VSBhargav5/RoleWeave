@@ -85,8 +85,14 @@ Select a saved job (or enter a new posting and job details), then choose
    draft. Quotes absent from the posting, unresolved form edits and invalid links
    block saving. Earlier snapshots and their original exports remain available.
 
-Facts can be added here; editing/deleting an existing fact is not yet supported.
-To correct a claim, add a corrected fact and update the relevant requirement links.
+To correct a fact, select exactly one in the fact list and choose **Load one fact**.
+Review starts unchecked. Edit its claim/source, explicitly check review when
+appropriate, then **Update loaded fact**. A changed claim/source or revoked review
+removes all existing links to that fact; review and link it to requirements again.
+Unchanged, still-reviewed facts retain their links. **Remove one fact** refuses
+facts still referenced by requirements. Unlink them first. **Clear fact fields**
+discards unapplied form edits; **Cancel** discards the whole draft. Changes only
+reach the database through **Save reviewed snapshot**; originals remain intact.
 No model inference, eligibility score or qualification claim is produced.
 
 ## Back up and recover the shelf
