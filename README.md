@@ -33,8 +33,10 @@ Tcl/Tk in your Python installation. The launcher keeps its console on failure.
 
 Storage defaults to ignored `private/jobs.db`; `python desktop.py --db PATH`
 chooses another SQLite file. Close the app before copying this database as a
-backup. Exported JSON can be imported into a fresh shelf after re-entering job
-metadata. Full database backup/restore has not been rehearsed.
+backup. For a portable full copy, use **Back up full shelf** and **Restore shelf
+backup**. These preserve job metadata as well as original review bytes. A synthetic
+full restore and repeat restore are covered by tests; personal recovery remains
+unverified.
 
 Every Save appends a snapshot. Exact duplicates with the same job details are
 rejected. Editing a saved posting creates a new snapshot with no requirements or
@@ -86,3 +88,24 @@ Select a saved job (or enter a new posting and job details), then choose
 Facts can be added here; editing/deleting an existing fact is not yet supported.
 To correct a claim, add a corrected fact and update the relevant requirement links.
 No model inference, eligibility score or qualification claim is produced.
+
+## Back up and recover the shelf
+
+Choose **Back up full shelf** on the left and use a new JSON filename. This
+contains every snapshot, title, company, source URL, market and capture time.
+Keep it private: it is not encrypted. Single-review export remains separate and
+does not contain job metadata.
+
+Choose **Restore shelf backup** in an empty or existing shelf. Source hashes,
+review contracts, metadata, format version and timezone-aware timestamps are
+checked before insertion. Existing identical jobs are skipped; an ID conflict
+rolls back the entire restore. Existing jobs are never replaced. Backup/restore
+inputs are limited to 64 MiB; each original review keeps its 1 MiB limit.
+Review hashes do not authenticate metadata or prove that a backup is trustworthy.
+Only restore files you intended to save. A failed backup write may leave a partial
+file: discard it and retry with a new filename. Restore rejects malformed files.
+
+Recovery exercise: save/import the synthetic review, back up the shelf, launch
+`python desktop.py --db private/recovery-test.db`, restore and compare the job
+details, market and exported original bytes. Restore twice and check that no
+duplicate snapshots are added. Do not overwrite your working database to practise.
