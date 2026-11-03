@@ -70,7 +70,10 @@ filling stay deferred until a specific need and authorization exist.
 Start with Python and standard-library SQLite. Prefer a small PySide6 interface
 for Windows, consistent with StudyFrame; choose it after testing the review flow.
 No queue, hosted accounts, browser extension or agent framework is justified yet.
-The current prototype has no database or UI dependency. No adoption, time savings,
+The local shelf now uses standard-library SQLite and Tkinter, avoiding a new Qt
+dependency for the first manual posting workflow. Native Windows save/reopen,
+separate market filtering and synthetic review import pass a UI regression.
+Evidence editing and full backup/restore rehearsal remain pending. No adoption, time savings,
 ATS compatibility, answer quality or revenue has been demonstrated.
 
 ## Learning exercise

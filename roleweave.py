@@ -64,6 +64,11 @@ def review(data):
 def read_review(path):
     with Path(path).open("rb") as source:
         snapshot = source.read(MAX_BYTES + 1)
+    return review_snapshot(snapshot)
+
+
+def review_snapshot(snapshot):
+    """Validate the same immutable bytes used by file imports and local storage."""
     if len(snapshot) > MAX_BYTES:
         raise ValueError("Input exceeds 1 MiB")
     def unique(pairs):
