@@ -1,7 +1,7 @@
 """Local stage and follow-up observations for one exact saved review."""
 import sqlite3
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 from applications import STAGES, current_application
 
@@ -41,7 +41,8 @@ class ApplicationTracker(tk.Toplevel):
         self.status = tk.StringVar(value="Follow-up dates are local calendar dates. No background notifications.")
         ttk.Label(body, textvariable=self.status, wraplength=740).grid(row=7, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Button(body, text="Record observation", command=self.record).grid(row=8, column=0, sticky="w")
-        ttk.Button(body, text="Close", command=self.destroy).grid(row=8, column=1, sticky="e")
+        ttk.Button(body, text="Close", command=self.close).grid(row=8, column=1, sticky="e")
+        self.protocol("WM_DELETE_WINDOW", self.close)
         self.refresh()
 
     def refresh(self):
@@ -74,3 +75,11 @@ class ApplicationTracker(tk.Toplevel):
             self.status.set("Observation saved. Earlier entries and original review bytes are unchanged.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(f"Observation saved, but view refresh failed: {exc}")
+
+    def close(self):
+        pending = (self.note.get("1.0", "end-1c").strip() or self.stage.get() != self.current["stage"]
+                   or self.follow_up.get() != self.current["follow_up"])
+        if pending and not messagebox.askyesno("Discard unrecorded tracking edits?",
+                                              "These changes have not been recorded. Discard them?", parent=self):
+            return
+        self.destroy()

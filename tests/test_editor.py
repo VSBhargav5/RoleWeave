@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 @unittest.skipUnless(os.name == "nt", "Native Windows Tk evidence editor")
@@ -28,6 +29,13 @@ class EditorTests(unittest.TestCase):
     def quote(self, value):
         self.editor.quote.delete("1.0", "end")
         self.editor.quote.insert("1.0", value)
+
+    def test_window_close_preserves_unsaved_evidence_when_discard_is_declined(self):
+        self.quote("Pending synthetic quote")
+        with patch("evidence_editor.messagebox.askyesno", return_value=False):
+            self.editor.request_close()
+        self.assertTrue(self.editor.winfo_exists())
+        self.assertEqual(len(self.store.list_jobs()), 1)
 
     def test_fact_correction_resets_review_unlinks_and_saves_new_snapshot(self):
         self.editor.facts.selection_set(0)

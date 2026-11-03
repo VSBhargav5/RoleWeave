@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 @unittest.skipUnless(os.name == "nt", "Native Windows application tracker")
@@ -67,3 +68,10 @@ class TrackerTests(unittest.TestCase):
         self.tracker.record()
         self.assertIn("No change", self.tracker.status.get())
         self.assertEqual(len(self.store.application_history(self.job)), 1)
+
+    def test_close_requires_discard_for_unrecorded_note(self):
+        self.tracker.note.insert("1.0", "Unrecorded synthetic decision")
+        with patch("application_tracker.messagebox.askyesno", return_value=False):
+            self.tracker.close()
+        self.assertTrue(self.tracker.winfo_exists())
+        self.assertEqual(self.store.application_history(self.job), [])

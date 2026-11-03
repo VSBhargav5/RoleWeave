@@ -73,7 +73,14 @@ No queue, hosted accounts, browser extension or agent framework is justified yet
 The local shelf now uses standard-library SQLite and Tkinter, avoiding a new Qt
 dependency for the first manual posting workflow. Native Windows save/reopen,
 separate market filtering and synthetic review import pass a UI regression.
-Evidence editing and full backup/restore rehearsal remain pending. No adoption, time savings,
+The local workflow now includes fact/requirement editing, manual application
+history and follow-up dates, combined market/stage/search filters, preparation
+packs and versioned full backup/restore. Native Windows and offline regression
+tests cover synthetic workflows; user practice and usefulness remain unverified.
+Shared career-profile management, reviewed resume/PDF output, live provider/source
+trials, external integrations and installer delivery remain pending. Follow-up
+dates are shown inside the app; no background notifications are implemented.
+No adoption, time savings,
 ATS compatibility, answer quality or revenue has been demonstrated.
 
 ## Learning exercise

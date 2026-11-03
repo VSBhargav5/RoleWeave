@@ -1,7 +1,7 @@
 """Human-selected evidence, validated with the existing exact-quote contract."""
 import copy
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from uuid import uuid4
 
 from roleweave import review, text, revise_fact, remove_fact
@@ -11,6 +11,7 @@ class EvidenceEditor(tk.Toplevel):
     def __init__(self, parent, data, on_save):
         super().__init__(parent)
         self.data = copy.deepcopy(data)
+        self.original_data = copy.deepcopy(data)
         self.on_save = on_save
         self.editing_fact_id = None
         self.title("RoleWeave · Review requirements and evidence")
@@ -71,6 +72,19 @@ class EvidenceEditor(tk.Toplevel):
         ttk.Button(body, text="Save reviewed snapshot", command=self.save).grid(row=5, column=0, sticky="w", pady=12)
         ttk.Button(body, text="Cancel · discard changes", command=self.destroy).grid(row=5, column=1, sticky="e")
         self.refresh()
+        self.protocol("WM_DELETE_WINDOW", self.request_close)
+
+    def request_close(self):
+        quote = self.quote.get("1.0", "end-1c")
+        refs = [self.data["facts"][i]["id"] for i in self.facts.curselection()]
+        pending_quote = quote.strip() and not any(item["quote"] == quote and item["fact_ids"] == refs
+                                                 for item in self.data["requirements"])
+        pending = (self.data != self.original_data or self.claim.get("1.0", "end-1c").strip()
+                   or self.source.get().strip() or pending_quote)
+        if pending and not messagebox.askyesno("Discard evidence draft?",
+                                              "Evidence changes have not been saved. Discard them?", parent=self):
+            return
+        self.destroy()
 
     def refresh(self):
         self.requirements.delete(0, "end")
