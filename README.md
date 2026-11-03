@@ -3,7 +3,8 @@
 A personal Python job-search workspace for Data Engineering and applied AI roles.
 Two separate markets: India/remote-from-India and international relocation.
 Original implementation inspired by existing tools, with no upstream source,
-assets or history imported. Local Windows posting shelf plus an evidence-review CLI.
+assets or history imported. Local Windows workspace for posting review, selected
+evidence, manual application tracking, follow-ups and preparation packs.
 
 ## Run today
 
@@ -22,7 +23,7 @@ Tcl/Tk in your Python installation. The launcher keeps its console on failure.
 ## Save and reopen a job
 
 1. Enter the job title, company, source URL if available, and choose its market.
-2. Paste permitted posting text and choose **Save as new snapshot**.
+2. Paste permitted posting text and choose **Save posting only**.
 3. Select a saved job on the left to reopen it. Filter India/remote and
    relocation separately. Neither label verifies work authorization or sponsorship.
 4. To import the existing evidence format, enter title/company first, then choose
@@ -35,7 +36,7 @@ Storage defaults to ignored `private/jobs.db`; `python desktop.py --db PATH`
 chooses another SQLite file. Close the app before copying this database as a
 backup. For a portable full copy, use **Back up full shelf** and **Restore shelf
 backup**. These preserve job metadata as well as original review bytes. A synthetic
-full restore and repeat restore are covered by tests; personal recovery remains
+full restore including tracking history and repeat restore are covered by tests; personal recovery remains
 unverified.
 
 Every Save appends a snapshot. Exact duplicates with the same job details are
@@ -98,14 +99,19 @@ No model inference, eligibility score or qualification claim is produced.
 ## Back up and recover the shelf
 
 Choose **Back up full shelf** on the left and use a new JSON filename. This
-contains every snapshot, title, company, source URL, market and capture time.
+contains every snapshot, title, company, source URL, market, capture time and
+application observation. New backups use `roleweave-backup-v2`. Older v1 backups
+still restore without erasing newer tracking history. Older app versions cannot
+read v2 backups.
 Keep it private: it is not encrypted. Single-review export remains separate and
 does not contain job metadata.
 
 Choose **Restore shelf backup** in an empty or existing shelf. Source hashes,
 review contracts, metadata, format version and timezone-aware timestamps are
 checked before insertion. Existing identical jobs are skipped; an ID conflict
-rolls back the entire restore. Existing jobs are never replaced. Backup/restore
+or divergent application-history revision rolls back the entire restore. Compatible
+history extends existing records; earlier observations are never overwritten.
+Existing jobs are never replaced. Backup/restore
 inputs are limited to 64 MiB; each original review keeps its 1 MiB limit.
 Review hashes do not authenticate metadata or prove that a backup is trustworthy.
 Only restore files you intended to save. A failed backup write may leave a partial
@@ -115,3 +121,48 @@ Recovery exercise: save/import the synthetic review, back up the shelf, launch
 `python desktop.py --db private/recovery-test.db`, restore and compare the job
 details, market and exported original bytes. Restore twice and check that no
 duplicate snapshots are added. Do not overwrite your working database to practise.
+
+## Track decisions and follow-ups
+
+Select a saved review and choose **Application notes / follow-up**. Record a
+stage (`saved`, `shortlisted`, `applied`, `interview`, `offer`, `closed`, `withdrawn`),
+a decision/observation note (up to 4000 characters), and an optional `YYYY-MM-DD`
+follow-up date. Blank clears a previously set follow-up. Every record appends a
+history revision; correcting a stage does not erase earlier observations. Any
+stage may be recorded manually; the app does not verify or submit applications.
+
+Tracking belongs to that exact saved snapshot. A later evidence revision starts
+at `saved`, with separate history. It does not inherit `applied` or imply the
+revised claims were submitted. Grouping versions into a single application is a
+later design decision; do not double-count these snapshots as unique applications.
+
+Use the left-side market and stage filters together. Search title, company,
+source URL or the latest decision note (Unicode case-insensitive, literal text).
+Search does not inspect full posting text or older notes. **Follow-ups due today
+or earlier** uses the computer's local calendar date, sorts oldest dates first,
+and excludes `closed` and `withdrawn`. No email/calendar linking or background
+notifications are implemented.
+
+## Prepare an application or interview
+
+Choose **Export preparation pack** for a saved review. The UTF-8 `.txt` file
+includes job metadata, exact requirement quotes, linked reviewed claims copied
+without rewriting, open review questions, source hashes, and manual history at
+its stated revision. Unselected facts are excluded. It is a preparation record,
+not a generated resume, cover letter, submitted application or eligibility claim.
+Keep it private: it contains any recorded notes and is not encrypted. Existing
+filenames are refused, and pack size is limited to 8 MiB before file creation.
+
+Posting edits must be saved or discarded before tracking/exporting a saved
+review. Switching jobs, New posting and closing the app guard unsaved posting
+changes. **Reload saved review** discards form changes only after confirmation.
+Closing the evidence or tracker window also warns about pending edits; the
+explicit Cancel/discard action still discards its draft. Full-shelf backups only
+include saved data, not unsaved form edits.
+
+Follow [the focused workflow exercise](docs/application-first-principles.md).
+Manual posting capture, review, tracking, pack export and recovery are implemented.
+A shared career profile, resume/PDF generation, permitted live source discovery,
+AI assistance, external integrations and an installer remain pending. Personal
+usefulness, manual dialog/layout interaction and real job-search outcomes remain
+unverified. No feature count establishes superiority to another product.

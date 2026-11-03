@@ -50,6 +50,12 @@ class DesktopTests(unittest.TestCase):
                     error.assert_not_called()
                 self.assertEqual(len(shelf.rows), 2)
                 self.assertIn("Restored 2", shelf.status.get())
+                shelf.jobs.selection_set(0)
+                pack = Path(temp) / "prep.txt"
+                with patch("desktop.filedialog.asksaveasfilename", return_value=str(pack)), patch("desktop.messagebox.showerror") as error:
+                    shelf.export_pack()
+                    error.assert_not_called()
+                self.assertIn("ROLEWEAVE APPLICATION PREPARATION PACK", pack.read_text(encoding="utf-8"))
                 root.update_idletasks()
             finally:
                 root.destroy()
