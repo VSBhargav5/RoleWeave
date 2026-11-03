@@ -10,7 +10,7 @@ import sqlite3
 from uuid import uuid4
 
 from roleweave import MARKETS, review_snapshot, text
-from applications import EVENT_FIELDS, current_application, validate_event, validate_history
+from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
 BACKUP_FORMAT = "roleweave-backup-v2"
@@ -74,15 +74,47 @@ class JobStore:
                 raise ValueError("This exact review and job details are already saved") from exc
         return identifier
 
-    def list_jobs(self, market=None):
-        if market is not None and market not in MARKETS:
+    def list_jobs(self, market=None, stage=None, query="", due_on=None):
+        if market is not None and (not isinstance(market, str) or market not in MARKETS):
             raise ValueError("Unknown market")
+        if stage is not None and (not isinstance(stage, str) or stage not in STAGES):
+            raise ValueError("Unknown application stage")
+        if not isinstance(query, str) or len(query) > 500:
+            raise ValueError("Search must be text of at most 500 characters")
+        if due_on is not None:
+            follow_up_date(due_on)
+            if not due_on:
+                raise ValueError("Due filter requires a date")
         with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
-            query = "SELECT id, title, company, source_url, market, captured_at, input_sha256 FROM jobs"
-            rows = db.execute(query + (" WHERE market = ?" if market else "")
-                              + " ORDER BY captured_at DESC, id", (market,) if market else ())
-            return [dict(row) for row in rows]
+            rows = db.execute("""SELECT j.id, j.title, j.company, j.source_url, j.market, j.captured_at,
+                j.input_sha256, e.id AS event_id, e.revision, e.stage, e.note, e.follow_up, e.recorded_at
+                FROM jobs j LEFT JOIN application_events e ON e.job_id=j.id AND e.revision=
+                (SELECT MAX(revision) FROM application_events WHERE job_id=j.id)
+                ORDER BY j.captured_at DESC, j.id""").fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            event = {"id": item.pop("event_id"), "job_id": item["id"],
+                     **{key: item.pop(key) for key in ("revision", "stage", "note", "follow_up", "recorded_at")}}
+            if event["id"] is not None:
+                validate_event(event)
+            item.update(stage=event["stage"] or "saved", follow_up=event["follow_up"] or "",
+                        decision_note=event["note"] or "")
+            if market is not None and item["market"] != market:
+                continue
+            if stage is not None and item["stage"] != stage:
+                continue
+            haystack = "\n".join(item[key] for key in ("title", "company", "source_url", "decision_note"))
+            if query.strip().casefold() not in haystack.casefold():
+                continue
+            if due_on is not None and (not item["follow_up"] or item["follow_up"] > due_on
+                                       or item["stage"] in ("closed", "withdrawn")):
+                continue
+            result.append(item)
+        if due_on is not None:
+            result.sort(key=lambda item: (item["follow_up"], item["captured_at"], item["id"]))
+        return result
 
     def load(self, identifier):
         with closing(sqlite3.connect(self.path)) as db, db:
