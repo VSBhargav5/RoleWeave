@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from uuid import uuid4
 
-from roleweave import review, text
+from roleweave import review, text, revise_fact, remove_fact
 
 
 class EvidenceEditor(tk.Toplevel):
@@ -12,6 +12,7 @@ class EvidenceEditor(tk.Toplevel):
         super().__init__(parent)
         self.data = copy.deepcopy(data)
         self.on_save = on_save
+        self.editing_fact_id = None
         self.title("RoleWeave · Review requirements and evidence")
         self.geometry("1000x760")
         self.minsize(800, 650)
@@ -50,7 +51,12 @@ class EvidenceEditor(tk.Toplevel):
                   wraplength=420).pack(anchor="w")
         self.facts = tk.Listbox(facts, height=6, selectmode="multiple", exportselection=False)
         self.facts.pack(fill="both", expand=True)
-        ttk.Label(facts, text="New claim · state project versus employment accurately").pack(anchor="w")
+        fact_actions = ttk.Frame(facts)
+        fact_actions.pack(fill="x", pady=4)
+        ttk.Button(fact_actions, text="Load one fact", command=self.load_fact).pack(side="left")
+        ttk.Button(fact_actions, text="Update loaded fact", command=self.update_fact).pack(side="left", padx=6)
+        ttk.Button(fact_actions, text="Remove one fact", command=self.delete_fact).pack(side="left")
+        ttk.Label(facts, text="Claim · state project versus employment accurately").pack(anchor="w")
         self.claim = tk.Text(facts, height=3, wrap="word")
         self.claim.pack(fill="x", pady=4)
         ttk.Label(facts, text="Source / provenance").pack(anchor="w")
@@ -59,6 +65,7 @@ class EvidenceEditor(tk.Toplevel):
         self.reviewed = tk.BooleanVar(value=False)
         ttk.Checkbutton(facts, text="I reviewed this claim and its source", variable=self.reviewed).pack(anchor="w", pady=4)
         ttk.Button(facts, text="Add fact", command=self.add_fact).pack(anchor="w")
+        ttk.Button(facts, text="Clear fact fields", command=self.clear_fact_form).pack(anchor="w", pady=4)
         self.status = tk.StringVar(value="Select an existing requirement to edit its quote or fact links. Unlinked means needs review.")
         ttk.Label(body, textvariable=self.status, wraplength=930).grid(row=4, column=0, columnspan=2, sticky="w")
         ttk.Button(body, text="Save reviewed snapshot", command=self.save).grid(row=5, column=0, sticky="w", pady=12)
@@ -95,10 +102,59 @@ class EvidenceEditor(tk.Toplevel):
             return
         self.data["facts"].append(fact)
         self.refresh()
+        self.clear_fact_form()
+        self.status.set("Fact added to this draft. Select it, then Add or Update a requirement to link it. Save to persist.")
+
+    def clear_fact_form(self):
         self.claim.delete("1.0", "end")
         self.source.delete(0, "end")
         self.reviewed.set(False)
-        self.status.set("Fact added to this draft. Select it, then Add or Update a requirement to link it. Save to persist.")
+        self.editing_fact_id = None
+
+    def load_fact(self):
+        if len(self.facts.curselection()) != 1:
+            self.status.set("Select exactly one fact to load.")
+            return
+        if self.claim.get("1.0", "end-1c").strip() or self.source.get().strip():
+            self.status.set("Apply or clear the pending fact fields before loading another fact.")
+            return
+        fact = self.data["facts"][self.facts.curselection()[0]]
+        self.editing_fact_id = fact["id"]
+        self.claim.insert("1.0", fact["claim"])
+        self.source.insert(0, fact["source"])
+        self.reviewed.set(False)
+        self.status.set("Fact loaded with review unchecked. Changes unlink it from requirements; review and relink deliberately.")
+
+    def update_fact(self):
+        if self.editing_fact_id is None:
+            self.status.set("Load one fact before updating it.")
+            return
+        try:
+            draft, removed = revise_fact(self.data, self.editing_fact_id,
+                                          self.claim.get("1.0", "end-1c"), self.source.get(), self.reviewed.get())
+        except ValueError as exc:
+            self.status.set(str(exc))
+            return
+        self.data = draft
+        self.clear_fact_form()
+        self.refresh()
+        self.status.set(f"Fact updated in draft; removed {removed} requirement link(s). Review and relink as needed, then save.")
+
+    def delete_fact(self):
+        if self.claim.get("1.0", "end-1c").strip() or self.source.get().strip():
+            self.status.set("Apply or clear pending fact fields before removing a fact.")
+            return
+        if len(self.facts.curselection()) != 1:
+            self.status.set("Select exactly one fact to remove.")
+            return
+        try:
+            self.data = remove_fact(self.data, self.data["facts"][self.facts.curselection()[0]]["id"])
+        except ValueError as exc:
+            self.status.set(str(exc))
+            return
+        self.clear_fact_form()
+        self.refresh()
+        self.status.set("Unlinked fact removed from draft. Save to persist; original snapshots stay intact.")
 
     def load_requirement(self, _event=None):
         if not self.requirements.curselection():

@@ -29,6 +29,36 @@ class EditorTests(unittest.TestCase):
         self.editor.quote.delete("1.0", "end")
         self.editor.quote.insert("1.0", value)
 
+    def test_fact_correction_resets_review_unlinks_and_saves_new_snapshot(self):
+        self.editor.facts.selection_set(0)
+        self.editor.load_fact()
+        self.assertFalse(self.editor.reviewed.get())
+        self.editor.claim.delete("1.0", "end")
+        self.editor.claim.insert("1.0", "Corrected: only a synthetic Python exercise")
+        self.editor.reviewed.set(True)
+        self.editor.update_fact()
+        self.assertIn("removed 1", self.editor.status.get())
+        self.assertEqual(self.editor.data["requirements"][0]["fact_ids"], [])
+        self.editor.save()
+        newest = self.store.load(self.store.list_jobs()[0]["id"])
+        self.assertEqual(newest["review"]["requirements"][0]["state"], "needs_review")
+        self.assertEqual(self.store.load(self.original)["snapshot"], self.fixture)
+
+    def test_fact_removal_rejects_links_and_pending_forms(self):
+        self.editor.facts.selection_set(0)
+        self.editor.delete_fact()
+        self.assertIn("Unlink", self.editor.status.get())
+        self.editor.load_fact()
+        self.editor.delete_fact()
+        self.assertIn("pending", self.editor.status.get())
+        self.editor.update_fact()  # unchecked review revokes links
+        self.editor.facts.selection_set(0)
+        self.editor.delete_fact()
+        self.assertEqual(self.editor.data["facts"], [])
+        self.editor.save()
+        self.assertEqual(len(self.store.list_jobs()), 2)
+        self.assertEqual(self.store.load(self.original)["snapshot"], self.fixture)
+
     def test_link_exact_requirement_save_reopen_and_preserve_original(self):
         self.editor.claim.insert("1.0", "Operated a synthetic Spark exercise; not production employment")
         self.editor.source.insert(0, "Synthetic learning project")
