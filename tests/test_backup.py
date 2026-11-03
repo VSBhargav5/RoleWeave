@@ -50,7 +50,7 @@ class BackupTests(unittest.TestCase):
         self.target.restore(self.backup)
         # Keep only the conflicting ID in a fresh target, with changed metadata.
         self.target = JobStore(self.folder / "conflict.db")
-        original = {"format": data["format"], "jobs": [conflict]}
+        original = {"format": data["format"], "jobs": [conflict], "application_events": []}
         self.rewrite(original)
         self.target.restore(self.backup)
         data["jobs"][-1] = {**conflict, "company": "Conflicting company"}
@@ -103,3 +103,68 @@ class BackupTests(unittest.TestCase):
         empty = self.folder / "empty.json"
         self.assertEqual(self.target.backup(empty), 0)
         self.assertEqual(self.target.restore(empty), (0, 0))
+
+    def test_v2_round_trip_preserves_application_history_and_repeat_restore(self):
+        event = self.store.record_application(self.identifier, "shortlisted", "Check remote scope", "2026-12-04")
+        self.store.record_application(self.identifier, "applied", "Manual observation", "")
+        self.backup.unlink()
+        self.store.backup(self.backup)
+        self.target.restore(self.backup)
+        self.assertEqual(self.target.application_history(self.identifier), self.store.application_history(self.identifier))
+        self.target.restore(self.backup)
+        self.assertEqual(len(self.target.application_history(self.identifier)), 2)
+        self.assertEqual(self.target.application_history(self.identifier)[0], event)
+
+    def test_v1_backups_remain_readable_without_erasing_current_history(self):
+        data = json.loads(self.backup.read_bytes())
+        data["format"] = "roleweave-backup-v1"
+        del data["application_events"]
+        self.rewrite(data)
+        self.target.restore(self.backup)
+        event = self.target.record_application(self.identifier, "interview", "Recorded by user")
+        self.target.restore(self.backup)
+        self.assertEqual(self.target.application_history(self.identifier), [event])
+
+    def test_conflicting_event_rolls_back_new_job_inserts(self):
+        self.store.record_application(self.identifier, "shortlisted")
+        self.backup.unlink()
+        self.store.backup(self.backup)
+        full = json.loads(self.backup.read_bytes())
+        self.rewrite({**full, "jobs": [job for job in full["jobs"] if job["id"] == self.identifier]})
+        self.target.restore(self.backup)
+        before = self.target.list_jobs()
+        full["application_events"][0]["note"] = "Conflicting edit to historical observation"
+        self.rewrite(full)
+        with self.assertRaisesRegex(ValueError, "event ID conflict"):
+            self.target.restore(self.backup)
+        self.assertEqual(self.target.list_jobs(), before)
+        self.assertEqual(self.target.application_history(self.identifier)[0]["note"], "")
+
+    def test_orphan_or_gapped_events_are_rejected_before_writes(self):
+        event = self.store.record_application(self.identifier, "saved")
+        original = json.loads(self.backup.read_bytes())
+        for change in ({"job_id": "orphan"}, {"revision": 3}, {"stage": "auto_applied"}):
+            self.rewrite({**original, "application_events": [{**event, **change}]})
+            with self.assertRaises(ValueError):
+                self.target.restore(self.backup)
+            self.assertEqual(self.target.list_jobs(), [])
+
+    def test_history_follows_identical_job_when_local_id_differs(self):
+        local_id = self.target.save(self.source, "Engineer తెలుగు", "Synthetic Co", "https://example.invalid/job")
+        self.store.record_application(self.identifier, "shortlisted", "Reviewed manually")
+        self.backup.unlink()
+        self.store.backup(self.backup)
+        self.target.restore(self.backup)
+        self.assertEqual(self.target.application_history(local_id)[0]["stage"], "shortlisted")
+        self.target.restore(self.backup)
+        self.assertEqual(len(self.target.application_history(local_id)), 1)
+
+    def test_divergent_revision_does_not_merge_unrelated_observations(self):
+        self.target.restore(self.backup)
+        original = self.target.record_application(self.identifier, "applied", "Local observation")
+        self.store.record_application(self.identifier, "shortlisted", "Different history")
+        self.backup.unlink()
+        self.store.backup(self.backup)
+        with self.assertRaisesRegex(ValueError, "diverges"):
+            self.target.restore(self.backup)
+        self.assertEqual(self.target.application_history(self.identifier), [original])

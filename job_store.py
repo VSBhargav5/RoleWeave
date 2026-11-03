@@ -13,7 +13,7 @@ from roleweave import MARKETS, review_snapshot, text
 from applications import EVENT_FIELDS, current_application, validate_event, validate_history
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
-BACKUP_FORMAT = "roleweave-backup-v1"
+BACKUP_FORMAT = "roleweave-backup-v2"
 
 
 def backup_record(record):
@@ -132,9 +132,18 @@ class JobStore:
 
     def backup(self, destination):
         records = []
-        size = len(json.dumps({"format": BACKUP_FORMAT, "jobs": []}).encode("utf-8"))
-        for summary in self.list_jobs():
-            item = self.load(summary["id"])
+        # Read one consistent SQLite snapshot, including concurrent tracking updates.
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.row_factory = sqlite3.Row
+            db.execute("BEGIN")
+            jobs = [dict(row) for row in db.execute("SELECT * FROM jobs ORDER BY captured_at DESC, id")]
+            events = [dict(row) for row in db.execute("SELECT * FROM application_events ORDER BY job_id, revision")]
+        validate_history(events)
+        job_ids = {job["id"] for job in jobs}
+        if any(event["job_id"] not in job_ids for event in events):
+            raise ValueError("Application history references a missing snapshot")
+        size = len(json.dumps({"format": BACKUP_FORMAT, "jobs": [], "application_events": []}).encode("utf-8"))
+        for item in jobs:
             record = {key: item[key] for key in ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")}
             record["snapshot_base64"] = base64.b64encode(item["snapshot"]).decode("ascii")
             backup_record(record)
@@ -142,7 +151,11 @@ class JobStore:
             if size > MAX_BACKUP_BYTES:
                 raise ValueError("Backup exceeds 64 MiB; no file was created")
             records.append(record)
-        payload = json.dumps({"format": BACKUP_FORMAT, "jobs": records}, ensure_ascii=True).encode("utf-8")
+        for event in events:
+            size += len(json.dumps(event, ensure_ascii=True).encode("utf-8")) + 2
+            if size > MAX_BACKUP_BYTES:
+                raise ValueError("Backup exceeds 64 MiB; no file was created")
+        payload = json.dumps({"format": BACKUP_FORMAT, "jobs": records, "application_events": events}, ensure_ascii=True).encode("utf-8")
         if len(payload) > MAX_BACKUP_BYTES:
             raise ValueError("Backup exceeds 64 MiB; no file was created")
         with Path(destination).open("xb") as target:
@@ -167,25 +180,56 @@ class JobStore:
             data = json.loads(payload, object_pairs_hook=unique)
         except (UnicodeError, json.JSONDecodeError, RecursionError) as exc:
             raise ValueError("Invalid backup JSON") from exc
-        if not isinstance(data, dict) or set(data) != {"format", "jobs"} or data["format"] != BACKUP_FORMAT or not isinstance(data["jobs"], list):
+        if not isinstance(data, dict) or not isinstance(data.get("format"), str):
             raise ValueError("Unsupported backup format")
+        legacy = data["format"] == "roleweave-backup-v1"
+        keys = {"format", "jobs"} if legacy else {"format", "jobs", "application_events"}
+        if set(data) != keys or data["format"] not in ("roleweave-backup-v1", BACKUP_FORMAT) or not isinstance(data["jobs"], list):
+            raise ValueError("Unsupported backup format")
+        events = [] if legacy else data["application_events"]
+        if not isinstance(events, list):
+            raise ValueError("Application history must be a list")
+        validate_history(events)
         records = [backup_record(record) for record in data["jobs"]]
-        if len({row[0] for row in records}) != len(records):
+        identifiers = {row[0] for row in records}
+        if len(identifiers) != len(records):
             raise ValueError("Duplicate job ID in backup")
+        if any(event["job_id"] not in identifiers for event in events):
+            raise ValueError("Application history references a missing backup job")
         added, skipped = 0, 0
         with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("PRAGMA foreign_keys=ON")
+            mapped_ids = {}
             for row in records:
                 existing = db.execute("SELECT * FROM jobs WHERE id = ?", (row[0],)).fetchone()
                 if existing is not None:
                     if existing != row:
                         raise ValueError("Backup job ID conflicts with an existing snapshot; nothing restored")
                     skipped += 1
+                    mapped_ids[row[0]] = row[0]
                     continue
                 duplicate = db.execute("SELECT id FROM jobs WHERE title=? AND company=? AND source_url=? AND input_sha256=?",
                                        (row[1], row[2], row[3], row[6])).fetchone()
                 if duplicate:
                     skipped += 1
+                    mapped_ids[row[0]] = duplicate[0]
                     continue
                 db.execute("INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)", row)
+                mapped_ids[row[0]] = row[0]
                 added += 1
+            for event in events:
+                mapped = {**event, "job_id": mapped_ids[event["job_id"]]}
+                row = tuple(mapped[field] for field in EVENT_FIELDS)
+                existing = db.execute("SELECT * FROM application_events WHERE id=?", (event["id"],)).fetchone()
+                if existing is not None:
+                    if existing != row:
+                        raise ValueError("Application event ID conflict; nothing restored")
+                    continue
+                if db.execute("SELECT id FROM application_events WHERE job_id=? AND revision=?",
+                              (mapped["job_id"], mapped["revision"])).fetchone():
+                    raise ValueError("Application history diverges from existing history; nothing restored")
+                db.execute("INSERT INTO application_events VALUES (?, ?, ?, ?, ?, ?, ?)", row)
+            for identifier in set(mapped_ids.values()):
+                history = db.execute("SELECT * FROM application_events WHERE job_id=? ORDER BY revision", (identifier,)).fetchall()
+                validate_history([dict(zip(EVENT_FIELDS, row)) for row in history])
         return added, skipped
