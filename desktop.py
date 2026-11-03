@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from job_store import JobStore
+from evidence_editor import EvidenceEditor
 from roleweave import MAX_BYTES, review_snapshot
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
@@ -16,6 +17,7 @@ class JobShelf(ttk.Frame):
     def __init__(self, root, store):
         super().__init__(root, padding=16)
         self.store = store
+        self.loaded_review = None
         self.pack(fill="both", expand=True)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(2, weight=1)
@@ -57,7 +59,8 @@ class JobShelf(ttk.Frame):
         self.show_evidence("No saved review selected. New postings have no reviewed evidence.")
         actions = ttk.Frame(right)
         actions.grid(row=7, column=0, columnspan=2, sticky="w", pady=10)
-        ttk.Button(actions, text="Save as new snapshot", command=self.save).pack(side="left")
+        ttk.Button(actions, text="Save posting only", command=self.save).pack(side="left")
+        ttk.Button(actions, text="Review evidence…", command=self.edit_evidence).pack(side="left", padx=8)
         ttk.Button(actions, text="Import review JSON…", command=self.import_review).pack(side="left", padx=8)
         ttk.Button(actions, text="New posting", command=self.new_posting).pack(side="left")
         self.status = tk.StringVar(value="Local only. No scraping, AI requests or application submissions.")
@@ -86,11 +89,36 @@ class JobShelf(ttk.Frame):
                     "posting": self.posting.get("1.0", "end-1c"), "facts": [], "requirements": []}
             snapshot = json.dumps(data, ensure_ascii=False).encode("utf-8")
             self.store.save(snapshot, *self.details())
+            self.loaded_review = data
             self.refresh()
             self.show_evidence("New snapshot saved without requirements or evidence links. Original reviews remain saved.")
             self.status.set("New posting snapshot saved. No requirements or career evidence reviewed yet.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not save", str(exc))
+
+    def edit_evidence(self):
+        data = {"market": MARKET_LABELS[self.market.get()],
+                "posting": self.posting.get("1.0", "end-1c"),
+                "facts": self.loaded_review["facts"] if self.loaded_review else [],
+                "requirements": self.loaded_review["requirements"] if self.loaded_review else []}
+        details = self.details()
+
+        def save_review(review_data):
+            snapshot = json.dumps(review_data, ensure_ascii=False).encode("utf-8")
+            try:
+                identifier = self.store.save(snapshot, *details)
+            except sqlite3.Error as exc:
+                raise ValueError("Database write failed; review was not saved") from exc
+            self.filter.set("All markets")
+            self.refresh()
+            for index, item in enumerate(self.rows):
+                if item["id"] == identifier:
+                    self.jobs.selection_set(index)
+                    self.open_selected()
+                    break
+            self.status.set("Reviewed snapshot saved. Original snapshots are preserved; links do not verify qualification.")
+
+        return EvidenceEditor(self.winfo_toplevel(), data, save_review)
 
     def open_selected(self, _event=None):
         if not self.jobs.curselection():
@@ -98,6 +126,7 @@ class JobShelf(ttk.Frame):
         try:
             item = self.store.load(self.rows[self.jobs.curselection()[0]]["id"])
             data = json.loads(item["snapshot"])
+            self.loaded_review = data
             for key, value in zip(self.fields, (item["title"], item["company"], item["source_url"])):
                 self.fields[key].delete(0, "end")
                 self.fields[key].insert(0, value)
@@ -111,12 +140,13 @@ class JobShelf(ttk.Frame):
                 lines.extend(f"  {fact['claim']} (source: {fact['source']})" for fact in requirement["evidence"])
             self.show_evidence("\n".join(lines) or "No reviewed requirements in this snapshot.")
             self.status.set(f"Snapshot {item['input_sha256'][:12]} · {count} requirement(s). "
-                            "Edits save a new posting with no evidence links; original review is preserved. "
+                            "Review evidence to edit links; Save posting only discards links in the new snapshot. "
                             "Export JSON to inspect its evidence. Eligibility and completeness are unverified.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not open", str(exc))
 
     def new_posting(self):
+        self.loaded_review = None
         self.jobs.selection_clear(0, "end")
         for field in self.fields.values():
             field.delete(0, "end")

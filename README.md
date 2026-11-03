@@ -38,8 +38,9 @@ metadata. Full database backup/restore has not been rehearsed.
 
 Every Save appends a snapshot. Exact duplicates with the same job details are
 rejected. Editing a saved posting creates a new snapshot with no requirements or
-evidence links; the original imported review is preserved. There is no evidence
-editor yet. Hash checks detect changed source bytes on reopen; they do not prove
+evidence links; the original imported review is preserved. Use **Review evidence**
+instead to edit quotes and links while keeping original snapshots.
+Hash checks detect changed source bytes on reopen; they do not prove
 truth, eligibility, completeness or authenticity against a malicious database edit.
 The database and exports are plain text/SQLite without encryption: keep them
 private and outside public Git. The app makes no network calls or submissions.
@@ -63,5 +64,25 @@ redirecting output can store private data. It makes no network/model calls and
 does not submit applications or contact anyone. Input is bounded to 1 MiB.
 
 See [research and phased plan](docs/research-and-plan.md). The next useful slice
-is an evidence editor for saved reviews, guided by a user trial of this shelf.
+is a user trial of saved postings and their reviewed evidence.
 This is not yet a usable full job-search application or evidence of superiority.
+
+## Review requirements and evidence
+
+Select a saved job (or enter a new posting and job details), then choose
+**Review evidence**. In the review window:
+
+1. Select exact text in the posting and choose **Use selected posting text**,
+   or paste an exact quote into the quote field.
+2. Add a career/project claim and its source. Mark it reviewed only after checking
+   it yourself. This checkbox is your assertion, not external verification.
+3. Select the facts that relate to a requirement, then **Add requirement**, or
+   select an existing requirement and **Update selected**. Unreviewed facts cannot
+   be linked; leave a requirement unlinked when the evidence is still unknown.
+4. **Save reviewed snapshot** appends a validated review. **Cancel** discards the
+   draft. Quotes absent from the posting, unresolved form edits and invalid links
+   block saving. Earlier snapshots and their original exports remain available.
+
+Facts can be added here; editing/deleting an existing fact is not yet supported.
+To correct a claim, add a corrected fact and update the relevant requirement links.
+No model inference, eligibility score or qualification claim is produced.
