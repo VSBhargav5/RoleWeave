@@ -1,12 +1,43 @@
 """Append-only local posting snapshots. No network or qualification inference."""
 from contextlib import closing
+import base64
+import binascii
 from datetime import datetime, timezone
 import hashlib
+import json
 from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
 from roleweave import MARKETS, review_snapshot, text
+
+MAX_BACKUP_BYTES = 64 * 1024 * 1024
+BACKUP_FORMAT = "roleweave-backup-v1"
+
+
+def backup_record(record):
+    """Validate backup metadata and original review bytes before any writes."""
+    keys = {"id", "title", "company", "source_url", "market", "captured_at", "input_sha256", "snapshot_base64"}
+    if not isinstance(record, dict) or set(record) != keys:
+        raise ValueError("Invalid backup job fields")
+    for key in ("id", "title", "company", "captured_at", "input_sha256"):
+        text(record[key], key)
+    if not isinstance(record["source_url"], str) or len(record["source_url"]) > 50000:
+        raise ValueError("Invalid backup source URL")
+    try:
+        captured = datetime.fromisoformat(record["captured_at"])
+        if captured.tzinfo is None:
+            raise ValueError("Capture time requires a timezone")
+        if not isinstance(record["snapshot_base64"], str):
+            raise ValueError("Invalid backup source encoding")
+        snapshot = base64.b64decode(record["snapshot_base64"], validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError("Invalid backup time or source encoding") from exc
+    result = review_snapshot(snapshot)
+    if result["input_sha256"] != record["input_sha256"] or result["market"] != record["market"]:
+        raise ValueError("Backup source fingerprint or market does not match")
+    return (record["id"], record["title"], record["company"], record["source_url"],
+            record["market"], record["captured_at"], record["input_sha256"], snapshot)
 
 
 class JobStore:
@@ -67,3 +98,63 @@ class JobStore:
         # Exclusive creation prevents silently replacing an earlier export.
         with Path(destination).open("xb") as target:
             target.write(item["snapshot"])
+
+    def backup(self, destination):
+        records = []
+        size = len(json.dumps({"format": BACKUP_FORMAT, "jobs": []}).encode("utf-8"))
+        for summary in self.list_jobs():
+            item = self.load(summary["id"])
+            record = {key: item[key] for key in ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")}
+            record["snapshot_base64"] = base64.b64encode(item["snapshot"]).decode("ascii")
+            backup_record(record)
+            size += len(json.dumps(record, ensure_ascii=True).encode("utf-8")) + 2
+            if size > MAX_BACKUP_BYTES:
+                raise ValueError("Backup exceeds 64 MiB; no file was created")
+            records.append(record)
+        payload = json.dumps({"format": BACKUP_FORMAT, "jobs": records}, ensure_ascii=True).encode("utf-8")
+        if len(payload) > MAX_BACKUP_BYTES:
+            raise ValueError("Backup exceeds 64 MiB; no file was created")
+        with Path(destination).open("xb") as target:
+            target.write(payload)
+        return len(records)
+
+    def restore(self, source):
+        with Path(source).open("rb") as handle:
+            payload = handle.read(MAX_BACKUP_BYTES + 1)
+        if len(payload) > MAX_BACKUP_BYTES:
+            raise ValueError("Backup exceeds 64 MiB")
+
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("Duplicate backup JSON key")
+                result[key] = value
+            return result
+
+        try:
+            data = json.loads(payload, object_pairs_hook=unique)
+        except (UnicodeError, json.JSONDecodeError, RecursionError) as exc:
+            raise ValueError("Invalid backup JSON") from exc
+        if not isinstance(data, dict) or set(data) != {"format", "jobs"} or data["format"] != BACKUP_FORMAT or not isinstance(data["jobs"], list):
+            raise ValueError("Unsupported backup format")
+        records = [backup_record(record) for record in data["jobs"]]
+        if len({row[0] for row in records}) != len(records):
+            raise ValueError("Duplicate job ID in backup")
+        added, skipped = 0, 0
+        with closing(sqlite3.connect(self.path)) as db, db:
+            for row in records:
+                existing = db.execute("SELECT * FROM jobs WHERE id = ?", (row[0],)).fetchone()
+                if existing is not None:
+                    if existing != row:
+                        raise ValueError("Backup job ID conflicts with an existing snapshot; nothing restored")
+                    skipped += 1
+                    continue
+                duplicate = db.execute("SELECT id FROM jobs WHERE title=? AND company=? AND source_url=? AND input_sha256=?",
+                                       (row[1], row[2], row[3], row[6])).fetchone()
+                if duplicate:
+                    skipped += 1
+                    continue
+                db.execute("INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)", row)
+                added += 1
+        return added, skipped

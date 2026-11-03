@@ -36,6 +36,8 @@ class JobShelf(ttk.Frame):
         self.jobs.pack(fill="both", expand=True, pady=8)
         self.jobs.bind("<<ListboxSelect>>", self.open_selected)
         ttk.Button(left, text="Export original review JSON…", command=self.export_selected).pack(fill="x")
+        ttk.Button(left, text="Back up full shelf…", command=self.backup_shelf).pack(fill="x", pady=(8, 0))
+        ttk.Button(left, text="Restore shelf backup…", command=self.restore_shelf).pack(fill="x", pady=4)
         right = ttk.Frame(self)
         right.grid(row=2, column=1, sticky="nsew")
         right.columnconfigure(1, weight=1)
@@ -180,6 +182,27 @@ class JobShelf(ttk.Frame):
             self.status.set("Original review bytes exported. Job title/company/URL are only in the database.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not export", str(exc))
+
+    def backup_shelf(self):
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("RoleWeave backup", "*.json")])
+        if not path:
+            return
+        try:
+            count = self.store.backup(path)
+            self.status.set(f"Backed up {count} snapshots including job metadata and evidence. Keep this unencrypted file private.")
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not back up", str(exc))
+
+    def restore_shelf(self):
+        path = filedialog.askopenfilename(filetypes=[("RoleWeave backup", "*.json")])
+        if not path:
+            return
+        try:
+            added, skipped = self.store.restore(path)
+            self.refresh()
+            self.status.set(f"Restored {added} snapshots; skipped {skipped} already saved. Existing jobs were preserved.")
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not restore", str(exc))
 
 
 def main():

@@ -40,6 +40,16 @@ class DesktopTests(unittest.TestCase):
                 shelf.jobs.selection_set(0)
                 shelf.open_selected()
                 self.assertIn("needs_review", shelf.evidence.get("1.0", "end-1c"))
+                backup = Path(temp) / "shelf-backup.json"
+                with patch("desktop.filedialog.asksaveasfilename", return_value=str(backup)), patch("desktop.messagebox.showerror") as error:
+                    shelf.backup_shelf()
+                    error.assert_not_called()
+                shelf.store = JobStore(Path(temp) / "restored.db")
+                with patch("desktop.filedialog.askopenfilename", return_value=str(backup)), patch("desktop.messagebox.showerror") as error:
+                    shelf.restore_shelf()
+                    error.assert_not_called()
+                self.assertEqual(len(shelf.rows), 2)
+                self.assertIn("Restored 2", shelf.status.get())
                 root.update_idletasks()
             finally:
                 root.destroy()
