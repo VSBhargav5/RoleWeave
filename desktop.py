@@ -51,6 +51,7 @@ class JobShelf(ttk.Frame):
         self.jobs.pack(fill="both", expand=True, pady=8)
         self.jobs.bind("<<ListboxSelect>>", self.open_selected)
         ttk.Button(left, text="Application notes / follow-up…", command=self.open_tracker).pack(fill="x", pady=4)
+        ttk.Button(left, text="Export preparation pack…", command=self.export_pack).pack(fill="x", pady=4)
         ttk.Button(left, text="Export original review JSON…", command=self.export_selected).pack(fill="x")
         ttk.Button(left, text="Back up full shelf…", command=self.backup_shelf).pack(fill="x", pady=(8, 0))
         ttk.Button(left, text="Restore shelf backup…", command=self.restore_shelf).pack(fill="x", pady=4)
@@ -233,6 +234,19 @@ class JobShelf(ttk.Frame):
             self.status.set(f"Backed up {count} snapshots including job metadata and evidence. Keep this unencrypted file private.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not back up", str(exc))
+
+    def export_pack(self):
+        if not self.jobs.curselection():
+            self.status.set("Select a saved review to export its preparation pack.")
+            return
+        path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Preparation pack", "*.txt")])
+        if not path:
+            return
+        try:
+            self.store.export_preparation_pack(self.rows[self.jobs.curselection()[0]]["id"], path)
+            self.status.set("Private preparation pack exported from saved evidence and history. No application was submitted.")
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not export preparation pack", str(exc))
 
     def restore_shelf(self):
         path = filedialog.askopenfilename(filetypes=[("RoleWeave backup", "*.json")])

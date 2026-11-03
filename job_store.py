@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from roleweave import MARKETS, review_snapshot, text
 from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
+from preparation_pack import build_pack
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
 BACKUP_FORMAT = "roleweave-backup-v2"
@@ -136,6 +137,11 @@ class JobStore:
         # Exclusive creation prevents silently replacing an earlier export.
         with Path(destination).open("xb") as target:
             target.write(item["snapshot"])
+
+    def export_preparation_pack(self, identifier, destination):
+        payload = build_pack(self.load(identifier), self.application_history(identifier))
+        with Path(destination).open("xb") as target:
+            target.write(payload)
 
     def application_history(self, identifier):
         self.load(identifier)
