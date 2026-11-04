@@ -11,6 +11,20 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_database_health_is_read_only_and_never_creates_a_missing_file(self):
+        from workspace_health import inspect_database
+        before = self.store.path.read_bytes()
+        self.assertEqual(inspect_database(self.store.path)["jobs"], 1)
+        self.assertEqual(self.store.path.read_bytes(), before)
+        missing = self.folder / "missing.db"
+        with self.assertRaises(ValueError):
+            inspect_database(missing)
+        self.assertFalse(missing.exists())
+        broken = self.folder / "broken.db"
+        broken.write_bytes(b"Not a database")
+        with self.assertRaises(ValueError):
+            inspect_database(broken)
+
     def test_interview_cards_only_reveal_linked_claims_and_keep_unknowns_open(self):
         from interview_practice import practice_cards
         item = self.store.load(self.job)

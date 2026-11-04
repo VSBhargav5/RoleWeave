@@ -24,6 +24,7 @@ from source_links import source_link
 from workspace_exports import review_list_csv, follow_up_list
 from review_history import ReviewHistory
 from interview_practice import InterviewPractice
+from workspace_health import inspect_database
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -204,6 +205,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Export filtered active follow-ups (.ics)", command=self.export_followups)
         export_menu.add_command(label="Compare related saved versions", command=self.open_versions)
         export_menu.add_command(label="Practise linked interview evidence", command=self.open_practice_cards)
+        export_menu.add_command(label="Check local database storage", command=self.check_database)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -237,6 +239,13 @@ class JobShelf(ttk.Frame):
             self.status.set("Select a saved review and save/discard edits before practising its evidence.")
             return
         return InterviewPractice(self.winfo_toplevel(), self.store.load(self.current_id))
+
+    def check_database(self):
+        try:
+            counts = inspect_database(self.store.path)
+            messagebox.showinfo("Read-only storage check", "SQLite quick_check passed.\n" + "\n".join(f"{key}: {value}" for key, value in counts.items()) + "\nThis checks storage structure, not source authenticity or completeness.", parent=self.winfo_toplevel())
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
 
     def focus_search(self, _event=None):
         self.search_entry.focus_set()
