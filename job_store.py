@@ -195,7 +195,9 @@ class JobStore:
                 raise ValueError("This exact review and job details are already saved") from exc
         return identifier
 
-    def list_jobs(self, market=None, stage=None, query="", due_on=None):
+    def list_jobs(self, market=None, stage=None, query="", due_on=None, search_posting=False):
+        if type(search_posting) is not bool:
+            raise ValueError("Posting search must be explicitly enabled or disabled")
         if market is not None and (not isinstance(market, str) or market not in MARKETS):
             raise ValueError("Unknown market")
         if stage is not None and (not isinstance(stage, str) or stage not in STAGES):
@@ -227,6 +229,8 @@ class JobStore:
             if stage is not None and item["stage"] != stage:
                 continue
             haystack = "\n".join(item[key] for key in ("title", "company", "source_url", "decision_note"))
+            if search_posting and query.strip():
+                haystack += "\n" + json.loads(self.load(item["id"])["snapshot"])["posting"]
             if query.strip().casefold() not in haystack.casefold():
                 continue
             if due_on is not None and (not item["follow_up"] or item["follow_up"] > due_on

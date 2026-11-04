@@ -108,6 +108,8 @@ class JobShelf(ttk.Frame):
         stage_filter.bind("<<ComboboxSelected>>", lambda _event: self.refresh())
         self.due_only = tk.BooleanVar(value=False)
         ttk.Checkbutton(filters, text="Follow-ups due", variable=self.due_only, command=self.refresh).pack(anchor="w")
+        self.search_posting = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filters, text="Search posting text too", variable=self.search_posting, command=self.refresh).pack(anchor="w")
         ttk.Button(left, text="Apply search / refresh", command=self.refresh).grid(row=5, column=0, sticky="ew", pady=(8, 10))
         listing = ttk.Frame(left)
         listing.grid(row=6, column=0, sticky="nsew")
@@ -286,7 +288,8 @@ class JobShelf(ttk.Frame):
         try:
             rows = self.store.list_jobs(MARKET_LABELS.get(self.filter.get()),
                                         stage=None if self.stage_filter.get() == "All stages" else self.stage_filter.get(),
-                                        query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None)
+                                        query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None,
+                                        search_posting=self.search_posting.get())
             all_rows = self.store.list_jobs()
             resume_count = len(self.store.list_resumes())
         except (OSError, ValueError, sqlite3.Error) as exc:

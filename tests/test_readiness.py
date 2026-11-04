@@ -11,6 +11,12 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_posting_search_is_explicit_and_checks_exact_saved_source(self):
+        self.assertEqual(self.store.list_jobs(query="Spark"), [])
+        self.assertEqual(self.store.list_jobs(query="SPARK", search_posting=True)[0]["id"], self.job)
+        with self.assertRaises(ValueError):
+            self.store.list_jobs(search_posting="yes")
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
