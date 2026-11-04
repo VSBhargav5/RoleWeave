@@ -16,6 +16,7 @@ from resume_builder import ResumeBuilder
 from demo_data import seed_practice
 from runtime_paths import APP_VERSION, default_database_path, new_practice_path
 from startup_selftest import run_self_test
+from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
@@ -49,6 +50,7 @@ class JobShelf(ttk.Frame):
         search.pack(fill="x")
         search.bind("<Return>", lambda _event: self.refresh())
         ttk.Button(left, text="Search / refresh", command=self.refresh).pack(fill="x", pady=4)
+        ttk.Button(left, text="Discover public jobs…", command=self.open_discovery).pack(fill="x", pady=4)
         self.filter = tk.StringVar(value="All markets")
         chooser = ttk.Combobox(left, textvariable=self.filter, state="readonly",
                                values=["All markets", *MARKET_LABELS], width=30)
@@ -99,7 +101,7 @@ class JobShelf(ttk.Frame):
         ttk.Button(actions, text="Import review JSON…", command=self.import_review).grid(row=0, column=2, padx=4, pady=4)
         ttk.Button(actions, text="New posting", command=self.new_posting).grid(row=1, column=0, padx=4, pady=4)
         ttk.Button(actions, text="Reload saved review", command=self.reload_saved).grid(row=1, column=1, padx=4, pady=4)
-        self.status = tk.StringVar(value="Local only. No scraping, AI requests or application submissions.")
+        self.status = tk.StringVar(value="Local shelf. Network requests only through explicit discovery or AI actions. No application submissions.")
         ttk.Label(self, textvariable=self.status, wraplength=900).grid(
             row=4, column=0, columnspan=2, sticky="w", pady=(12, 0))
         self.baseline = self.form_state()
@@ -109,6 +111,12 @@ class JobShelf(ttk.Frame):
     def profile_changed(self):
         profile = self.store.active_profile()
         self.profile_status.set("Profile: " + profile["profile"]["name"] if profile else "Start here: create your career profile and reviewed facts.")
+
+    def open_discovery(self):
+        if self.has_draft_changes():
+            self.status.set("Save or discard posting edits before importing discovered jobs.")
+            return
+        return DiscoveryWindow(self.winfo_toplevel(), self.store, MARKET_LABELS, self.show_saved)
 
     def open_profile(self):
         try:
@@ -158,10 +166,10 @@ class JobShelf(ttk.Frame):
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="Start with one job and facts you can defend", font=("Segoe UI", 16)).pack(anchor="w")
         instructions = ["1. My career profile: enter your identity, summary and sourced facts. Choose each fact's section and review it.",
-                        "2. Paste a permitted job posting, choose its market and save it. Keep India/remote and relocation separate.",
-                        "3. Review evidence: copy relevant career facts, select exact requirement quotes and link them deliberately.",
+                        "2. Paste a permitted posting or use Discover public jobs for one Greenhouse board. Choose the market explicitly.",
+                        "3. Review evidence: select exact quotes and link relevant facts deliberately. Optional AI proposes quotes only after payload review and consent.",
                         "4. Build a resume: select reviewed claims, preview and approve. Save a frozen version, then export HTML/PDF.",
-                        "5. Application notes: record your decisions and follow-up dates. These are manual observations, not submissions.",
+                        "5. Application notes: record decisions and follow-up dates; export a calendar file if useful. Nothing submits applications or links calendar accounts.",
                         "6. Back up the full shelf regularly. V3 includes your profile, resume versions and application history."]
         for instruction in instructions:
             ttk.Label(body, text=instruction, wraplength=760).pack(anchor="w", pady=7)

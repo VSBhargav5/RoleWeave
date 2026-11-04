@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from roleweave import review, text, revise_fact, remove_fact
 from profile_editor import CareerFactPicker
+from ai_requirements import adopt_quotes
+from ai_window import AIRequirementsWindow
 
 
 class EvidenceEditor(tk.Toplevel):
@@ -50,6 +52,7 @@ class EvidenceEditor(tk.Toplevel):
         ttk.Button(actions, text="Add requirement", command=self.add_requirement).pack(side="left")
         ttk.Button(actions, text="Update selected", command=self.update_requirement).pack(side="left", padx=6)
         ttk.Button(requirements, text="Remove selected requirement", command=self.remove_requirement).pack(anchor="w")
+        ttk.Button(requirements, text="AI: propose exact requirement quotes…", command=self.open_ai).pack(anchor="w", pady=4)
         ttk.Label(facts, text="Select facts to link to the requirement (Ctrl-click for multiple).",
                   wraplength=420).pack(anchor="w")
         self.facts = tk.Listbox(facts, height=6, selectmode="multiple", exportselection=False)
@@ -103,6 +106,14 @@ class EvidenceEditor(tk.Toplevel):
     def open_career_facts(self):
         if self.career_profile:
             return CareerFactPicker(self, self.career_profile, self.copy_career_facts)
+
+    def open_ai(self):
+        return AIRequirementsWindow(self, self.data["posting"], self.accept_ai_quotes)
+
+    def accept_ai_quotes(self, quotes, source_hash):
+        self.data = adopt_quotes(self.data, quotes, source_hash)
+        self.refresh()
+        self.status.set("Reviewed AI quotes added to this unsaved draft without fact links. Save reviewed snapshot to persist.")
 
     def copy_career_facts(self, facts):
         existing = {fact["id"]: fact for fact in self.data["facts"]}

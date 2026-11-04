@@ -1,0 +1,14 @@
+{
+  "jobs": [
+    {
+      "id": 123,
+      "internal_job_id": 456,
+      "title": "Synthetic Discovered Data Engineer",
+      "absolute_url": "https://example.invalid/jobs/123",
+      "updated_at": "2026-11-04T00:00:00Z",
+      "location": {"name": "Example location; eligibility unverified"},
+      "content": "&lt;p&gt;Python required. SQL preferred.&lt;/p&gt;"
+    }
+  ],
+  "meta": {"total": 1}
+}
