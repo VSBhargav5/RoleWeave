@@ -23,6 +23,7 @@ from desktop_theme import apply_theme, polish_widgets
 from source_links import source_link
 from workspace_exports import review_list_csv, follow_up_list
 from review_history import ReviewHistory
+from interview_practice import InterviewPractice
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -202,6 +203,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Export this filtered review list (.csv)", command=self.export_list)
         export_menu.add_command(label="Export filtered active follow-ups (.ics)", command=self.export_followups)
         export_menu.add_command(label="Compare related saved versions", command=self.open_versions)
+        export_menu.add_command(label="Practise linked interview evidence", command=self.open_practice_cards)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -229,6 +231,12 @@ class JobShelf(ttk.Frame):
             self.status.set("Select a saved review and save/discard edits before comparing versions.")
             return
         return ReviewHistory(self.winfo_toplevel(), self.store, self.current_id)
+
+    def open_practice_cards(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before practising its evidence.")
+            return
+        return InterviewPractice(self.winfo_toplevel(), self.store.load(self.current_id))
 
     def focus_search(self, _event=None):
         self.search_entry.focus_set()

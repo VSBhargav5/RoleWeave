@@ -11,6 +11,17 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_interview_cards_only_reveal_linked_claims_and_keep_unknowns_open(self):
+        from interview_practice import practice_cards
+        item = self.store.load(self.job)
+        cards = practice_cards(item)
+        self.assertEqual(len(cards), 2)
+        self.assertIn("CSV reconciliation", cards[0]["evidence"])
+        self.assertIn("No evidence linked", cards[1]["evidence"])
+        self.assertNotIn("missing skill", cards[1]["evidence"])
+        with self.assertRaises(ValueError):
+            practice_cards({**item, "input_sha256": "0" * 64})
+
     def test_version_diff_reveals_source_change_without_inheriting_application_state(self):
         from review_history import review_difference
         self.store.record_application(self.job, "applied", "Original review only")
