@@ -77,8 +77,12 @@ The local workflow now includes fact/requirement editing, manual application
 history and follow-up dates, combined market/stage/search filters, preparation
 packs and versioned full backup/restore. Native Windows and offline regression
 tests cover synthetic workflows; user practice and usefulness remain unverified.
-Shared career-profile management, reviewed resume/PDF output, live provider/source
-trials, external integrations and installer delivery remain pending. Follow-up
+Version 0.3.0 adds immutable shared career profiles, explicit reviewed resume
+selection, frozen HTML/PDF versions, v3 profile/resume recovery and a portable
+Windows build. Synthetic regression tests and a packaged runtime smoke cover
+these paths; a rendered example PDF was visually checked and text-extracted.
+Live provider/source trials, external integrations and installer delivery
+remain pending. Follow-up
 dates are shown inside the app; no background notifications are implemented.
 No adoption, time savings,
 ATS compatibility, answer quality or revenue has been demonstrated.
