@@ -93,7 +93,7 @@ class JobShelf(ttk.Frame):
         left.rowconfigure(6, weight=1)
         library_heading = ttk.Frame(left)
         library_heading.grid(row=0, column=0, sticky="ew")
-        ttk.Label(library_heading, text="Your opportunities", style="Section.TLabel").pack(side="left")
+        ttk.Label(library_heading, text="Opportunities", style="Section.TLabel").pack(side="left")
         self.sort_order = tk.StringVar(value="newest")
         sort_menu = tk.Menu(self, tearoff=False)
         for label, value in (("Newest", "newest"), ("Oldest", "oldest"), ("Title", "title"), ("Company", "company"), ("Follow-up date", "follow_up")):
@@ -103,6 +103,7 @@ class JobShelf(ttk.Frame):
         ttk.Label(left, textvariable=self.library_count, style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(3, 12))
         self.search = tk.StringVar()
         search = ttk.Entry(left, textvariable=self.search)
+        self.search_entry = search
         search.grid(row=2, column=0, sticky="ew")
         search.bind("<Return>", lambda _event: self.refresh())
         ttk.Label(left, text="Search title, company or latest note", style="Muted.TLabel", font=("Segoe UI", 8)).grid(row=3, column=0, sticky="w", pady=(4, 10))
@@ -213,10 +214,23 @@ class JobShelf(ttk.Frame):
         self.baseline = self.form_state()
         self.refresh()
         self.profile_changed()
+        root.bind("<Control-f>", self.focus_search)
+        root.bind("<Control-n>", lambda _event: self.shortcut(self.new_posting))
+        root.bind("<Control-e>", lambda _event: self.shortcut(self.edit_evidence))
 
     def focus_workspace(self):
         self.detail_tabs.select(0)
         self.posting.focus_set()
+
+    def focus_search(self, _event=None):
+        self.search_entry.focus_set()
+        self.search_entry.selection_range(0, "end")
+        return "break"
+
+    @staticmethod
+    def shortcut(action):
+        action()
+        return "break"
 
     def open_source(self):
         if self.has_draft_changes() or self.current_id is None:

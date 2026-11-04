@@ -11,6 +11,14 @@ from job_store import JobStore
 
 @unittest.skipUnless(os.name == "nt", "Windows readiness interactions")
 class ReadinessUITests(unittest.TestCase):
+    def test_keyboard_new_uses_existing_unsaved_guard(self):
+        self.shelf.posting.insert("end", " UNSAVED")
+        with patch("desktop.messagebox.askyesno", return_value=False):
+            self.assertEqual(self.shelf.shortcut(self.shelf.new_posting), "break")
+        self.assertIn("UNSAVED", self.shelf.posting.get("1.0", "end"))
+        self.assertEqual(self.shelf.current_id, self.job)
+        self.assertTrue(self.root.bind("<Control-f>"))
+
     def setUp(self):
         import tkinter as tk
         from desktop import JobShelf
