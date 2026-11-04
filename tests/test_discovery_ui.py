@@ -21,6 +21,7 @@ class DiscoveryUITests(unittest.TestCase):
         self.root = tk.Tk()
         self.root.withdraw()
         self.addCleanup(self.root.destroy)
+        self.addCleanup(self.root.update_idletasks)
         self.shelf = JobShelf(self.root, self.store)
         self.window = self.shelf.open_discovery()
         self.window.withdraw()

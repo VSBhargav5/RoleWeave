@@ -21,6 +21,7 @@ class AIUITests(unittest.TestCase):
         self.root = tk.Tk()
         self.root.withdraw()
         self.addCleanup(self.root.destroy)
+        self.addCleanup(self.root.update_idletasks)
         self.store = JobStore(Path(self.temp.name) / "jobs.db")
         source = (Path(__file__).parents[1] / "examples/synthetic.json").read_bytes()
         identifier = self.store.save(source, "Synthetic Engineer", "Synthetic Co")

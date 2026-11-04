@@ -166,10 +166,10 @@ class JobShelf(ttk.Frame):
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="Start with one job and facts you can defend", font=("Segoe UI", 16)).pack(anchor="w")
         instructions = ["1. My career profile: enter your identity, summary and sourced facts. Choose each fact's section and review it.",
-                        "2. Paste a permitted job posting, choose its market and save it. Keep India/remote and relocation separate.",
-                        "3. Review evidence: copy relevant career facts, select exact requirement quotes and link them deliberately.",
+                        "2. Paste a permitted posting or use Discover public jobs for one Greenhouse board. Choose the market explicitly.",
+                        "3. Review evidence: select exact quotes and link relevant facts deliberately. Optional AI proposes quotes only after payload review and consent.",
                         "4. Build a resume: select reviewed claims, preview and approve. Save a frozen version, then export HTML/PDF.",
-                        "5. Application notes: record your decisions and follow-up dates. These are manual observations, not submissions.",
+                        "5. Application notes: record decisions and follow-up dates; export a calendar file if useful. Nothing submits applications or links calendar accounts.",
                         "6. Back up the full shelf regularly. V3 includes your profile, resume versions and application history."]
         for instruction in instructions:
             ttk.Label(body, text=instruction, wraplength=760).pack(anchor="w", pady=7)

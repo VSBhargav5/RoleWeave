@@ -7,7 +7,8 @@ import tkinter as tk
 
 from demo_data import seed_practice
 from job_store import JobStore
-from runtime_paths import APP_VERSION
+from runtime_paths import APP_VERSION, RESOURCE_ROOT
+from discovery import parse_board
 
 
 def run_self_test(folder, shelf_type):
@@ -29,6 +30,30 @@ def run_self_test(folder, shelf_type):
         assert profile.fields["name"].get() == "Synthetic Candidate"
         profile.destroy()
         report["checks"].append("native-tk-profile")
+        discovery = shelf.open_discovery()
+        discovery.withdraw()
+        discovery.token.insert(0, "synthetic")
+        discovery.company.insert(0, "Synthetic Discovered Co")
+        discovery.market.set("International relocation")
+        discovery.received(parse_board((RESOURCE_ROOT / "examples/greenhouse-synthetic.json").read_bytes(), "synthetic"))
+        discovery.rows.selection_set("0")
+        discovery.import_selected()
+        assert len(store.list_jobs()) == 3, discovery.status.get()
+        discovery.close()
+        shelf.show_saved(job)
+        editor = shelf.edit_evidence()
+        editor.withdraw()
+        assistant = editor.open_ai()
+        assistant.withdraw()
+        # Synthetic proposals exercise review/adoption without a provider call.
+        assistant.received(["Spark operations required."])
+        assistant.quotes.selection_set(0)
+        assistant.reviewed.set(True)
+        assistant.accept()
+        editor.save()
+        assert len(store.list_jobs()) == 4
+        job = shelf.current_id
+        report["checks"].append("offline-discovery-and-ai-quote-review")
         resume = shelf.open_resume()
         resume.withdraw()
         resume.facts.selection_set(0)
@@ -45,13 +70,16 @@ def run_self_test(folder, shelf_type):
         resume.destroy()
         report["checks"].append("reviewed-html-pdf-and-bundled-fonts")
         store.record_application(job, "shortlisted", "Synthetic self-test observation", "2026-12-03")
+        store.export_follow_up(job, folder / "synthetic-follow-up.ics")
+        assert b"DTSTART;VALUE=DATE:20261203" in (folder / "synthetic-follow-up.ics").read_bytes()
+        report["checks"].append("private-calendar-export")
         store.backup(folder / "synthetic-backup.json")
         restored = JobStore(folder / "restored.db")
         restored.restore(folder / "synthetic-backup.json")
         assert restored.load_resume(identifier)["snapshot"] == store.load_resume(identifier)["snapshot"]
         assert restored.application_history(job) == store.application_history(job)
         assert restored.active_profile()["snapshot"] == store.active_profile()["snapshot"]
-        assert restored.restore(folder / "synthetic-backup.json") == (0, 2)
+        assert restored.restore(folder / "synthetic-backup.json") == (0, 4)
         report["checks"].append("v3-profile-resume-history-recovery")
         report["ok"] = True
     except Exception as exc:

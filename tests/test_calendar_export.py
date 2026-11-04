@@ -92,4 +92,5 @@ class CalendarTests(unittest.TestCase):
                 tracker.export_calendar()
             self.assertTrue(path.read_bytes().startswith(b"BEGIN:VCALENDAR\r\n"))
         finally:
+            root.update_idletasks()
             root.destroy()

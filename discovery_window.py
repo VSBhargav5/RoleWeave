@@ -120,7 +120,7 @@ class DiscoveryWindow(tk.Toplevel):
             return
         self.preview.configure(state="normal")
         self.preview.delete("1.0", "end")
-        self.preview.insert("1.0", row["posting"])
+        self.preview.insert("1.0", f"Fetch observed UTC: {self.feed['fetched_at']}\nResponse byte SHA256: {self.feed['response_sha256']}\n\n" + row["posting"])
         self.preview.configure(state="disabled")
 
     def import_selected(self):

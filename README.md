@@ -8,14 +8,16 @@ evidence, manual application tracking, follow-ups and preparation packs.
 
 ## Start on Windows
 
-Version 0.3.0 is a local release candidate: save jobs, reuse reviewed career
-facts, select a resume, export HTML/PDF and track your decisions. No account,
-API key or server is required. Personal usefulness still needs your trial.
+Version 0.4.0 adds public Greenhouse discovery, optional reviewed AI quote
+proposals and calendar follow-up files to the local profile/resume/tracking
+workflow. Core features need no account, key or server. AI alone needs your own
+OpenAI key and explicit authorization for each potentially charged request.
+Personal usefulness still needs your trial.
 
-For the portable build, extract the **whole** `RoleWeave-0.3.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.4.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned; an installer and automatic updates are not provided.
-The CI run's `RoleWeave-0.3.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.4.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -89,7 +91,8 @@ instead to edit quotes and links while keeping original snapshots.
 Hash checks detect changed source bytes on reopen; they do not prove
 truth, eligibility, completeness or authenticity against a malicious database edit.
 The database and exports are plain text/SQLite without encryption: keep them
-private and outside public Git. The app makes no network calls or submissions.
+private and outside public Git. The core shelf is local. Only explicit discovery
+and AI actions use the network; the app never submits applications.
 
 The synthetic example links a Python requirement to a reviewed project claim
 and leaves production Spark experience as an open review item. It never converts
@@ -111,8 +114,10 @@ does not submit applications or contact anyone. Input is bounded to 1 MiB.
 
 See [research and phased plan](docs/research-and-plan.md). The next useful slice
 is a user trial of saved postings and their reviewed evidence.
-Live job discovery, AI extraction/rewording, email/calendar integrations and
-automatic submissions are outside this release. No superiority claim is made.
+See [discovery, AI and calendar use](docs/connected-workflow.md). AI rewording,
+email/account linking and automatic submissions are outside this release.
+Calendar integration is a local file export, not synchronized account access.
+No superiority claim is made.
 
 ## Review requirements and evidence
 
@@ -210,9 +215,10 @@ include saved data, not unsaved form edits.
 Follow [the resume and recovery exercise](docs/resume-first-principles.md).
 Manual posting capture, evidence review, tracking, preparation packs, reusable
 profile versions, reviewed HTML/PDF resumes and v3 recovery are implemented.
-Live source discovery, AI assistance, external integrations and an installer
-remain pending. Personal usefulness, real job-search outcomes and complete
-manual file-dialog coverage remain unverified.
+One public source adapter, optional AI requirement-quote assistance and calendar
+file export are available. Additional sources, email/account integrations and
+an installer remain pending. Personal usefulness, live AI quality, real outcomes
+and complete manual file-dialog coverage remain unverified.
 
 ## Reproduce the checks / build
 

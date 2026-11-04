@@ -81,8 +81,10 @@ Version 0.3.0 adds immutable shared career profiles, explicit reviewed resume
 selection, frozen HTML/PDF versions, v3 profile/resume recovery and a portable
 Windows build. Synthetic regression tests and a packaged runtime smoke cover
 these paths; a rendered example PDF was visually checked and text-extracted.
-Live provider/source trials, external integrations and installer delivery
-remain pending. Follow-up
+Version 0.4 starts one explicit public Greenhouse source, optional AI exact-quote
+proposals with request preview/consent and local calendar-file integration. A
+read-only public source check passed; live AI quality/account access, remote
+account integrations and installer delivery remain pending. Follow-up
 dates are shown inside the app; no background notifications are implemented.
 No adoption, time savings,
 ATS compatibility, answer quality or revenue has been demonstrated.
