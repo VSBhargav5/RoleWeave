@@ -59,6 +59,9 @@ class ResumeBuilder(tk.Toplevel):
         self.confirmed = tk.BooleanVar(value=False)
         ttk.Checkbutton(create, text="I reviewed this resume's identity, summary and selected claims", variable=self.confirmed).pack(anchor="w", pady=6)
         ttk.Button(create, text="Save frozen resume version", style="Primary.TButton", command=self.save).pack(anchor="w", pady=6)
+        self.only_this_job = tk.BooleanVar(value=job is not None)
+        ttk.Checkbutton(saved, text="Only versions for this exact saved job review", variable=self.only_this_job,
+                        command=self.refresh_versions, state="normal" if job else "disabled").pack(anchor="w")
         self.versions = tk.Listbox(saved, height=7, exportselection=False)
         self.versions.pack(fill="x")
         self.versions.bind("<<ListboxSelect>>", self.load_version)
@@ -134,7 +137,10 @@ class ResumeBuilder(tk.Toplevel):
         self.status.set("Resume version saved. Export it below and inspect the document before using it.")
 
     def refresh_versions(self):
-        self.rows = self.store.list_resumes()
+        self.rows = self.store.list_resumes(self.job["id"] if self.job and self.only_this_job.get() else None)
+        self.current_version = None
+        self.pdf_button.configure(state="disabled")
+        self.set_preview(self.saved_preview, "Select a version from this list. Broaden the filter to see other jobs or general resumes.")
         self.versions.delete(0, "end")
         for item in self.rows:
             formats = "HTML + PDF" if item["has_pdf"] else "HTML-only"

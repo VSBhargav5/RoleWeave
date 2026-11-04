@@ -120,12 +120,20 @@ class JobStore:
         item["resume"] = record
         return item
 
-    def list_resumes(self):
+    def list_resumes(self, job_id=None):
+        if job_id is not None:
+            self.load(job_id)
         with closing(sqlite3.connect(self.path)) as db:
             rows = db.execute("SELECT id FROM resume_versions ORDER BY created_at DESC, id").fetchall()
-        return [{"id": row[0], "created_at": item["created_at"], "label": item["resume"]["label"],
-                 "has_pdf": bool(item["resume"]["pdf_base64"])}
-                for row in rows for item in [self.load_resume(row[0])]]
+        result = []
+        for row in rows:
+            item = self.load_resume(row[0])
+            context = item["resume"]["job_context"]
+            if job_id is not None and (context is None or context["id"] != job_id):
+                continue
+            result.append({"id": row[0], "created_at": item["created_at"], "label": item["resume"]["label"],
+                           "has_pdf": bool(item["resume"]["pdf_base64"])})
+        return result
 
     def export_resume(self, identifier, destination, format):
         if format not in ("html", "pdf", "txt"):

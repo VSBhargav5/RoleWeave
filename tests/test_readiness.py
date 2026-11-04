@@ -11,6 +11,14 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_resume_job_filter_does_not_mix_general_or_other_review_versions(self):
+        from test_profile import synthetic_profile
+        profile = self.store.save_profile(json.dumps(synthetic_profile()).encode())
+        specific = self.store.create_resume(profile, ["project-python"], "Role resume", self.job, False, True)
+        self.store.create_resume(profile, ["project-python"], "General", include_pdf=False, confirmed=True)
+        self.assertEqual([row["id"] for row in self.store.list_resumes(self.job)], [specific])
+        self.assertEqual(len(self.store.list_resumes()), 2)
+
     def test_plain_resume_export_uses_frozen_selection_and_excludes_sources(self):
         from test_profile import synthetic_profile
         data = synthetic_profile()
