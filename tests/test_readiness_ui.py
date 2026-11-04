@@ -11,6 +11,20 @@ from job_store import JobStore
 
 @unittest.skipUnless(os.name == "nt", "Windows readiness interactions")
 class ReadinessUITests(unittest.TestCase):
+    def test_filtered_fact_selection_keeps_identity_and_imported_draft_is_guarded(self):
+        editor = self.shelf.open_profile()
+        editor.fact_query.set("SQL")
+        editor.refresh_facts()
+        editor.facts.selection_set(0)
+        editor.load_fact()
+        self.assertIn("SQL", editor.claim.get("1.0", "end"))
+        editor.clear_fact()
+        editor.imported_draft = True
+        with patch("profile_editor.messagebox.askyesno", return_value=False):
+            editor.close()
+        self.assertTrue(editor.winfo_exists())
+        editor.destroy()
+
     def test_keyboard_new_uses_existing_unsaved_guard(self):
         self.shelf.posting.insert("end", " UNSAVED")
         with patch("desktop.messagebox.askyesno", return_value=False):
