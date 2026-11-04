@@ -12,6 +12,7 @@ from evidence_editor import EvidenceEditor
 from applications import STAGES
 from application_tracker import ApplicationTracker
 from profile_editor import CareerProfileEditor
+from resume_builder import ResumeBuilder
 from roleweave import MAX_BYTES, review_snapshot
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
@@ -33,8 +34,9 @@ class JobShelf(ttk.Frame):
         toolbar = ttk.Frame(self)
         toolbar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         ttk.Button(toolbar, text="My career profile…", command=self.open_profile).pack(side="left")
+        ttk.Button(toolbar, text="Build / export resume…", command=self.open_resume).pack(side="left", padx=8)
         self.profile_status = tk.StringVar()
-        ttk.Label(toolbar, textvariable=self.profile_status).pack(side="left", padx=12)
+        ttk.Label(toolbar, textvariable=self.profile_status, wraplength=440).pack(side="left", padx=12)
         left = ttk.Frame(self, padding=(0, 0, 16, 0))
         left.grid(row=3, column=0, sticky="nsew")
         self.search = tk.StringVar()
@@ -110,6 +112,21 @@ class JobShelf(ttk.Frame):
             return CareerProfileEditor(self.winfo_toplevel(), self.store, self.profile_changed, job)
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not open career profile", str(exc))
+
+    def open_resume(self):
+        if self.has_draft_changes():
+            self.status.set("Save or discard posting edits before building a resume for the saved review.")
+            return
+        try:
+            profile = self.store.active_profile()
+            if profile is None:
+                self.status.set("Start with My career profile: add your identity and reviewed facts before building a resume.")
+                return
+            job = self.store.load(self.current_id) if self.current_id else None
+            return ResumeBuilder(self.winfo_toplevel(), self.store, profile, job,
+                                 lambda: self.status.set("A reviewed resume version was saved. Export from the resume window."))
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not open resumes", str(exc))
 
     def refresh(self):
         try:

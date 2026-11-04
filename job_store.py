@@ -127,12 +127,16 @@ class JobStore:
     def export_resume(self, identifier, destination, format):
         if format not in ("html", "pdf"):
             raise ValueError("Choose HTML or PDF")
+        suffixes = (".html", ".htm") if format == "html" else (".pdf",)
+        if Path(destination).suffix.lower() not in suffixes:
+            raise ValueError("Choose a filename ending in " + suffixes[0])
         record = self.load_resume(identifier)["resume"]
         if format == "pdf" and not record["pdf_base64"]:
             raise ValueError("This saved version is HTML-only; print the HTML from your browser")
         payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
         with Path(destination).open("xb") as target:
             target.write(payload)
+        return record[format + "_sha256"]
 
     def save_profile(self, snapshot):
         _data, digest = profile_snapshot(snapshot)
