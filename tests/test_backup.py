@@ -50,7 +50,7 @@ class BackupTests(unittest.TestCase):
         self.target.restore(self.backup)
         # Keep only the conflicting ID in a fresh target, with changed metadata.
         self.target = JobStore(self.folder / "conflict.db")
-        original = {"format": data["format"], "jobs": [conflict], "application_events": []}
+        original = {**data, "jobs": [conflict], "application_events": []}
         self.rewrite(original)
         self.target.restore(self.backup)
         data["jobs"][-1] = {**conflict, "company": "Conflicting company"}
@@ -117,8 +117,7 @@ class BackupTests(unittest.TestCase):
 
     def test_v1_backups_remain_readable_without_erasing_current_history(self):
         data = json.loads(self.backup.read_bytes())
-        data["format"] = "roleweave-backup-v1"
-        del data["application_events"]
+        data = {"format": "roleweave-backup-v1", "jobs": data["jobs"]}
         self.rewrite(data)
         self.target.restore(self.backup)
         event = self.target.record_application(self.identifier, "interview", "Recorded by user")

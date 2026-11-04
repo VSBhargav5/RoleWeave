@@ -6,19 +6,62 @@ Original implementation inspired by existing tools, with no upstream source,
 assets or history imported. Local Windows workspace for posting review, selected
 evidence, manual application tracking, follow-ups and preparation packs.
 
-## Run today
+## Start on Windows
 
-Python 3.11+; no dependencies, API keys or server:
+Version 0.3.0 is a local release candidate: save jobs, reuse reviewed career
+facts, select a resume, export HTML/PDF and track your decisions. No account,
+API key or server is required. Personal usefulness still needs your trial.
+
+For the portable build, extract the **whole** `RoleWeave-0.3.0-windows-x64.zip`
+and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
+The build is unsigned; an installer and automatic updates are not provided.
+The CI run's `RoleWeave-0.3.0-windows-x64` artifact contains this ZIP.
+
+For source use, install Python 3.11+ with Tcl/Tk, run
+`Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
+`Launch-RoleWeave.cmd` in File Explorer. The launcher preserves the project's
+existing `private/jobs.db`, including when a local portable build is present.
+PDF export uses ReportLab; HTML and the other local workflows remain available
+when that optional import is absent.
+
+From PowerShell:
 
 ```powershell
+python -m pip install -r requirements.txt
+python desktop.py --demo
 python desktop.py
 python roleweave.py examples/synthetic.json
-python -m unittest discover -s tests -v
 ```
 
-On Windows, open `Launch-RoleWeave.cmd` in File Explorer. Python 3.11+ with
-Tkinter is required; no extra packages or credentials. If Tk is absent, enable
-Tcl/Tk in your Python installation. The launcher keeps its console on failure.
+**Start here / help** explains the workflow and opens a separate synthetic
+practice workspace. `--demo` does the same without touching your real shelf.
+Source mode defaults to `private/jobs.db`; a standalone portable executable
+defaults to `%LOCALAPPDATA%/RoleWeave/jobs.db`. Use the full-shelf backup/restore
+buttons when moving between them. `--db PATH` explicitly selects a database.
+
+## Your first complete workflow
+
+1. Open **My career profile**. Enter your contact details/summary and add facts
+   with sources and a section (Experience, Projects, Education, Skills or
+   Additional). Check review only for facts you have checked. Save a new version.
+2. Save a permitted posting and choose its market. In **Review evidence**, copy
+   reviewed career facts and explicitly link relevant ones to exact posting
+   quotes. Copying alone never links or qualifies you.
+3. Choose **Build / export resume**. Select relevant reviewed claims, preview
+   the exact text, confirm you reviewed it, then save a frozen version. No
+   dates, employers, credentials, metrics or new wording are invented.
+4. Under **Saved versions / export**, export to a new HTML/PDF filename and
+   inspect it. Earlier resumes retain their exact bytes after profile edits.
+   Source notes and unselected claims are excluded from the document. The
+   private database/backup retains the source profile for traceability.
+5. Record your application stage/notes and follow-up date manually. Export a
+   preparation pack for the saved review. Back up the full shelf and rehearse
+   restoring in a separate practice database.
+
+Built-in PDFs use one text layout and bundled Vera fonts. Unsupported characters
+fail explicitly: choose HTML-only and use your browser's print-to-PDF if suitable.
+This is not a universal-script typesetting engine or an ATS compatibility claim.
+Preview exports before sending them yourself. The app never submits applications.
 
 ## Save and reopen a job
 
@@ -68,7 +111,8 @@ does not submit applications or contact anyone. Input is bounded to 1 MiB.
 
 See [research and phased plan](docs/research-and-plan.md). The next useful slice
 is a user trial of saved postings and their reviewed evidence.
-This is not yet a usable full job-search application or evidence of superiority.
+Live job discovery, AI extraction/rewording, email/calendar integrations and
+automatic submissions are outside this release. No superiority claim is made.
 
 ## Review requirements and evidence
 
@@ -100,9 +144,12 @@ No model inference, eligibility score or qualification claim is produced.
 
 Choose **Back up full shelf** on the left and use a new JSON filename. This
 contains every snapshot, title, company, source URL, market, capture time and
-application observation. New backups use `roleweave-backup-v2`. Older v1 backups
-still restore without erasing newer tracking history. Older app versions cannot
-read v2 backups.
+application observation, career-profile versions, active profile and frozen resume
+versions/documents. New backups use `roleweave-backup-v3`. Older v1/v2 backups
+still restore without erasing newer data. Older app versions cannot read v3
+backups. Restore into an existing shelf preserves its selected active profile;
+an empty shelf adopts the backup's selection. Profile/resume ID conflicts roll
+back the whole restore.
 Keep it private: it is not encrypted. Single-review export remains separate and
 does not contain job metadata.
 
@@ -160,9 +207,24 @@ Closing the evidence or tracker window also warns about pending edits; the
 explicit Cancel/discard action still discards its draft. Full-shelf backups only
 include saved data, not unsaved form edits.
 
-Follow [the focused workflow exercise](docs/application-first-principles.md).
-Manual posting capture, review, tracking, pack export and recovery are implemented.
-A shared career profile, resume/PDF generation, permitted live source discovery,
-AI assistance, external integrations and an installer remain pending. Personal
-usefulness, manual dialog/layout interaction and real job-search outcomes remain
-unverified. No feature count establishes superiority to another product.
+Follow [the resume and recovery exercise](docs/resume-first-principles.md).
+Manual posting capture, evidence review, tracking, preparation packs, reusable
+profile versions, reviewed HTML/PDF resumes and v3 recovery are implemented.
+Live source discovery, AI assistance, external integrations and an installer
+remain pending. Personal usefulness, real job-search outcomes and complete
+manual file-dialog coverage remain unverified.
+
+## Reproduce the checks / build
+
+```powershell
+python -m pip install -r requirements-test.txt
+python -m unittest discover -s tests -v
+python desktop.py --self-test out/source-smoke
+```
+
+The self-test requires a new output directory and uses only synthetic data.
+On Windows x64, install `requirements-build.txt` in a separate Python 3.12
+environment, then run `python build_windows.py`. Build output stays under `out/`.
+CI tests Python 3.11/3.12 on Windows/Linux (native UI checks run on Windows),
+builds the portable app and runs its synthetic profile/resume/recovery self-test.
+Neither tests nor a package build establish personal usefulness or ATS behavior.

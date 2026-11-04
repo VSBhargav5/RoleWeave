@@ -1,0 +1,32 @@
+{
+  "name": "Synthetic Candidate",
+  "headline": "Data Engineering | Python | SQL",
+  "email": "candidate@example.invalid",
+  "phone": "",
+  "location": "Example City",
+  "links": "example.invalid/portfolio",
+  "summary": "Developing reliable data workflows through small, tested projects with synthetic datasets. This is an example profile for practising the application workflow.",
+  "facts": [
+    {
+      "id": "project-python",
+      "claim": "Built a synthetic Python CSV reconciliation project with exact-money checks and reproducible offline tests.",
+      "source": "Synthetic project exercise; not employment experience",
+      "reviewed": true,
+      "section": "Projects"
+    },
+    {
+      "id": "sql-practice",
+      "claim": "Practised SQL joins, aggregations and SQLite transactions on synthetic datasets.",
+      "source": "Synthetic practice notes; not production experience",
+      "reviewed": true,
+      "section": "Skills"
+    },
+    {
+      "id": "draft",
+      "claim": "Unreviewed example claim that must not appear in a resume.",
+      "source": "Unverified synthetic note",
+      "reviewed": false,
+      "section": "Additional"
+    }
+  ]
+}

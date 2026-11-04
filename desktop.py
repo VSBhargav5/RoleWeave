@@ -11,6 +11,11 @@ from job_store import JobStore
 from evidence_editor import EvidenceEditor
 from applications import STAGES
 from application_tracker import ApplicationTracker
+from profile_editor import CareerProfileEditor
+from resume_builder import ResumeBuilder
+from demo_data import seed_practice
+from runtime_paths import APP_VERSION, default_database_path, new_practice_path
+from startup_selftest import run_self_test
 from roleweave import MAX_BYTES, review_snapshot
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
@@ -24,13 +29,20 @@ class JobShelf(ttk.Frame):
         self.current_id = None
         self.pack(fill="both", expand=True)
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(2, weight=1)
-        ttk.Label(self, text="RoleWeave · Your local job shelf", font=("Segoe UI", 18)).grid(
+        self.rowconfigure(3, weight=1)
+        ttk.Label(self, text=f"RoleWeave {APP_VERSION} · Your job workspace", font=("Segoe UI", 18)).grid(
             row=0, column=0, columnspan=2, sticky="w")
         ttk.Label(self, text="Save selected postings. Review evidence and eligibility separately.").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(4, 12))
+        toolbar = ttk.Frame(self)
+        toolbar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        ttk.Button(toolbar, text="My career profile…", command=self.open_profile).pack(side="left")
+        ttk.Button(toolbar, text="Build / export resume…", command=self.open_resume).pack(side="left", padx=8)
+        ttk.Button(toolbar, text="Start here / help…", command=self.open_help).pack(side="left")
+        self.profile_status = tk.StringVar()
+        ttk.Label(toolbar, textvariable=self.profile_status, wraplength=330).pack(side="left", padx=12)
         left = ttk.Frame(self, padding=(0, 0, 16, 0))
-        left.grid(row=2, column=0, sticky="nsew")
+        left.grid(row=3, column=0, sticky="nsew")
         self.search = tk.StringVar()
         search = ttk.Entry(left, textvariable=self.search)
         ttk.Label(left, text="Search title, company, URL or latest note").pack(anchor="w")
@@ -50,6 +62,9 @@ class JobShelf(ttk.Frame):
         ttk.Checkbutton(left, text="Follow-ups due today or earlier", variable=self.due_only, command=self.refresh).pack(anchor="w")
         self.jobs = tk.Listbox(left, width=34, height=10, exportselection=False)
         self.jobs.pack(fill="both", expand=True, pady=8)
+        horizontal = ttk.Scrollbar(left, orient="horizontal", command=self.jobs.xview)
+        horizontal.pack(fill="x")
+        self.jobs.configure(xscrollcommand=horizontal.set)
         self.jobs.bind("<<ListboxSelect>>", self.open_selected)
         ttk.Button(left, text="Application notes / follow-up…", command=self.open_tracker).pack(fill="x", pady=4)
         ttk.Button(left, text="Export preparation pack…", command=self.export_pack).pack(fill="x", pady=4)
@@ -57,7 +72,7 @@ class JobShelf(ttk.Frame):
         ttk.Button(left, text="Back up full shelf…", command=self.backup_shelf).pack(fill="x", pady=(8, 0))
         ttk.Button(left, text="Restore shelf backup…", command=self.restore_shelf).pack(fill="x", pady=4)
         right = ttk.Frame(self)
-        right.grid(row=2, column=1, sticky="nsew")
+        right.grid(row=3, column=1, sticky="nsew")
         right.columnconfigure(1, weight=1)
         self.fields = {}
         for row, label in enumerate(("Job title", "Company", "Source URL (optional)")):
@@ -86,9 +101,79 @@ class JobShelf(ttk.Frame):
         ttk.Button(actions, text="Reload saved review", command=self.reload_saved).grid(row=1, column=1, padx=4, pady=4)
         self.status = tk.StringVar(value="Local only. No scraping, AI requests or application submissions.")
         ttk.Label(self, textvariable=self.status, wraplength=900).grid(
-            row=3, column=0, columnspan=2, sticky="w", pady=(12, 0))
+            row=4, column=0, columnspan=2, sticky="w", pady=(12, 0))
         self.baseline = self.form_state()
         self.refresh()
+        self.profile_changed()
+
+    def profile_changed(self):
+        profile = self.store.active_profile()
+        self.profile_status.set("Profile: " + profile["profile"]["name"] if profile else "Start here: create your career profile and reviewed facts.")
+
+    def open_profile(self):
+        try:
+            job = self.store.load(self.current_id) if self.current_id else None
+            return CareerProfileEditor(self.winfo_toplevel(), self.store, self.profile_changed, job)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not open career profile", str(exc))
+
+    def open_resume(self):
+        if self.has_draft_changes():
+            self.status.set("Save or discard posting edits before building a resume for the saved review.")
+            return
+        try:
+            profile = self.store.active_profile()
+            if profile is None:
+                self.status.set("Start with My career profile: add your identity and reviewed facts before building a resume.")
+                return
+            job = self.store.load(self.current_id) if self.current_id else None
+            return ResumeBuilder(self.winfo_toplevel(), self.store, profile, job,
+                                 lambda: self.status.set("A reviewed resume version was saved. Export from the resume window."))
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not open resumes", str(exc))
+
+    def open_practice(self):
+        try:
+            store = JobStore(new_practice_path(self.store.path.parent))
+            identifier = seed_practice(store)
+            window = tk.Toplevel(self.winfo_toplevel())
+            window.title(f"RoleWeave {APP_VERSION} - Synthetic practice")
+            window.geometry("1100x760")
+            window.minsize(900, 620)
+            shelf = JobShelf(window, store)
+            shelf.show_saved(identifier)
+            shelf.status.set("Synthetic practice workspace. Your main shelf has not been changed.")
+            window.protocol("WM_DELETE_WINDOW", shelf.close)
+            return shelf
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not open practice", str(exc))
+
+    def open_help(self):
+        window = tk.Toplevel(self.winfo_toplevel())
+        window.title(f"RoleWeave {APP_VERSION} - Getting started")
+        window.geometry("820x620")
+        window.transient(self.winfo_toplevel())
+        window.grab_set()
+        body = ttk.Frame(window, padding=20)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="Start with one job and facts you can defend", font=("Segoe UI", 16)).pack(anchor="w")
+        instructions = ["1. My career profile: enter your identity, summary and sourced facts. Choose each fact's section and review it.",
+                        "2. Paste a permitted job posting, choose its market and save it. Keep India/remote and relocation separate.",
+                        "3. Review evidence: copy relevant career facts, select exact requirement quotes and link them deliberately.",
+                        "4. Build a resume: select reviewed claims, preview and approve. Save a frozen version, then export HTML/PDF.",
+                        "5. Application notes: record your decisions and follow-up dates. These are manual observations, not submissions.",
+                        "6. Back up the full shelf regularly. V3 includes your profile, resume versions and application history."]
+        for instruction in instructions:
+            ttk.Label(body, text=instruction, wraplength=760).pack(anchor="w", pady=7)
+        ttk.Label(body, text=f"Current database:\n{self.store.path.resolve()}\nExports and backups contain private information and are not encrypted.",
+                  wraplength=760).pack(anchor="w", pady=12)
+        ttk.Label(body, text="Moving from a source checkout to a standalone portable app? Back up here, then restore in the new app. Source and portable defaults use different data folders.",
+                  wraplength=760).pack(anchor="w", pady=6)
+        def practice():
+            window.destroy()
+            self.open_practice()
+        ttk.Button(body, text="Open separate synthetic practice workspace", command=practice).pack(anchor="w", pady=10)
+        ttk.Button(body, text="Close", command=window.destroy).pack(anchor="e")
 
     def refresh(self):
         try:
@@ -203,7 +288,7 @@ class JobShelf(ttk.Frame):
             self.show_saved(identifier)
             self.status.set("Reviewed snapshot saved. Original snapshots are preserved; links do not verify qualification.")
 
-        return EvidenceEditor(self.winfo_toplevel(), data, save_review)
+        return EvidenceEditor(self.winfo_toplevel(), data, save_review, self.store.active_profile())
 
     def open_selected(self, _event=None):
         if not self.jobs.curselection():
@@ -324,14 +409,28 @@ class JobShelf(ttk.Frame):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", type=Path, default=Path(__file__).parent / "private" / "jobs.db")
+    parser.add_argument("--version", action="version", version=f"RoleWeave {APP_VERSION}")
+    paths = parser.add_mutually_exclusive_group()
+    paths.add_argument("--db", type=Path)
+    paths.add_argument("--demo", action="store_true", help="Open a fresh separate synthetic practice shelf")
+    paths.add_argument("--self-test", type=Path, help="Verify this runtime using a new synthetic output folder")
     args = parser.parse_args()
+    if args.self_test:
+        raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
     root = tk.Tk()
-    root.title("RoleWeave · Local job shelf")
-    root.geometry("1050x700")
-    root.minsize(800, 550)
+    root.title(f"RoleWeave {APP_VERSION} - {'Synthetic practice' if args.demo else 'Job workspace'}")
+    root.geometry("1100x760")
+    root.minsize(900, 620)
     try:
-        shelf = JobShelf(root, JobStore(args.db))
+        path = new_practice_path(default_database_path().parent) if args.demo else args.db or default_database_path()
+        store = JobStore(path)
+        identifier = seed_practice(store) if args.demo else None
+        shelf = JobShelf(root, store)
+        if identifier:
+            shelf.show_saved(identifier)
+            shelf.status.set("Synthetic practice only. Your main workspace is unchanged.")
+        elif not store.list_jobs() and not store.active_profile():
+            shelf.status.set("Welcome. Start with My career profile, or use Start here / help to open a separate synthetic practice workspace.")
         root.protocol("WM_DELETE_WINDOW", shelf.close)
     except (OSError, sqlite3.Error, ValueError) as exc:
         messagebox.showerror("Could not open local database", str(exc))
