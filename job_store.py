@@ -13,6 +13,7 @@ from roleweave import MARKETS, review_snapshot, text
 from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
 from preparation_pack import build_pack
 from career_profile import profile_snapshot
+from resume_versions import make_resume_version, resume_snapshot, decoded
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
 BACKUP_FORMAT = "roleweave-backup-v2"
@@ -63,6 +64,57 @@ class JobStore:
                 id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
                 snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""")
             db.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            db.execute("""CREATE TABLE IF NOT EXISTS resume_versions (
+                id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
+                snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""")
+
+    def create_resume(self, profile_id, identifiers, label, job_id=None, include_pdf=True, confirmed=False):
+        if confirmed is not True:
+            raise ValueError("Review and explicitly approve the resume content before saving")
+        profile = self.load_profile(profile_id)
+        job = self.load(job_id) if job_id is not None else None
+        snapshot = make_resume_version(profile, identifiers, label, job, include_pdf)
+        _record, digest = resume_snapshot(snapshot)
+        identifier = str(uuid4())
+        with closing(sqlite3.connect(self.path)) as db, db:
+            if db.execute("SELECT 1 FROM resume_versions WHERE snapshot_sha256=?", (digest,)).fetchone():
+                raise ValueError("This resume version already exists; select it to export")
+            db.execute("INSERT INTO resume_versions VALUES (?, ?, ?, ?)",
+                       (identifier, datetime.now(timezone.utc).isoformat(), digest, snapshot))
+        return identifier
+
+    def load_resume(self, identifier):
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute("SELECT * FROM resume_versions WHERE id=?", (identifier,)).fetchone()
+        if row is None:
+            raise ValueError("Saved resume version was not found")
+        item = dict(row)
+        record, digest = resume_snapshot(item["snapshot"])
+        if digest != item["snapshot_sha256"]:
+            raise ValueError("Saved resume version fingerprint mismatch")
+        profile = self.load_profile(record["profile_id"])
+        if profile["snapshot_sha256"] != record["profile_sha256"]:
+            raise ValueError("Saved resume profile reference mismatch")
+        item["resume"] = record
+        return item
+
+    def list_resumes(self):
+        with closing(sqlite3.connect(self.path)) as db:
+            rows = db.execute("SELECT id FROM resume_versions ORDER BY created_at DESC, id").fetchall()
+        return [{"id": row[0], "created_at": item["created_at"], "label": item["resume"]["label"],
+                 "has_pdf": bool(item["resume"]["pdf_base64"])}
+                for row in rows for item in [self.load_resume(row[0])]]
+
+    def export_resume(self, identifier, destination, format):
+        if format not in ("html", "pdf"):
+            raise ValueError("Choose HTML or PDF")
+        record = self.load_resume(identifier)["resume"]
+        if format == "pdf" and not record["pdf_base64"]:
+            raise ValueError("This saved version is HTML-only; print the HTML from your browser")
+        payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
+        with Path(destination).open("xb") as target:
+            target.write(payload)
 
     def save_profile(self, snapshot):
         _data, digest = profile_snapshot(snapshot)
