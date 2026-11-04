@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import tempfile
 from uuid import uuid4
 
 from roleweave import MARKETS, MAX_BYTES, review_snapshot, text
@@ -66,6 +67,17 @@ def backup_record(record):
 
 
 class JobStore:
+    @staticmethod
+    def inspect_backup(source):
+        """Validate in an isolated shelf; never touch the user's current database."""
+        with tempfile.TemporaryDirectory(prefix="roleweave-inspect-") as folder:
+            checked = JobStore(Path(folder) / "check.db")
+            checked.restore(source)
+            jobs = checked.list_jobs()
+            return {"saved_reviews": len(jobs), "profiles": len(checked.list_profiles()),
+                    "resumes": len(checked.list_resumes()),
+                    "history_entries": sum(len(checked.application_history(row["id"])) for row in jobs)}
+
     def __init__(self, path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)

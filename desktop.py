@@ -195,6 +195,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Original review (.json)", command=self.export_selected)
         export_menu.add_command(label="Import review JSON…", command=self.import_review)
         export_menu.add_command(label="Open saved source posting in browser", command=self.open_source)
+        export_menu.add_command(label="Inspect backup without restoring", command=self.inspect_backup)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -224,6 +225,15 @@ class JobShelf(ttk.Frame):
             self.status.set("Opened the saved posting URL in your browser. This does not submit an application.")
         except (ValueError, OSError, sqlite3.Error) as exc:
             self.status.set(str(exc))
+
+    def inspect_backup(self):
+        path = filedialog.askopenfilename(filetypes=[("RoleWeave backup", "*.json")])
+        if path:
+            try:
+                counts = self.store.inspect_backup(path)
+                messagebox.showinfo("Backup validated in an isolated shelf", "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in counts.items()) + "\nCurrent workspace unchanged. Hashes do not prove authenticity.", parent=self.winfo_toplevel())
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                self.status.set(str(exc))
 
     def profile_changed(self):
         profile = self.store.active_profile()

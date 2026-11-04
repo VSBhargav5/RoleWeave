@@ -11,6 +11,16 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_backup_inspection_reports_counts_without_touching_live_shelf(self):
+        self.store.record_application(self.job, "shortlisted", "Synthetic")
+        path = self.folder / "backup.json"
+        self.store.backup(path)
+        before = self.store.path.read_bytes()
+        counts = JobStore.inspect_backup(path)
+        self.assertEqual(counts["saved_reviews"], 1)
+        self.assertEqual(counts["history_entries"], 1)
+        self.assertEqual(self.store.path.read_bytes(), before)
+
     def test_resume_job_filter_does_not_mix_general_or_other_review_versions(self):
         from test_profile import synthetic_profile
         profile = self.store.save_profile(json.dumps(synthetic_profile()).encode())
