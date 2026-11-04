@@ -11,6 +11,18 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_bulk_calendar_has_one_container_and_only_active_dated_events(self):
+        from workspace_exports import follow_up_list
+        second = self.store.save(self.source, "Other", "Example")
+        self.store.record_application(self.job, "applied", "private", "2026-12-03")
+        self.store.record_application(second, "closed", "private", "2026-12-04")
+        output = self.folder / "followups.ics"
+        self.assertEqual(follow_up_list(self.store, self.store.list_jobs(), output), 1)
+        content = output.read_bytes()
+        self.assertEqual(content.count(b"BEGIN:VCALENDAR"), 1)
+        self.assertEqual(content.count(b"BEGIN:VEVENT"), 1)
+        self.assertNotIn(b"private", content)
+
     def test_filtered_csv_preserves_rows_escapes_formulas_and_omits_notes(self):
         import csv
         from workspace_exports import review_list_csv

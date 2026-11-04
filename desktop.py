@@ -21,7 +21,7 @@ from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 from desktop_theme import apply_theme, polish_widgets
 from source_links import source_link
-from workspace_exports import review_list_csv
+from workspace_exports import review_list_csv, follow_up_list
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -198,6 +198,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Open saved source posting in browser", command=self.open_source)
         export_menu.add_command(label="Inspect backup without restoring", command=self.inspect_backup)
         export_menu.add_command(label="Export this filtered review list (.csv)", command=self.export_list)
+        export_menu.add_command(label="Export filtered active follow-ups (.ics)", command=self.export_followups)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -244,6 +245,15 @@ class JobShelf(ttk.Frame):
                 review_list_csv(self.rows, path)
                 self.status.set(f"Exported {len(self.rows)} displayed review rows. No notes, facts or resumes included; keep this file private.")
             except (OSError, ValueError) as exc:
+                self.status.set(str(exc))
+
+    def export_followups(self):
+        path = filedialog.asksaveasfilename(defaultextension=".ics", filetypes=[("Filtered follow-ups", "*.ics")])
+        if path:
+            try:
+                count = follow_up_list(self.store, self.rows, path)
+                self.status.set(f"Exported {count} private calendar events. Import manually; existing remote events are not changed.")
+            except (OSError, ValueError, sqlite3.Error) as exc:
                 self.status.set(str(exc))
 
     def profile_changed(self):

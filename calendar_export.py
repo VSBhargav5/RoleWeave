@@ -27,7 +27,7 @@ def folded(line):
     return "\r\n".join(parts)
 
 
-def follow_up_calendar(item, events):
+def follow_up_calendar(item, events, event_only=False):
     source = review_snapshot(item["snapshot"])
     if source["input_sha256"] != item["input_sha256"]:
         raise ValueError("Saved review fingerprint mismatch")
@@ -53,6 +53,8 @@ def follow_up_calendar(item, events):
              "SUMMARY:" + calendar_text("Follow up: " + item["company"] + " - " + item["title"]),
              "DESCRIPTION:" + calendar_text(description), "CLASS:PRIVATE", "TRANSP:TRANSPARENT", "STATUS:CONFIRMED",
              "END:VEVENT", "END:VCALENDAR"]
+    if event_only:
+        lines = lines[4:-1]
     payload = ("\r\n".join(folded(line) for line in lines) + "\r\n").encode("utf-8")
     if len(payload) > 1024 * 1024:
         raise ValueError("Calendar export exceeds 1 MiB")
