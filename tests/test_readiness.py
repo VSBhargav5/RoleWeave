@@ -11,6 +11,13 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_source_links_never_launch_files_credentials_or_custom_schemes(self):
+        from source_links import source_link
+        self.assertEqual(source_link("https://example.invalid/jobs/123"), "https://example.invalid/jobs/123")
+        for value in ("file:///C:/x.exe", "javascript:alert(1)", "https://user:secret@example.invalid", "https://example.invalid\n", "https://example.invalid:bad", ""):
+            with self.assertRaises(ValueError):
+                source_link(value)
+
     def test_posting_search_is_explicit_and_checks_exact_saved_source(self):
         self.assertEqual(self.store.list_jobs(query="Spark"), [])
         self.assertEqual(self.store.list_jobs(query="SPARK", search_posting=True)[0]["id"], self.job)

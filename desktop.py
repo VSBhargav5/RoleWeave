@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tkinter as tk
+import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
 from job_store import JobStore
@@ -19,6 +20,7 @@ from startup_selftest import run_self_test
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 from desktop_theme import apply_theme, polish_widgets
+from source_links import source_link
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -185,6 +187,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Preparation pack (.txt)", command=self.export_pack)
         export_menu.add_command(label="Original review (.json)", command=self.export_selected)
         export_menu.add_command(label="Import review JSON…", command=self.import_review)
+        export_menu.add_command(label="Open saved source posting in browser", command=self.open_source)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -203,6 +206,17 @@ class JobShelf(ttk.Frame):
     def focus_workspace(self):
         self.detail_tabs.select(0)
         self.posting.focus_set()
+
+    def open_source(self):
+        if self.has_draft_changes() or self.current_id is None:
+            self.status.set("Select a saved review and save/discard edits before opening its source.")
+            return
+        try:
+            url = source_link(self.store.load(self.current_id)["source_url"])
+            webbrowser.open(url)
+            self.status.set("Opened the saved posting URL in your browser. This does not submit an application.")
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
 
     def profile_changed(self):
         profile = self.store.active_profile()
