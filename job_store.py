@@ -9,14 +9,32 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
-from roleweave import MARKETS, review_snapshot, text
+from roleweave import MARKETS, MAX_BYTES, review_snapshot, text
 from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
 from preparation_pack import build_pack
 from career_profile import profile_snapshot
-from resume_versions import make_resume_version, resume_snapshot, decoded
+from resume_versions import MAX_RESUME_SNAPSHOT, make_resume_version, resume_snapshot, decoded, encoded
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
-BACKUP_FORMAT = "roleweave-backup-v2"
+BACKUP_FORMAT = "roleweave-backup-v3"
+
+
+def archived_version(record, parser, limit):
+    keys = {"id", "created_at", "snapshot_sha256", "snapshot_base64"}
+    if not isinstance(record, dict) or set(record) != keys:
+        raise ValueError("Invalid archived version fields")
+    text(record["id"], "Version ID")
+    text(record["created_at"], "Version time")
+    try:
+        if datetime.fromisoformat(record["created_at"]).tzinfo is None:
+            raise ValueError("Version time requires a timezone")
+    except ValueError as exc:
+        raise ValueError("Invalid archived version timestamp") from exc
+    snapshot = decoded(record["snapshot_base64"], limit)
+    _content, digest = parser(snapshot)
+    if digest != record["snapshot_sha256"]:
+        raise ValueError("Archived version fingerprint mismatch")
+    return (record["id"], record["created_at"], digest, snapshot)
 
 
 def backup_record(record):
@@ -273,11 +291,32 @@ class JobStore:
             db.execute("BEGIN")
             jobs = [dict(row) for row in db.execute("SELECT * FROM jobs ORDER BY captured_at DESC, id")]
             events = [dict(row) for row in db.execute("SELECT * FROM application_events ORDER BY job_id, revision")]
+            profiles = [dict(row) for row in db.execute("SELECT * FROM career_profiles ORDER BY created_at, id")]
+            resumes = [dict(row) for row in db.execute("SELECT * FROM resume_versions ORDER BY created_at, id")]
+            active = db.execute("SELECT value FROM app_settings WHERE key='active_profile'").fetchone()
         validate_history(events)
         job_ids = {job["id"] for job in jobs}
         if any(event["job_id"] not in job_ids for event in events):
             raise ValueError("Application history references a missing snapshot")
-        size = len(json.dumps({"format": BACKUP_FORMAT, "jobs": [], "application_events": []}).encode("utf-8"))
+        active_id = active[0] if active else None
+        profile_ids = {row["id"]: row["snapshot_sha256"] for row in profiles}
+        if active_id is not None and active_id not in profile_ids:
+            raise ValueError("Active career profile is missing")
+        archives = []
+        for rows, parser, limit in ((profiles, profile_snapshot, MAX_BYTES), (resumes, resume_snapshot, MAX_RESUME_SNAPSHOT)):
+            archive = []
+            for row in rows:
+                record = {key: row[key] for key in ("id", "created_at", "snapshot_sha256")}
+                record["snapshot_base64"] = encoded(row["snapshot"])
+                archived_version(record, parser, limit)
+                if parser is resume_snapshot:
+                    resume, _digest = resume_snapshot(row["snapshot"])
+                    if profile_ids.get(resume["profile_id"]) != resume["profile_sha256"]:
+                        raise ValueError("Resume references a missing or changed career profile")
+                archive.append(record)
+            archives.append(archive)
+        extra = {"career_profiles": archives[0], "resume_versions": archives[1], "active_profile_id": active_id}
+        size = len(json.dumps({"format": BACKUP_FORMAT, "jobs": [], "application_events": [], **extra}).encode("utf-8"))
         for item in jobs:
             record = {key: item[key] for key in ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")}
             record["snapshot_base64"] = base64.b64encode(item["snapshot"]).decode("ascii")
@@ -290,7 +329,7 @@ class JobStore:
             size += len(json.dumps(event, ensure_ascii=True).encode("utf-8")) + 2
             if size > MAX_BACKUP_BYTES:
                 raise ValueError("Backup exceeds 64 MiB; no file was created")
-        payload = json.dumps({"format": BACKUP_FORMAT, "jobs": records, "application_events": events}, ensure_ascii=True).encode("utf-8")
+        payload = json.dumps({"format": BACKUP_FORMAT, "jobs": records, "application_events": events, **extra}, ensure_ascii=True).encode("utf-8")
         if len(payload) > MAX_BACKUP_BYTES:
             raise ValueError("Backup exceeds 64 MiB; no file was created")
         with Path(destination).open("xb") as target:
@@ -318,8 +357,11 @@ class JobStore:
         if not isinstance(data, dict) or not isinstance(data.get("format"), str):
             raise ValueError("Unsupported backup format")
         legacy = data["format"] == "roleweave-backup-v1"
+        current = data["format"] == BACKUP_FORMAT
         keys = {"format", "jobs"} if legacy else {"format", "jobs", "application_events"}
-        if set(data) != keys or data["format"] not in ("roleweave-backup-v1", BACKUP_FORMAT) or not isinstance(data["jobs"], list):
+        if current:
+            keys |= {"career_profiles", "resume_versions", "active_profile_id"}
+        if set(data) != keys or data["format"] not in ("roleweave-backup-v1", "roleweave-backup-v2", BACKUP_FORMAT) or not isinstance(data["jobs"], list):
             raise ValueError("Unsupported backup format")
         events = [] if legacy else data["application_events"]
         if not isinstance(events, list):
@@ -331,6 +373,23 @@ class JobStore:
             raise ValueError("Duplicate job ID in backup")
         if any(event["job_id"] not in identifiers for event in events):
             raise ValueError("Application history references a missing backup job")
+        profile_rows, resume_rows = [], []
+        active_id = None
+        if current:
+            if not isinstance(data["career_profiles"], list) or not isinstance(data["resume_versions"], list):
+                raise ValueError("Archived profiles and resumes must be lists")
+            profile_rows = [archived_version(record, profile_snapshot, MAX_BYTES) for record in data["career_profiles"]]
+            resume_rows = [archived_version(record, resume_snapshot, MAX_RESUME_SNAPSHOT) for record in data["resume_versions"]]
+            if len({row[0] for row in profile_rows}) != len(profile_rows) or len({row[0] for row in resume_rows}) != len(resume_rows):
+                raise ValueError("Duplicate archived version ID")
+            profile_ids = {row[0]: row[2] for row in profile_rows}
+            active_id = data["active_profile_id"]
+            if active_id is not None and (not isinstance(active_id, str) or active_id not in profile_ids):
+                raise ValueError("Backup active profile does not exist")
+            for row in resume_rows:
+                resume, _digest = resume_snapshot(row[3])
+                if profile_ids.get(resume["profile_id"]) != resume["profile_sha256"]:
+                    raise ValueError("Backup resume references a missing or changed profile")
         added, skipped = 0, 0
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("PRAGMA foreign_keys=ON")
@@ -367,4 +426,14 @@ class JobStore:
             for identifier in set(mapped_ids.values()):
                 history = db.execute("SELECT * FROM application_events WHERE job_id=? ORDER BY revision", (identifier,)).fetchall()
                 validate_history([dict(zip(EVENT_FIELDS, row)) for row in history])
+            for table, rows in (("career_profiles", profile_rows), ("resume_versions", resume_rows)):
+                for row in rows:
+                    existing = db.execute(f"SELECT * FROM {table} WHERE id=?", (row[0],)).fetchone()
+                    if existing is not None:
+                        if existing != row:
+                            raise ValueError("Archived version ID conflicts; nothing restored")
+                        continue
+                    db.execute(f"INSERT INTO {table} VALUES (?, ?, ?, ?)", row)
+            if active_id is not None and db.execute("SELECT value FROM app_settings WHERE key='active_profile'").fetchone() is None:
+                db.execute("INSERT INTO app_settings VALUES ('active_profile', ?)", (active_id,))
         return added, skipped
