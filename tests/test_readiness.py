@@ -11,6 +11,17 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_filtered_csv_preserves_rows_escapes_formulas_and_omits_notes(self):
+        import csv
+        from workspace_exports import review_list_csv
+        row = {**self.store.list_jobs()[0], "title": "  =HYPERLINK(\"bad\")", "decision_note": "PRIVATE"}
+        path = self.folder / "list.csv"
+        review_list_csv([row], path)
+        rows = list(csv.DictReader(path.read_text(encoding="utf-8-sig").splitlines()))
+        self.assertEqual(rows[0]["title"], "'" + row["title"])
+        self.assertNotIn("PRIVATE", path.read_text(encoding="utf-8-sig"))
+        self.assertEqual(len(rows), 1)
+
     def test_backup_inspection_reports_counts_without_touching_live_shelf(self):
         self.store.record_application(self.job, "shortlisted", "Synthetic")
         path = self.folder / "backup.json"
