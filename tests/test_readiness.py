@@ -42,3 +42,22 @@ class ReadinessTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             publish_bytes(output, b"replacement")
         self.assertEqual(output.read_bytes(), self.source)
+
+    def test_failed_package_promotion_restores_previous_complete_app(self):
+        import os
+        from build_windows import promote_package
+        live, staged = self.folder / "live", self.folder / "new"
+        live.mkdir()
+        staged.mkdir()
+        (live / "app").write_text("old")
+        (staged / "app").write_text("new")
+        replace = os.replace
+        def fail_new(source, destination):
+            if Path(source) == staged:
+                raise PermissionError("Synthetic locked app")
+            return replace(source, destination)
+        with patch("build_windows.os.replace", side_effect=fail_new):
+            with self.assertRaises(PermissionError):
+                promote_package(staged, live)
+        self.assertEqual((live / "app").read_text(), "old")
+        self.assertEqual((staged / "app").read_text(), "new")
