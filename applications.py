@@ -32,6 +32,10 @@ def validate_event(event):
         raise ValueError("Unknown application stage")
     if not isinstance(event["note"], str) or len(event["note"]) > 4000:
         raise ValueError("Decision note must be text of at most 4000 characters")
+    if event["note"].strip():
+        text(event["note"], "Decision note")
+    elif any(char not in " \t\r\n" for char in event["note"]):
+        raise ValueError("Decision note contains invalid whitespace")
     follow_up_date(event["follow_up"])
     text(event["recorded_at"], "Recorded time")
     try:

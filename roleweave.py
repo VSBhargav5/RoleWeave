@@ -12,6 +12,12 @@ MARKETS = {"india_remote", "relocation"}
 def text(value, label):
     if not isinstance(value, str) or not value.strip() or len(value) > 50000:
         raise ValueError(f"{label} must be nonblank text of at most 50000 characters")
+    try:
+        value.encode("utf-8")
+    except UnicodeError:
+        raise ValueError(f"{label} contains invalid Unicode") from None
+    if any(ord(char) < 32 and char not in "\n\r\t" for char in value):
+        raise ValueError(f"{label} contains unsupported control characters")
     return value
 
 
