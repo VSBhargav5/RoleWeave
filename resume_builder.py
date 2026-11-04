@@ -71,6 +71,7 @@ class ResumeBuilder(tk.Toplevel):
         ttk.Button(exports, text="Export saved HTML…", command=lambda: self.export("html")).pack(side="left")
         self.pdf_button = ttk.Button(exports, text="Export saved PDF…", command=lambda: self.export("pdf"), state="disabled")
         self.pdf_button.pack(side="left", padx=8)
+        ttk.Button(exports, text="Export text…", command=lambda: self.export("txt")).pack(side="left", padx=8)
         self.open_button = ttk.Button(exports, text="Open exported file", command=self.open_exported, state="disabled")
         self.open_button.pack(side="left")
         self.status = tk.StringVar(value="Choose relevant facts and preview. Nothing is rewritten, inferred or sent.")

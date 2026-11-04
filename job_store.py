@@ -14,6 +14,7 @@ from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, v
 from preparation_pack import build_pack
 from calendar_export import follow_up_calendar
 from safe_export import publish_bytes
+from resume_render import resume_text
 from career_profile import profile_snapshot
 from resume_versions import MAX_RESUME_SNAPSHOT, make_resume_version, resume_snapshot, decoded, encoded
 
@@ -127,17 +128,21 @@ class JobStore:
                 for row in rows for item in [self.load_resume(row[0])]]
 
     def export_resume(self, identifier, destination, format):
-        if format not in ("html", "pdf"):
-            raise ValueError("Choose HTML or PDF")
-        suffixes = (".html", ".htm") if format == "html" else (".pdf",)
+        if format not in ("html", "pdf", "txt"):
+            raise ValueError("Choose HTML, PDF or plain text")
+        suffixes = (".html", ".htm") if format == "html" else ("." + format,)
         if Path(destination).suffix.lower() not in suffixes:
             raise ValueError("Choose a filename ending in " + suffixes[0])
         record = self.load_resume(identifier)["resume"]
         if format == "pdf" and not record["pdf_base64"]:
             raise ValueError("This saved version is HTML-only; print the HTML from your browser")
-        payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
+        if format == "txt":
+            profile, _digest = profile_snapshot(decoded(record["profile_snapshot_base64"], MAX_BYTES))
+            payload = resume_text(profile, record["selected_fact_ids"]).encode("utf-8")
+        else:
+            payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
         publish_bytes(destination, payload)
-        return record[format + "_sha256"]
+        return hashlib.sha256(payload).hexdigest()
 
     def save_profile(self, snapshot):
         _data, digest = profile_snapshot(snapshot)

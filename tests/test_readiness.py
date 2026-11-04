@@ -11,6 +11,18 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_plain_resume_export_uses_frozen_selection_and_excludes_sources(self):
+        from test_profile import synthetic_profile
+        data = synthetic_profile()
+        profile = self.store.save_profile(json.dumps(data).encode())
+        resume = self.store.create_resume(profile, ["project-python"], "Synthetic", include_pdf=False, confirmed=True)
+        path = self.folder / "resume.txt"
+        self.store.export_resume(resume, path, "txt")
+        contents = path.read_text(encoding="utf-8")
+        self.assertIn(data["facts"][0]["claim"], contents)
+        self.assertNotIn(data["facts"][0]["source"], contents)
+        self.assertNotIn("Unreviewed draft", contents)
+
     def test_job_order_is_explicit_stable_and_keeps_undated_followups_last(self):
         second = self.store.save(self.source, "Analyst", "Zulu Co")
         self.store.record_application(second, "saved", "", "2026-12-03")
