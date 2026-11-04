@@ -12,6 +12,7 @@ from uuid import uuid4
 from roleweave import MARKETS, MAX_BYTES, review_snapshot, text
 from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
 from preparation_pack import build_pack
+from calendar_export import follow_up_calendar
 from career_profile import profile_snapshot
 from resume_versions import MAX_RESUME_SNAPSHOT, make_resume_version, resume_snapshot, decoded, encoded
 
@@ -260,6 +261,14 @@ class JobStore:
     def export_preparation_pack(self, identifier, destination):
         payload = build_pack(self.load(identifier), self.application_history(identifier))
         with Path(destination).open("xb") as target:
+            target.write(payload)
+
+    def export_follow_up(self, identifier, destination):
+        path = Path(destination)
+        if path.suffix.lower() != ".ics":
+            raise ValueError("Choose an .ics calendar filename")
+        payload = follow_up_calendar(self.load(identifier), self.application_history(identifier))
+        with path.open("xb") as target:
             target.write(payload)
 
     def application_history(self, identifier):

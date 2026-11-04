@@ -1,7 +1,7 @@
 """Local stage and follow-up observations for one exact saved review."""
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 
 from applications import STAGES, current_application
 
@@ -42,6 +42,7 @@ class ApplicationTracker(tk.Toplevel):
         ttk.Label(body, textvariable=self.status, wraplength=740).grid(row=7, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Button(body, text="Record observation", command=self.record).grid(row=8, column=0, sticky="w")
         ttk.Button(body, text="Close", command=self.close).grid(row=8, column=1, sticky="e")
+        ttk.Button(body, text="Export saved follow-up to calendar (.ics)…", command=self.export_calendar).grid(row=9, column=0, columnspan=2, sticky="w", pady=8)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.refresh()
 
@@ -83,3 +84,21 @@ class ApplicationTracker(tk.Toplevel):
                                               "These changes have not been recorded. Discard them?", parent=self):
             return
         self.destroy()
+
+    def export_calendar(self):
+        if (self.note.get("1.0", "end-1c").strip() or self.stage.get() != self.current["stage"]
+                or self.follow_up.get() != self.current["follow_up"]):
+            self.status.set("Record or discard tracking edits before exporting the saved follow-up.")
+            return
+        if not self.current["follow_up"] or self.current["stage"] in ("closed", "withdrawn"):
+            self.status.set("Record an active follow-up date first.")
+            return
+        path = filedialog.asksaveasfilename(parent=self, defaultextension=".ics", filetypes=[("Calendar follow-up", "*.ics")])
+        if not path:
+            return
+        try:
+            self.store.export_follow_up(self.identifier, path)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+            return
+        self.status.set("Private calendar file exported with job title/company and date; notes/resume excluded. Import it yourself in your calendar. Nothing sent; later changes need re-export.")
