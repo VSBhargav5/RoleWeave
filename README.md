@@ -8,16 +8,17 @@ evidence, manual application tracking, follow-ups and preparation packs.
 
 ## Start on Windows
 
-Version 0.4.0 adds public Greenhouse discovery, optional reviewed AI quote
-proposals and calendar follow-up files to the local profile/resume/tracking
-workflow. Core features need no account, key or server. AI alone needs your own
+Version 0.5.0 redesigns the Windows workspace with a navigation rail, summary
+cards, separate posting/evidence/details tabs and a shared visual theme. Public
+Greenhouse discovery, reviewed AI quote proposals, resumes and follow-ups remain
+available through the redesigned interface. Core features need no account, key or server. AI alone needs your own
 OpenAI key and explicit authorization for each potentially charged request.
 Personal usefulness still needs your trial.
 
-For the portable build, extract the **whole** `RoleWeave-0.4.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.5.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned; an installer and automatic updates are not provided.
-The CI run's `RoleWeave-0.4.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.5.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -35,7 +36,7 @@ python desktop.py
 python roleweave.py examples/synthetic.json
 ```
 
-**Start here / help** explains the workflow and opens a separate synthetic
+**Getting started** explains the workflow and opens a separate synthetic
 practice workspace. `--demo` does the same without touching your real shelf.
 Source mode defaults to `private/jobs.db`; a standalone portable executable
 defaults to `%LOCALAPPDATA%/RoleWeave/jobs.db`. Use the full-shelf backup/restore
@@ -43,13 +44,14 @@ buttons when moving between them. `--db PATH` explicitly selects a database.
 
 ## Your first complete workflow
 
-1. Open **My career profile**. Enter your contact details/summary and add facts
+1. Open **Career profile**. Enter your contact details/summary and add facts
    with sources and a section (Experience, Projects, Education, Skills or
    Additional). Check review only for facts you have checked. Save a new version.
-2. Save a permitted posting and choose its market. In **Review evidence**, copy
+2. Choose **Add a job**, enter title/company/market in **Job details**, paste
+   the description in **Job posting**, and save it. In **Review evidence**, copy
    reviewed career facts and explicitly link relevant ones to exact posting
    quotes. Copying alone never links or qualifies you.
-3. Choose **Build / export resume**. Select relevant reviewed claims, preview
+3. Choose **Resume studio**. Select relevant reviewed claims, preview
    the exact text, confirm you reviewed it, then save a frozen version. No
    dates, employers, credentials, metrics or new wording are invented.
 4. Under **Saved versions / export**, export to a new HTML/PDF filename and
@@ -79,7 +81,7 @@ Preview exports before sending them yourself. The app never submits applications
 
 Storage defaults to ignored `private/jobs.db`; `python desktop.py --db PATH`
 chooses another SQLite file. Close the app before copying this database as a
-backup. For a portable full copy, use **Back up full shelf** and **Restore shelf
+backup. For a portable full copy, use **Back up workspace** and **Restore shelf
 backup**. These preserve job metadata as well as original review bytes. A synthetic
 full restore including tracking history and repeat restore are covered by tests; personal recovery remains
 unverified.
@@ -112,7 +114,7 @@ The CLI only reads your explicit input and prints JSON to your terminal;
 redirecting output can store private data. It makes no network/model calls and
 does not submit applications or contact anyone. Input is bounded to 1 MiB.
 
-See [research and phased plan](docs/research-and-plan.md). The next useful slice
+See [the redesigned workspace guide](docs/workspace-design.md) and [research and phased plan](docs/research-and-plan.md). The next useful slice
 is a user trial of saved postings and their reviewed evidence.
 See [discovery, AI and calendar use](docs/connected-workflow.md). AI rewording,
 email/account linking and automatic submissions are outside this release.
@@ -147,7 +149,7 @@ No model inference, eligibility score or qualification claim is produced.
 
 ## Back up and recover the shelf
 
-Choose **Back up full shelf** on the left and use a new JSON filename. This
+Choose **Back up workspace** on the left and use a new JSON filename. This
 contains every snapshot, title, company, source URL, market, capture time and
 application observation, career-profile versions, active profile and frozen resume
 versions/documents. New backups use `roleweave-backup-v3`. Older v1/v2 backups
@@ -158,7 +160,7 @@ back the whole restore.
 Keep it private: it is not encrypted. Single-review export remains separate and
 does not contain job metadata.
 
-Choose **Restore shelf backup** in an empty or existing shelf. Source hashes,
+Choose **Restore backup** in an empty or existing shelf. Source hashes,
 review contracts, metadata, format version and timezone-aware timestamps are
 checked before insertion. Existing identical jobs are skipped; an ID conflict
 or divergent application-history revision rolls back the entire restore. Compatible

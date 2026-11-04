@@ -2,6 +2,7 @@
 import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from desktop_theme import polish_widgets
 
 from applications import STAGES, current_application
 
@@ -40,9 +41,10 @@ class ApplicationTracker(tk.Toplevel):
         self.history.grid(row=6, column=0, columnspan=2, sticky="nsew")
         self.status = tk.StringVar(value="Follow-up dates are local calendar dates. No background notifications.")
         ttk.Label(body, textvariable=self.status, wraplength=740).grid(row=7, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Button(body, text="Record observation", command=self.record).grid(row=8, column=0, sticky="w")
+        ttk.Button(body, text="Record observation", style="Primary.TButton", command=self.record).grid(row=8, column=0, sticky="w")
         ttk.Button(body, text="Close", command=self.close).grid(row=8, column=1, sticky="e")
         ttk.Button(body, text="Export saved follow-up to calendar (.ics)…", command=self.export_calendar).grid(row=9, column=0, columnspan=2, sticky="w", pady=8)
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.refresh()
 

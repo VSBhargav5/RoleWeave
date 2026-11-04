@@ -3,6 +3,7 @@ import copy
 import tkinter as tk
 from tkinter import ttk, messagebox
 from uuid import uuid4
+from desktop_theme import polish_widgets, reserve_footer
 
 from roleweave import review, text, revise_fact, remove_fact
 from profile_editor import CareerFactPicker
@@ -20,7 +21,7 @@ class EvidenceEditor(tk.Toplevel):
         self.editing_fact_id = None
         self.title("RoleWeave · Review requirements and evidence")
         self.geometry("1000x760")
-        self.minsize(800, 650)
+        self.minsize(800, 700)
         self.transient(parent)
         self.grab_set()
         body = ttk.Frame(self, padding=16)
@@ -31,7 +32,7 @@ class EvidenceEditor(tk.Toplevel):
                   font=("Segoe UI", 14)).grid(row=0, column=0, columnspan=2, sticky="w")
         ttk.Label(body, text="Links are your assertions; this does not verify qualification or eligibility.").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        self.posting = tk.Text(body, height=7, wrap="word")
+        self.posting = tk.Text(body, height=4, wrap="word")
         self.posting.insert("1.0", data["posting"])
         self.posting.configure(state="disabled")
         self.posting.grid(row=2, column=0, columnspan=2, sticky="nsew")
@@ -40,7 +41,7 @@ class EvidenceEditor(tk.Toplevel):
         requirements.grid(row=3, column=0, sticky="nsew", padx=(0, 8), pady=12)
         facts = ttk.LabelFrame(body, text="2. Career / project facts", padding=10)
         facts.grid(row=3, column=1, sticky="nsew", pady=12)
-        self.requirements = tk.Listbox(requirements, height=6, exportselection=False)
+        self.requirements = tk.Listbox(requirements, height=4, exportselection=False)
         self.requirements.pack(fill="both", expand=True)
         self.requirements.bind("<<ListboxSelect>>", self.load_requirement)
         ttk.Label(requirements, text="Exact quote (or select text in the posting above)").pack(anchor="w")
@@ -55,7 +56,7 @@ class EvidenceEditor(tk.Toplevel):
         ttk.Button(requirements, text="AI: propose exact requirement quotes…", command=self.open_ai).pack(anchor="w", pady=4)
         ttk.Label(facts, text="Select facts to link to the requirement (Ctrl-click for multiple).",
                   wraplength=420).pack(anchor="w")
-        self.facts = tk.Listbox(facts, height=6, selectmode="multiple", exportselection=False)
+        self.facts = tk.Listbox(facts, height=4, selectmode="multiple", exportselection=False)
         self.facts.pack(fill="both", expand=True)
         fact_actions = ttk.Frame(facts)
         fact_actions.pack(fill="x", pady=4)
@@ -63,7 +64,7 @@ class EvidenceEditor(tk.Toplevel):
         ttk.Button(fact_actions, text="Update loaded fact", command=self.update_fact).pack(side="left", padx=6)
         ttk.Button(fact_actions, text="Remove one fact", command=self.delete_fact).pack(side="left")
         ttk.Label(facts, text="Claim · state project versus employment accurately").pack(anchor="w")
-        self.claim = tk.Text(facts, height=3, wrap="word")
+        self.claim = tk.Text(facts, height=2, wrap="word")
         self.claim.pack(fill="x", pady=4)
         ttk.Label(facts, text="Source / provenance").pack(anchor="w")
         self.source = ttk.Entry(facts)
@@ -76,9 +77,12 @@ class EvidenceEditor(tk.Toplevel):
                    state="normal" if career_profile else "disabled").pack(anchor="w", pady=4)
         self.status = tk.StringVar(value="Select an existing requirement to edit its quote or fact links. Unlinked means needs review.")
         ttk.Label(body, textvariable=self.status, wraplength=930).grid(row=4, column=0, columnspan=2, sticky="w")
-        ttk.Button(body, text="Save reviewed snapshot", command=self.save).grid(row=5, column=0, sticky="w", pady=12)
+        ttk.Button(body, text="Save reviewed snapshot", style="Primary.TButton", command=self.save).grid(row=5, column=0, sticky="w", pady=12)
         ttk.Button(body, text="Cancel · discard changes", command=self.destroy).grid(row=5, column=1, sticky="e")
         self.refresh()
+        reserve_footer(requirements)
+        reserve_footer(facts)
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.request_close)
 
     def request_close(self):

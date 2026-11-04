@@ -45,8 +45,8 @@ jobs:
           if (-not $roleReport.ok -or -not $roleReport.frozen) { exit 1 }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.4.0-windows-x64
-          path: out/RoleWeave-0.4.0-windows-x64.zip
+          name: RoleWeave-0.5.0-windows-x64
+          path: out/RoleWeave-0.5.0-windows-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
