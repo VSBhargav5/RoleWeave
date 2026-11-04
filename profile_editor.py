@@ -3,11 +3,13 @@ import copy
 import json
 import sqlite3
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, filedialog
 from uuid import uuid4
 from desktop_theme import polish_widgets, reserve_footer
 
 from career_profile import PROFILE_FIELDS, SECTIONS, imported_career_facts, validate_profile
+from career_profile import profile_snapshot
+from safe_export import publish_bytes
 
 
 class CareerProfileEditor(tk.Toplevel):
@@ -54,6 +56,10 @@ class CareerProfileEditor(tk.Toplevel):
         fact_list.grid(row=0, column=0, sticky="nsew")
         fact_form = ttk.Frame(facts)
         fact_form.grid(row=0, column=1, sticky="nsew")
+        self.fact_query = tk.StringVar()
+        query_entry = ttk.Entry(fact_list, textvariable=self.fact_query)
+        query_entry.pack(fill="x", pady=(0, 5))
+        query_entry.bind("<KeyRelease>", lambda _event: self.refresh_facts())
         self.facts = tk.Listbox(fact_list, height=5, width=24, exportselection=False)
         self.facts.pack(fill="both", expand=True)
         actions = ttk.Frame(fact_list)
@@ -84,6 +90,8 @@ class CareerProfileEditor(tk.Toplevel):
         footer = ttk.Frame(body)
         footer.pack(fill="x")
         ttk.Button(footer, text="Save new profile version", style="Primary.TButton", command=self.save).pack(side="left")
+        ttk.Button(footer, text="Import profile JSON", command=self.import_profile).pack(side="left", padx=6)
+        ttk.Button(footer, text="Export saved profile", command=self.export_profile).pack(side="left")
         ttk.Button(footer, text="Close", command=self.close).pack(side="right")
         self.versions = store.list_profiles()
         self.version_choice.configure(values=[row["created_at"][:19] + " UTC - " + row["id"][:8] for row in self.versions])
@@ -99,6 +107,7 @@ class CareerProfileEditor(tk.Toplevel):
 
     def set_data(self, data):
         self.data = copy.deepcopy(data)
+        self.imported_draft = False
         self.original = copy.deepcopy(data)
         for key, field in self.fields.items():
             field.delete(0, "end")
@@ -112,11 +121,42 @@ class CareerProfileEditor(tk.Toplevel):
         return {**{key: field.get() for key, field in self.fields.items()},
                 "summary": self.summary.get("1.0", "end-1c"), "facts": copy.deepcopy(self.data["facts"])}
 
+    def import_profile(self):
+        if self.dirty() and not messagebox.askyesno("Replace profile draft?", "Discard these unsaved profile edits before importing?", parent=self):
+            return
+        path = filedialog.askopenfilename(parent=self, filetypes=[("Career profile JSON", "*.json")])
+        if not path:
+            return
+        try:
+            with open(path, "rb") as handle:
+                data, _digest = profile_snapshot(handle.read(1024 * 1024 + 1))
+            for fact in data["facts"]:
+                fact["reviewed"] = False
+            self.set_data(data)
+            self.imported_draft = True
+            self.selected_version = None
+            self.version_choice.set("Imported draft — not saved")
+            self.status.set("Profile imported into this draft. All facts need your review; Save creates a new version.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def export_profile(self):
+        if self.selected_version is None or self.dirty():
+            self.status.set("Save or discard profile edits before exporting a saved version.")
+            return
+        path = filedialog.asksaveasfilename(parent=self, defaultextension=".json", filetypes=[("Career profile JSON", "*.json")])
+        if path:
+            try:
+                publish_bytes(path, self.store.load_profile(self.selected_version)["snapshot"])
+                self.status.set("Saved profile exported, including private sources. Keep the unencrypted file private.")
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                self.status.set(str(exc))
+
     def pending_fact(self):
         return bool(self.claim.get("1.0", "end-1c").strip() or self.source.get().strip())
 
     def dirty(self):
-        return self.content() != self.original or self.pending_fact()
+        return self.content() != self.original or self.pending_fact() or self.imported_draft
 
     def clear_fact(self):
         self.fact_id = None
@@ -127,7 +167,11 @@ class CareerProfileEditor(tk.Toplevel):
 
     def refresh_facts(self):
         self.facts.delete(0, "end")
-        for fact in self.data["facts"]:
+        query = self.fact_query.get().strip().casefold()
+        self.visible_fact_indices = [i for i, fact in enumerate(self.data["facts"]) if query in
+                                     (fact["claim"] + " " + fact["source"] + " " + fact["section"]).casefold()]
+        for i in self.visible_fact_indices:
+            fact = self.data["facts"][i]
             self.facts.insert("end", f"[{fact['section']}] {'reviewed' if fact['reviewed'] else 'unreviewed'} - {fact['claim']}")
 
     def load_fact(self):
@@ -137,7 +181,7 @@ class CareerProfileEditor(tk.Toplevel):
         if self.pending_fact():
             self.status.set("Apply or clear pending fact fields first.")
             return
-        fact = self.data["facts"][self.facts.curselection()[0]]
+        fact = self.data["facts"][self.visible_fact_indices[self.facts.curselection()[0]]]
         self.fact_id = fact["id"]
         self.claim.insert("1.0", fact["claim"])
         self.source.insert(0, fact["source"])
@@ -184,7 +228,7 @@ class CareerProfileEditor(tk.Toplevel):
             return
         if not messagebox.askyesno("Remove fact from draft?", "Earlier saved profile versions and copied job facts will remain intact.", parent=self):
             return
-        del self.data["facts"][self.facts.curselection()[0]]
+        del self.data["facts"][self.visible_fact_indices[self.facts.curselection()[0]]]
         self.refresh_facts()
 
     def copy_job_facts(self):

@@ -9,6 +9,8 @@ from demo_data import seed_practice
 from job_store import JobStore
 from runtime_paths import APP_VERSION, RESOURCE_ROOT
 from discovery import parse_board
+from workspace_exports import review_list_csv, follow_up_list
+from workspace_health import inspect_database
 
 
 def run_self_test(folder, shelf_type):
@@ -65,6 +67,7 @@ def run_self_test(folder, shelf_type):
         identifier = versions[0]["id"]
         store.export_resume(identifier, folder / "synthetic-resume.pdf", "pdf")
         store.export_resume(identifier, folder / "synthetic-resume.html", "html")
+        store.export_resume(identifier, folder / "synthetic-resume.txt", "txt")
         assert (folder / "synthetic-resume.pdf").read_bytes().startswith(b"%PDF-")
         assert b"Synthetic Candidate" in (folder / "synthetic-resume.html").read_bytes()
         resume.destroy()
@@ -74,6 +77,18 @@ def run_self_test(folder, shelf_type):
         assert b"DTSTART;VALUE=DATE:20261203" in (folder / "synthetic-follow-up.ics").read_bytes()
         report["checks"].append("private-calendar-export")
         store.backup(folder / "synthetic-backup.json")
+        review_list_csv(store.list_jobs(), folder / "synthetic-reviews.csv")
+        assert follow_up_list(store, store.list_jobs(), folder / "synthetic-followups.ics") == 1
+        assert JobStore.inspect_backup(folder / "synthetic-backup.json")["saved_reviews"] == 4
+        assert inspect_database(store.path)["jobs"] == 4
+        practice = shelf.open_practice_cards()
+        assert practice.cards
+        practice.render(True)
+        practice.destroy()
+        versions = shelf.open_versions()
+        assert versions.rows
+        versions.destroy()
+        report["checks"].append("readiness-exports-inspection-and-rehearsal")
         restored = JobStore(folder / "restored.db")
         restored.restore(folder / "synthetic-backup.json")
         assert restored.load_resume(identifier)["snapshot"] == store.load_resume(identifier)["snapshot"]

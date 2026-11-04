@@ -6,19 +6,22 @@ Original implementation inspired by existing tools, with no upstream source,
 assets or history imported. Local Windows workspace for posting review, selected
 evidence, manual application tracking, follow-ups and preparation packs.
 
+See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
+ordering, private exports, evidence rehearsal and safer build/export publication.
+
 ## Start on Windows
 
-Version 0.5.0 redesigns the Windows workspace with a navigation rail, summary
+Version 0.6.0 redesigns the Windows workspace with a navigation rail, summary
 cards, separate posting/evidence/details tabs and a shared visual theme. Public
 Greenhouse discovery, reviewed AI quote proposals, resumes and follow-ups remain
 available through the redesigned interface. Core features need no account, key or server. AI alone needs your own
 OpenAI key and explicit authorization for each potentially charged request.
 Personal usefulness still needs your trial.
 
-For the portable build, extract the **whole** `RoleWeave-0.5.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.6.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned; an installer and automatic updates are not provided.
-The CI run's `RoleWeave-0.5.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.6.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open

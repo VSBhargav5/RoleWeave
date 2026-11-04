@@ -1,10 +1,11 @@
 """Deliberate session-key AI request, then human selection into an unsaved review."""
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from desktop_theme import polish_widgets, reserve_footer
 
 from ai_requirements import ENDPOINT, MODEL, posting_hash, propose_requirements, request_payload
 from background_task import BackgroundTask
+from safe_export import publish_bytes
 
 
 class AIRequirementsWindow(tk.Toplevel):
@@ -46,6 +47,7 @@ class AIRequirementsWindow(tk.Toplevel):
         self.send_button = ttk.Button(controls, text="Send reviewed request", style="Primary.TButton", command=self.send)
         self.send_button.pack(side="left")
         ttk.Button(controls, text="Cancel request", command=self.cancel).pack(side="left", padx=8)
+        ttk.Button(controls, text="Export request JSON", command=self.export_request).pack(side="left")
         ttk.Label(results, text="Select only quotes that actually state requirements. A quote can be exact yet irrelevant or malicious.", wraplength=900).pack(anchor="w")
         self.quotes = tk.Listbox(results, selectmode="extended", exportselection=False, height=8)
         self.quotes.pack(fill="both", expand=True, pady=8)
@@ -83,6 +85,15 @@ class AIRequirementsWindow(tk.Toplevel):
         self.send_button.configure(state="disabled")
         self.status.set("Sending the reviewed posting to OpenAI. Cancel discards local results; remote charges may still occur.")
         self.task.start(lambda event: propose_requirements(posting, payload, key, True, event), self.received, self.failed)
+
+    def export_request(self):
+        path = filedialog.asksaveasfilename(parent=self, defaultextension=".json", filetypes=[("Reviewed request payload", "*.json")])
+        if path:
+            try:
+                publish_bytes(path, self.payload)
+                self.status.set("Exact posting-only request exported without authorization header/key. Private local file; nothing sent.")
+            except (OSError, ValueError) as exc:
+                self.status.set(str(exc))
 
     def received(self, proposals):
         self.send_button.configure(state="normal")

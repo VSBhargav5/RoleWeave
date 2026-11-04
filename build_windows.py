@@ -6,8 +6,24 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
+from uuid import uuid4
 
 from runtime_paths import APP_VERSION, RESOURCE_ROOT
+
+
+def promote_package(staged, live):
+    """Retain the previous complete app; roll back a failed promotion."""
+    previous = live.parent / ("previous-" + uuid4().hex)
+    existed = live.exists()
+    if existed:
+        os.replace(live, previous)
+    try:
+        os.replace(staged, live)
+    except OSError:
+        if existed:
+            os.replace(previous, live)
+        raise
 
 
 def main():
@@ -22,15 +38,17 @@ def main():
         if not path.resolve().is_relative_to(root):
             raise SystemExit("Build output must remain inside this project")
     environment = os.environ.copy()
+    output.mkdir(exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix="build-", dir=output))
     environment["PYINSTALLER_CONFIG_DIR"] = str(output / "pyinstaller-cache")
     command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--onedir", "--windowed", "--noupx",
-               "--name", "RoleWeave", "--distpath", str(target), "--workpath", str(output / "pyinstaller-work"),
+               "--name", "RoleWeave", "--distpath", str(staging), "--workpath", str(output / "pyinstaller-work"),
                "--specpath", str(output / "pyinstaller-spec"), "--collect-data", "reportlab",
                "--collect-submodules", "reportlab.pdfbase", "--copy-metadata", "reportlab",
                "--copy-metadata", "Pillow", "--copy-metadata", "charset-normalizer",
                "--add-data", str(root / "examples") + os.pathsep + "examples", str(root / "desktop.py")]
     subprocess.run(command, cwd=root, env=environment, check=True)
-    package = target / "RoleWeave"
+    package = staging / "RoleWeave"
     for name in ("README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(root / name, package / name)
     licenses = package / "licenses"
@@ -46,8 +64,15 @@ def main():
         source = Path(sys.base_prefix) / relative
         if source.is_file():
             shutil.copy2(source, licenses / (source.parent.name + "-" + source.name))
-    archive = shutil.make_archive(str(output / f"RoleWeave-{APP_VERSION}-windows-x64"), "zip", root_dir=target, base_dir="RoleWeave")
-    print(f"Built {package / 'RoleWeave.exe'}")
+    staged_archive = shutil.make_archive(str(staging / "portable"), "zip", root_dir=staging, base_dir="RoleWeave")
+    archive = output / f"RoleWeave-{APP_VERSION}-windows-x64.zip"
+    os.replace(staged_archive, archive)
+    target.mkdir(exist_ok=True)
+    try:
+        promote_package(package, target / "RoleWeave")
+    except OSError as exc:
+        raise SystemExit(f"Complete ZIP available at {archive}. Close the running app before promoting it; previous app preserved.") from exc
+    print(f"Built {target / 'RoleWeave' / 'RoleWeave.exe'}")
     print(f"Portable ZIP: {archive}")
 
 

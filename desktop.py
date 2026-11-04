@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tkinter as tk
+import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
 from job_store import JobStore
@@ -19,6 +20,11 @@ from startup_selftest import run_self_test
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 from desktop_theme import apply_theme, polish_widgets
+from source_links import source_link
+from workspace_exports import review_list_csv, follow_up_list
+from review_history import ReviewHistory
+from interview_practice import InterviewPractice
+from workspace_health import inspect_database
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -88,11 +94,19 @@ class JobShelf(ttk.Frame):
         left.grid_propagate(False)
         left.columnconfigure(0, weight=1)
         left.rowconfigure(6, weight=1)
-        ttk.Label(left, text="Your opportunities", style="Section.TLabel").grid(row=0, column=0, sticky="w")
+        library_heading = ttk.Frame(left)
+        library_heading.grid(row=0, column=0, sticky="ew")
+        ttk.Label(library_heading, text="Opportunities", style="Section.TLabel").pack(side="left")
+        self.sort_order = tk.StringVar(value="newest")
+        sort_menu = tk.Menu(self, tearoff=False)
+        for label, value in (("Newest", "newest"), ("Oldest", "oldest"), ("Title", "title"), ("Company", "company"), ("Follow-up date", "follow_up")):
+            sort_menu.add_radiobutton(label=label, variable=self.sort_order, value=value, command=self.refresh)
+        ttk.Menubutton(library_heading, text="Order", menu=sort_menu).pack(side="right")
         self.library_count = tk.StringVar(value="No saved reviews")
         ttk.Label(left, textvariable=self.library_count, style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(3, 12))
         self.search = tk.StringVar()
         search = ttk.Entry(left, textvariable=self.search)
+        self.search_entry = search
         search.grid(row=2, column=0, sticky="ew")
         search.bind("<Return>", lambda _event: self.refresh())
         ttk.Label(left, text="Search title, company or latest note", style="Muted.TLabel", font=("Segoe UI", 8)).grid(row=3, column=0, sticky="w", pady=(4, 10))
@@ -108,6 +122,8 @@ class JobShelf(ttk.Frame):
         stage_filter.bind("<<ComboboxSelected>>", lambda _event: self.refresh())
         self.due_only = tk.BooleanVar(value=False)
         ttk.Checkbutton(filters, text="Follow-ups due", variable=self.due_only, command=self.refresh).pack(anchor="w")
+        self.search_posting = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filters, text="Search posting text too", variable=self.search_posting, command=self.refresh).pack(anchor="w")
         ttk.Button(left, text="Apply search / refresh", command=self.refresh).grid(row=5, column=0, sticky="ew", pady=(8, 10))
         listing = ttk.Frame(left)
         listing.grid(row=6, column=0, sticky="nsew")
@@ -183,6 +199,13 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Preparation pack (.txt)", command=self.export_pack)
         export_menu.add_command(label="Original review (.json)", command=self.export_selected)
         export_menu.add_command(label="Import review JSON…", command=self.import_review)
+        export_menu.add_command(label="Open saved source posting in browser", command=self.open_source)
+        export_menu.add_command(label="Inspect backup without restoring", command=self.inspect_backup)
+        export_menu.add_command(label="Export this filtered review list (.csv)", command=self.export_list)
+        export_menu.add_command(label="Export filtered active follow-ups (.ics)", command=self.export_followups)
+        export_menu.add_command(label="Compare related saved versions", command=self.open_versions)
+        export_menu.add_command(label="Practise linked interview evidence", command=self.open_practice_cards)
+        export_menu.add_command(label="Check local database storage", command=self.check_database)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -197,10 +220,80 @@ class JobShelf(ttk.Frame):
         self.baseline = self.form_state()
         self.refresh()
         self.profile_changed()
+        root.bind("<Control-f>", self.focus_search)
+        root.bind("<Control-n>", lambda _event: self.shortcut(self.new_posting))
+        root.bind("<Control-e>", lambda _event: self.shortcut(self.edit_evidence))
 
     def focus_workspace(self):
         self.detail_tabs.select(0)
         self.posting.focus_set()
+
+    def open_versions(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before comparing versions.")
+            return
+        return ReviewHistory(self.winfo_toplevel(), self.store, self.current_id)
+
+    def open_practice_cards(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before practising its evidence.")
+            return
+        return InterviewPractice(self.winfo_toplevel(), self.store.load(self.current_id))
+
+    def check_database(self):
+        try:
+            counts = inspect_database(self.store.path)
+            messagebox.showinfo("Read-only storage check", "SQLite quick_check passed.\n" + "\n".join(f"{key}: {value}" for key, value in counts.items()) + "\nThis checks storage structure, not source authenticity or completeness.", parent=self.winfo_toplevel())
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def focus_search(self, _event=None):
+        self.search_entry.focus_set()
+        self.search_entry.selection_range(0, "end")
+        return "break"
+
+    @staticmethod
+    def shortcut(action):
+        action()
+        return "break"
+
+    def open_source(self):
+        if self.has_draft_changes() or self.current_id is None:
+            self.status.set("Select a saved review and save/discard edits before opening its source.")
+            return
+        try:
+            url = source_link(self.store.load(self.current_id)["source_url"])
+            webbrowser.open(url)
+            self.status.set("Opened the saved posting URL in your browser. This does not submit an application.")
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+
+    def inspect_backup(self):
+        path = filedialog.askopenfilename(filetypes=[("RoleWeave backup", "*.json")])
+        if path:
+            try:
+                counts = self.store.inspect_backup(path)
+                messagebox.showinfo("Backup validated in an isolated shelf", "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in counts.items()) + "\nCurrent workspace unchanged. Hashes do not prove authenticity.", parent=self.winfo_toplevel())
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                self.status.set(str(exc))
+
+    def export_list(self):
+        path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Filtered review list", "*.csv")])
+        if path:
+            try:
+                review_list_csv(self.rows, path)
+                self.status.set(f"Exported {len(self.rows)} displayed review rows. No notes, facts or resumes included; keep this file private.")
+            except (OSError, ValueError) as exc:
+                self.status.set(str(exc))
+
+    def export_followups(self):
+        path = filedialog.asksaveasfilename(defaultextension=".ics", filetypes=[("Filtered follow-ups", "*.ics")])
+        if path:
+            try:
+                count = follow_up_list(self.store, self.rows, path)
+                self.status.set(f"Exported {count} private calendar events. Import manually; existing remote events are not changed.")
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                self.status.set(str(exc))
 
     def profile_changed(self):
         profile = self.store.active_profile()
@@ -286,7 +379,8 @@ class JobShelf(ttk.Frame):
         try:
             rows = self.store.list_jobs(MARKET_LABELS.get(self.filter.get()),
                                         stage=None if self.stage_filter.get() == "All stages" else self.stage_filter.get(),
-                                        query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None)
+                                        query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None,
+                                        search_posting=self.search_posting.get(), sort=self.sort_order.get())
             all_rows = self.store.list_jobs()
             resume_count = len(self.store.list_resumes())
         except (OSError, ValueError, sqlite3.Error) as exc:

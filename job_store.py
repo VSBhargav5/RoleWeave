@@ -7,12 +7,15 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import tempfile
 from uuid import uuid4
 
 from roleweave import MARKETS, MAX_BYTES, review_snapshot, text
 from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
 from preparation_pack import build_pack
 from calendar_export import follow_up_calendar
+from safe_export import publish_bytes
+from resume_render import resume_text
 from career_profile import profile_snapshot
 from resume_versions import MAX_RESUME_SNAPSHOT, make_resume_version, resume_snapshot, decoded, encoded
 
@@ -64,6 +67,17 @@ def backup_record(record):
 
 
 class JobStore:
+    @staticmethod
+    def inspect_backup(source):
+        """Validate in an isolated shelf; never touch the user's current database."""
+        with tempfile.TemporaryDirectory(prefix="roleweave-inspect-") as folder:
+            checked = JobStore(Path(folder) / "check.db")
+            checked.restore(source)
+            jobs = checked.list_jobs()
+            return {"saved_reviews": len(jobs), "profiles": len(checked.list_profiles()),
+                    "resumes": len(checked.list_resumes()),
+                    "history_entries": sum(len(checked.application_history(row["id"])) for row in jobs)}
+
     def __init__(self, path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,26 +132,37 @@ class JobStore:
         item["resume"] = record
         return item
 
-    def list_resumes(self):
+    def list_resumes(self, job_id=None):
+        if job_id is not None:
+            self.load(job_id)
         with closing(sqlite3.connect(self.path)) as db:
             rows = db.execute("SELECT id FROM resume_versions ORDER BY created_at DESC, id").fetchall()
-        return [{"id": row[0], "created_at": item["created_at"], "label": item["resume"]["label"],
-                 "has_pdf": bool(item["resume"]["pdf_base64"])}
-                for row in rows for item in [self.load_resume(row[0])]]
+        result = []
+        for row in rows:
+            item = self.load_resume(row[0])
+            context = item["resume"]["job_context"]
+            if job_id is not None and (context is None or context["id"] != job_id):
+                continue
+            result.append({"id": row[0], "created_at": item["created_at"], "label": item["resume"]["label"],
+                           "has_pdf": bool(item["resume"]["pdf_base64"])})
+        return result
 
     def export_resume(self, identifier, destination, format):
-        if format not in ("html", "pdf"):
-            raise ValueError("Choose HTML or PDF")
-        suffixes = (".html", ".htm") if format == "html" else (".pdf",)
+        if format not in ("html", "pdf", "txt"):
+            raise ValueError("Choose HTML, PDF or plain text")
+        suffixes = (".html", ".htm") if format == "html" else ("." + format,)
         if Path(destination).suffix.lower() not in suffixes:
             raise ValueError("Choose a filename ending in " + suffixes[0])
         record = self.load_resume(identifier)["resume"]
         if format == "pdf" and not record["pdf_base64"]:
             raise ValueError("This saved version is HTML-only; print the HTML from your browser")
-        payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
-        with Path(destination).open("xb") as target:
-            target.write(payload)
-        return record[format + "_sha256"]
+        if format == "txt":
+            profile, _digest = profile_snapshot(decoded(record["profile_snapshot_base64"], MAX_BYTES))
+            payload = resume_text(profile, record["selected_fact_ids"]).encode("utf-8")
+        else:
+            payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
+        publish_bytes(destination, payload)
+        return hashlib.sha256(payload).hexdigest()
 
     def save_profile(self, snapshot):
         _data, digest = profile_snapshot(snapshot)
@@ -195,7 +220,11 @@ class JobStore:
                 raise ValueError("This exact review and job details are already saved") from exc
         return identifier
 
-    def list_jobs(self, market=None, stage=None, query="", due_on=None):
+    def list_jobs(self, market=None, stage=None, query="", due_on=None, search_posting=False, sort="newest"):
+        if sort not in ("newest", "oldest", "title", "company", "follow_up"):
+            raise ValueError("Unknown job sort order")
+        if type(search_posting) is not bool:
+            raise ValueError("Posting search must be explicitly enabled or disabled")
         if market is not None and (not isinstance(market, str) or market not in MARKETS):
             raise ValueError("Unknown market")
         if stage is not None and (not isinstance(stage, str) or stage not in STAGES):
@@ -227,14 +256,22 @@ class JobStore:
             if stage is not None and item["stage"] != stage:
                 continue
             haystack = "\n".join(item[key] for key in ("title", "company", "source_url", "decision_note"))
+            if search_posting and query.strip():
+                haystack += "\n" + json.loads(self.load(item["id"])["snapshot"])["posting"]
             if query.strip().casefold() not in haystack.casefold():
                 continue
             if due_on is not None and (not item["follow_up"] or item["follow_up"] > due_on
                                        or item["stage"] in ("closed", "withdrawn")):
                 continue
             result.append(item)
-        if due_on is not None:
+        if sort == "oldest":
+            result.sort(key=lambda item: (item["captured_at"], item["id"]))
+        elif sort in ("title", "company"):
+            result.sort(key=lambda item: (item[sort].casefold(), item["title"].casefold(), item["id"]))
+        if sort == "follow_up" or (due_on is not None and sort == "newest"):
             result.sort(key=lambda item: (item["follow_up"], item["captured_at"], item["id"]))
+            if sort == "follow_up":
+                result.sort(key=lambda item: not bool(item["follow_up"]))
         return result
 
     def load(self, identifier):
@@ -255,21 +292,18 @@ class JobStore:
     def export(self, identifier, destination):
         item = self.load(identifier)
         # Exclusive creation prevents silently replacing an earlier export.
-        with Path(destination).open("xb") as target:
-            target.write(item["snapshot"])
+        publish_bytes(destination, item["snapshot"])
 
     def export_preparation_pack(self, identifier, destination):
         payload = build_pack(self.load(identifier), self.application_history(identifier))
-        with Path(destination).open("xb") as target:
-            target.write(payload)
+        publish_bytes(destination, payload)
 
     def export_follow_up(self, identifier, destination):
         path = Path(destination)
         if path.suffix.lower() != ".ics":
             raise ValueError("Choose an .ics calendar filename")
         payload = follow_up_calendar(self.load(identifier), self.application_history(identifier))
-        with path.open("xb") as target:
-            target.write(payload)
+        publish_bytes(path, payload)
 
     def application_history(self, identifier):
         self.load(identifier)
@@ -345,8 +379,7 @@ class JobStore:
         payload = json.dumps({"format": BACKUP_FORMAT, "jobs": records, "application_events": events, **extra}, ensure_ascii=True).encode("utf-8")
         if len(payload) > MAX_BACKUP_BYTES:
             raise ValueError("Backup exceeds 64 MiB; no file was created")
-        with Path(destination).open("xb") as target:
-            target.write(payload)
+        publish_bytes(destination, payload)
         return len(records)
 
     def restore(self, source):
