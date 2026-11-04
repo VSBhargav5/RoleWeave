@@ -39,7 +39,7 @@ class DesktopTests(unittest.TestCase):
                     error.assert_not_called()
                 shelf.jobs.selection_set(0)
                 shelf.open_selected()
-                self.assertIn("needs_review", shelf.evidence.get("1.0", "end-1c"))
+                self.assertIn("Needs your review", shelf.evidence.get("1.0", "end-1c"))
                 backup = Path(temp) / "shelf-backup.json"
                 with patch("desktop.filedialog.asksaveasfilename", return_value=str(backup)), patch("desktop.messagebox.showerror") as error:
                     shelf.backup_shelf()

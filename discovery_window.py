@@ -2,6 +2,7 @@
 import sqlite3
 import tkinter as tk
 from tkinter import ttk
+from desktop_theme import polish_widgets
 
 from background_task import BackgroundTask
 from discovery import board_path, discovered_snapshot, fetch_board
@@ -32,7 +33,7 @@ class DiscoveryWindow(tk.Toplevel):
         self.company.grid(row=0, column=3, padx=8)
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
-        self.fetch_button = ttk.Button(actions, text="Fetch public board", command=self.fetch)
+        self.fetch_button = ttk.Button(actions, text="Fetch public board", style="Primary.TButton", command=self.fetch)
         self.fetch_button.pack(side="left")
         ttk.Button(actions, text="Cancel fetch", command=self.cancel).pack(side="left", padx=8)
         ttk.Label(body, text="Filter returned titles / locations locally").pack(anchor="w")
@@ -57,6 +58,7 @@ class DiscoveryWindow(tk.Toplevel):
         self.status = tk.StringVar(value="No automatic eligibility, sponsorship or closure inference. Fetching does not submit an application.")
         ttk.Label(body, textvariable=self.status, wraplength=960).pack(anchor="w", pady=6)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Destroy>", lambda event: self.task.cancel() if event.widget is self else None)
 

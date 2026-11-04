@@ -6,6 +6,7 @@ import sqlite3
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import webbrowser
+from desktop_theme import polish_widgets
 
 from resume_render import MAX_RESUME_BYTES, PDF_AVAILABLE, resume_text
 from career_profile import profile_snapshot
@@ -57,7 +58,7 @@ class ResumeBuilder(tk.Toplevel):
                         command=self.invalidate, state="normal" if PDF_AVAILABLE else "disabled").pack(anchor="w")
         self.confirmed = tk.BooleanVar(value=False)
         ttk.Checkbutton(create, text="I reviewed this resume's identity, summary and selected claims", variable=self.confirmed).pack(anchor="w", pady=6)
-        ttk.Button(create, text="Save frozen resume version", command=self.save).pack(anchor="w", pady=6)
+        ttk.Button(create, text="Save frozen resume version", style="Primary.TButton", command=self.save).pack(anchor="w", pady=6)
         self.versions = tk.Listbox(saved, height=7, exportselection=False)
         self.versions.pack(fill="x")
         self.versions.bind("<<ListboxSelect>>", self.load_version)
@@ -79,6 +80,7 @@ class ResumeBuilder(tk.Toplevel):
         self.refresh_versions()
         if not self.choices:
             self.status.set("No reviewed career facts are available. Close this window and review facts in My career profile.")
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
 
     def selection_state(self):

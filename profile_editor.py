@@ -5,6 +5,7 @@ import sqlite3
 import tkinter as tk
 from tkinter import messagebox, ttk
 from uuid import uuid4
+from desktop_theme import polish_widgets
 
 from career_profile import PROFILE_FIELDS, SECTIONS, imported_career_facts, validate_profile
 
@@ -74,7 +75,7 @@ class CareerProfileEditor(tk.Toplevel):
         ttk.Label(body, textvariable=self.status, wraplength=880).pack(anchor="w", pady=8)
         footer = ttk.Frame(body)
         footer.pack(fill="x")
-        ttk.Button(footer, text="Save new profile version", command=self.save).pack(side="left")
+        ttk.Button(footer, text="Save new profile version", style="Primary.TButton", command=self.save).pack(side="left")
         ttk.Button(footer, text="Close", command=self.close).pack(side="right")
         self.versions = store.list_profiles()
         self.version_choice.configure(values=[row["created_at"][:19] + " UTC - " + row["id"][:8] for row in self.versions])
@@ -84,6 +85,7 @@ class CareerProfileEditor(tk.Toplevel):
         if current:
             self.version_choice.current(next(i for i, row in enumerate(self.versions) if row["id"] == current["id"]))
         self.set_data(data)
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
 
     def set_data(self, data):
@@ -261,6 +263,7 @@ class CareerFactPicker(tk.Toplevel):
         self.status = tk.StringVar(value="Only reviewed facts are available. Sources and profile version are preserved.")
         ttk.Label(self, textvariable=self.status, wraplength=740).pack(anchor="w", padx=12)
         ttk.Button(self, text="Copy selected facts into this review", command=self.copy).pack(anchor="w", padx=12, pady=12)
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
 
     def close(self):

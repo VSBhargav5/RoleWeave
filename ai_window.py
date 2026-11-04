@@ -1,6 +1,7 @@
 """Deliberate session-key AI request, then human selection into an unsaved review."""
 import tkinter as tk
 from tkinter import ttk
+from desktop_theme import polish_widgets
 
 from ai_requirements import ENDPOINT, MODEL, posting_hash, propose_requirements, request_payload
 from background_task import BackgroundTask
@@ -42,7 +43,7 @@ class AIRequirementsWindow(tk.Toplevel):
         ttk.Checkbutton(request, text="I reviewed this exact payload and authorize this one provider request", variable=self.consent).pack(anchor="w")
         controls = ttk.Frame(request)
         controls.pack(fill="x", pady=8)
-        self.send_button = ttk.Button(controls, text="Send reviewed request", command=self.send)
+        self.send_button = ttk.Button(controls, text="Send reviewed request", style="Primary.TButton", command=self.send)
         self.send_button.pack(side="left")
         ttk.Button(controls, text="Cancel request", command=self.cancel).pack(side="left", padx=8)
         ttk.Label(results, text="Select only quotes that actually state requirements. A quote can be exact yet irrelevant or malicious.", wraplength=900).pack(anchor="w")
@@ -57,6 +58,7 @@ class AIRequirementsWindow(tk.Toplevel):
         self.status = tk.StringVar(value="Nothing is sent until you authorize and press Send. No facts or links are generated.")
         ttk.Label(body, textvariable=self.status, wraplength=940).pack(anchor="w", pady=8)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
+        polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Destroy>", self.destroyed)
 

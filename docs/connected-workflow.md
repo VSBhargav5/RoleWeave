@@ -2,7 +2,7 @@
 
 ## Public discovery
 
-Choose **Discover public jobs** from the shelf. Enter the employer's Greenhouse
+Choose **Discover jobs** from the shelf. Enter the employer's Greenhouse
 board token (the slug from its public job-board URL) and an employer label you
 checked. For a public example, token `greenhouse` refers to Greenhouse's own board.
 Press **Fetch public board**: this sends one unauthenticated HTTPS GET to

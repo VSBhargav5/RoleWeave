@@ -18,99 +18,194 @@ from runtime_paths import APP_VERSION, default_database_path, new_practice_path
 from startup_selftest import run_self_test
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
+from desktop_theme import apply_theme, polish_widgets
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
 
 class JobShelf(ttk.Frame):
     def __init__(self, root, store):
-        super().__init__(root, padding=16)
+        apply_theme(root)
+        super().__init__(root, style="App.TFrame")
         self.store = store
         self.loaded_review = None
         self.current_id = None
         self.pack(fill="both", expand=True)
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(3, weight=1)
-        ttk.Label(self, text=f"RoleWeave {APP_VERSION} · Your job workspace", font=("Segoe UI", 18)).grid(
-            row=0, column=0, columnspan=2, sticky="w")
-        ttk.Label(self, text="Save selected postings. Review evidence and eligibility separately.").grid(
-            row=1, column=0, columnspan=2, sticky="w", pady=(4, 12))
-        toolbar = ttk.Frame(self)
-        toolbar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        ttk.Button(toolbar, text="My career profile…", command=self.open_profile).pack(side="left")
-        ttk.Button(toolbar, text="Build / export resume…", command=self.open_resume).pack(side="left", padx=8)
-        ttk.Button(toolbar, text="Start here / help…", command=self.open_help).pack(side="left")
+        self.rowconfigure(0, weight=1)
+
+        rail = ttk.Frame(self, style="Rail.TFrame", padding=(16, 24), width=180)
+        rail.grid(row=0, column=0, sticky="nsew")
+        rail.grid_propagate(False)
+        rail.columnconfigure(0, weight=1)
+        rail.rowconfigure(8, weight=1)
+        ttk.Label(rail, text="RoleWeave", style="Brand.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(rail, text="A considered next move.", style="RailMuted.TLabel").grid(row=1, column=0, sticky="w", pady=(5, 30))
+        ttk.Label(rail, text="YOUR WORKSPACE", style="RailMuted.TLabel").grid(row=2, column=0, sticky="w", pady=(0, 10))
+        ttk.Button(rail, text="  Job workspace", style="ActiveRail.TButton", command=self.focus_workspace).grid(row=3, column=0, sticky="ew", pady=3)
+        ttk.Button(rail, text="  Discover jobs", style="Rail.TButton", command=self.open_discovery).grid(row=4, column=0, sticky="ew", pady=3)
+        ttk.Button(rail, text="  Career profile", style="Rail.TButton", command=self.open_profile).grid(row=5, column=0, sticky="ew", pady=3)
+        ttk.Button(rail, text="  Resume studio", style="Rail.TButton", command=self.open_resume).grid(row=6, column=0, sticky="ew", pady=3)
+        ttk.Label(rail, text="LOCAL WORKSPACE", style="RailMuted.TLabel").grid(row=9, column=0, sticky="w", pady=(0, 8))
+        ttk.Button(rail, text="Back up workspace", style="Rail.TButton", command=self.backup_shelf).grid(row=10, column=0, sticky="ew")
+        ttk.Button(rail, text="Restore backup", style="Rail.TButton", command=self.restore_shelf).grid(row=11, column=0, sticky="ew")
+        ttk.Button(rail, text="Getting started", style="Rail.TButton", command=self.open_help).grid(row=12, column=0, sticky="ew")
+        ttk.Label(rail, text=f"v{APP_VERSION}  /  Windows\nYou control every send.", style="RailMuted.TLabel").grid(row=13, column=0, sticky="w", pady=(24, 0))
+
+        workspace = ttk.Frame(self, style="App.TFrame", padding=(22, 20, 22, 12))
+        workspace.grid(row=0, column=1, sticky="nsew")
+        workspace.columnconfigure(0, weight=1)
+        workspace.rowconfigure(3, weight=1)
+        heading = ttk.Frame(workspace, style="App.TFrame")
+        heading.grid(row=0, column=0, sticky="ew")
+        heading.columnconfigure(0, weight=1)
+        ttk.Label(heading, text="Make your next move.", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Button(heading, text="+  Add a job", style="Primary.TButton", command=self.new_posting).grid(row=0, column=1, sticky="e")
         self.profile_status = tk.StringVar()
-        ttk.Label(toolbar, textvariable=self.profile_status, wraplength=330).pack(side="left", padx=12)
-        left = ttk.Frame(self, padding=(0, 0, 16, 0))
-        left.grid(row=3, column=0, sticky="nsew")
+        ttk.Label(heading, textvariable=self.profile_status, style="AppMuted.TLabel").grid(row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
+
+        metrics = ttk.Frame(workspace, style="App.TFrame")
+        metrics.grid(row=1, column=0, sticky="ew", pady=(18, 16))
+        self.metric_values = {}
+        for column, (key, label, note) in enumerate((("saved", "SAVED REVIEWS", "Snapshots, not unique applications"),
+                                                   ("due", "FOLLOW-UPS DUE", "Active reminders through today"),
+                                                   ("resumes", "RESUME VERSIONS", "Frozen documents you reviewed"))):
+            metrics.columnconfigure(column, weight=1, uniform="metrics")
+            card = ttk.Frame(metrics, padding=(14, 10))
+            card.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 10, 0))
+            value = tk.StringVar(value="0")
+            self.metric_values[key] = value
+            ttk.Label(card, text=label, style="Eyebrow.TLabel").pack(anchor="w")
+            ttk.Label(card, textvariable=value, style="Metric.TLabel").pack(anchor="w")
+            ttk.Label(card, text=note, style="Muted.TLabel", font=("Segoe UI", 8)).pack(anchor="w")
+
+        content = ttk.Frame(workspace, style="App.TFrame")
+        content.grid(row=3, column=0, sticky="nsew")
+        content.columnconfigure(1, weight=1)
+        content.rowconfigure(0, weight=1)
+        left = ttk.Frame(content, padding=14, width=280)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 16))
+        left.grid_propagate(False)
+        left.columnconfigure(0, weight=1)
+        left.rowconfigure(6, weight=1)
+        ttk.Label(left, text="Your opportunities", style="Section.TLabel").grid(row=0, column=0, sticky="w")
+        self.library_count = tk.StringVar(value="No saved reviews")
+        ttk.Label(left, textvariable=self.library_count, style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(3, 12))
         self.search = tk.StringVar()
         search = ttk.Entry(left, textvariable=self.search)
-        ttk.Label(left, text="Search title, company, URL or latest note").pack(anchor="w")
-        search.pack(fill="x")
+        search.grid(row=2, column=0, sticky="ew")
         search.bind("<Return>", lambda _event: self.refresh())
-        ttk.Button(left, text="Search / refresh", command=self.refresh).pack(fill="x", pady=4)
-        ttk.Button(left, text="Discover public jobs…", command=self.open_discovery).pack(fill="x", pady=4)
+        ttk.Label(left, text="Search title, company or latest note", style="Muted.TLabel", font=("Segoe UI", 8)).grid(row=3, column=0, sticky="w", pady=(4, 10))
+        filters = ttk.Frame(left)
+        filters.grid(row=4, column=0, sticky="ew")
         self.filter = tk.StringVar(value="All markets")
-        chooser = ttk.Combobox(left, textvariable=self.filter, state="readonly",
-                               values=["All markets", *MARKET_LABELS], width=30)
+        chooser = ttk.Combobox(filters, textvariable=self.filter, state="readonly", values=["All markets", *MARKET_LABELS], width=24)
         chooser.pack(fill="x")
         chooser.bind("<<ComboboxSelected>>", lambda _event: self.refresh())
         self.stage_filter = tk.StringVar(value="All stages")
-        stage_filter = ttk.Combobox(left, textvariable=self.stage_filter, values=["All stages", *STAGES], state="readonly")
-        stage_filter.pack(fill="x", pady=4)
+        stage_filter = ttk.Combobox(filters, textvariable=self.stage_filter, values=["All stages", *STAGES], state="readonly", width=24)
+        stage_filter.pack(fill="x", pady=7)
         stage_filter.bind("<<ComboboxSelected>>", lambda _event: self.refresh())
         self.due_only = tk.BooleanVar(value=False)
-        ttk.Checkbutton(left, text="Follow-ups due today or earlier", variable=self.due_only, command=self.refresh).pack(anchor="w")
-        self.jobs = tk.Listbox(left, width=34, height=10, exportselection=False)
-        self.jobs.pack(fill="both", expand=True, pady=8)
-        horizontal = ttk.Scrollbar(left, orient="horizontal", command=self.jobs.xview)
-        horizontal.pack(fill="x")
-        self.jobs.configure(xscrollcommand=horizontal.set)
+        ttk.Checkbutton(filters, text="Follow-ups due", variable=self.due_only, command=self.refresh).pack(anchor="w")
+        ttk.Button(left, text="Apply search / refresh", command=self.refresh).grid(row=5, column=0, sticky="ew", pady=(8, 10))
+        listing = ttk.Frame(left)
+        listing.grid(row=6, column=0, sticky="nsew")
+        listing.columnconfigure(0, weight=1)
+        listing.rowconfigure(0, weight=1)
+        self.jobs = tk.Listbox(listing, width=26, height=6, exportselection=False)
+        self.jobs.grid(row=0, column=0, sticky="nsew")
+        vertical = ttk.Scrollbar(listing, command=self.jobs.yview)
+        vertical.grid(row=0, column=1, sticky="ns")
+        horizontal = ttk.Scrollbar(listing, orient="horizontal", command=self.jobs.xview)
+        horizontal.grid(row=1, column=0, sticky="ew")
+        self.jobs.configure(xscrollcommand=horizontal.set, yscrollcommand=vertical.set)
         self.jobs.bind("<<ListboxSelect>>", self.open_selected)
-        ttk.Button(left, text="Application notes / follow-up…", command=self.open_tracker).pack(fill="x", pady=4)
-        ttk.Button(left, text="Export preparation pack…", command=self.export_pack).pack(fill="x", pady=4)
-        ttk.Button(left, text="Export original review JSON…", command=self.export_selected).pack(fill="x")
-        ttk.Button(left, text="Back up full shelf…", command=self.backup_shelf).pack(fill="x", pady=(8, 0))
-        ttk.Button(left, text="Restore shelf backup…", command=self.restore_shelf).pack(fill="x", pady=4)
-        right = ttk.Frame(self)
-        right.grid(row=3, column=1, sticky="nsew")
-        right.columnconfigure(1, weight=1)
+        self.empty_library = ttk.Label(self.jobs, text="No saved reviews yet.\nDiscover a role or add a job.", style="Muted.TLabel", wraplength=205, justify="center")
+
+        right = ttk.Frame(content, padding=18)
+        right.grid(row=0, column=1, sticky="nsew")
+        right.columnconfigure(0, weight=1)
+        right.rowconfigure(2, weight=1)
+        self.review_title = tk.StringVar(value="Review a new opportunity")
+        self.review_subtitle = tk.StringVar(value="Add a posting, then connect it to facts you can defend.")
+        title_label = ttk.Label(right, textvariable=self.review_title, style="Section.TLabel", wraplength=520)
+        title_label.grid(row=0, column=0, sticky="w")
+        subtitle_label = ttk.Label(right, textvariable=self.review_subtitle, style="Muted.TLabel", wraplength=520)
+        subtitle_label.grid(row=1, column=0, sticky="w", pady=(4, 12))
+        right.bind("<Configure>", lambda event: (title_label.configure(wraplength=max(300, event.width - 36)), subtitle_label.configure(wraplength=max(300, event.width - 36))))
+        self.detail_tabs = ttk.Notebook(right)
+        self.detail_tabs.grid(row=2, column=0, sticky="nsew")
+        posting_tab = ttk.Frame(self.detail_tabs, padding=(0, 12, 0, 0))
+        evidence_tab = ttk.Frame(self.detail_tabs, padding=(0, 12, 0, 0))
+        details_tab = ttk.Frame(self.detail_tabs, padding=(0, 12, 0, 0))
+        self.detail_tabs.add(posting_tab, text="Job posting")
+        self.detail_tabs.add(evidence_tab, text="Evidence & next steps")
+        self.detail_tabs.add(details_tab, text="Job details")
+        details_tab.columnconfigure(0, weight=1)
+        details_tab.columnconfigure(1, weight=1)
         self.fields = {}
-        for row, label in enumerate(("Job title", "Company", "Source URL (optional)")):
-            ttk.Label(right, text=label).grid(row=row, column=0, sticky="w", padx=(0, 10), pady=4)
-            field = ttk.Entry(right)
-            field.grid(row=row, column=1, sticky="ew")
+        for column, label in enumerate(("Job title", "Company")):
+            cell = ttk.Frame(details_tab)
+            cell.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 12, 0))
+            ttk.Label(cell, text=label, style="Muted.TLabel").pack(anchor="w", pady=(0, 4))
+            field = ttk.Entry(cell, width=12)
+            field.pack(fill="x")
             self.fields[label] = field
-        ttk.Label(right, text="Market").grid(row=3, column=0, sticky="w")
+        ttk.Label(details_tab, text="Source URL (optional)", style="Muted.TLabel").grid(row=1, column=0, columnspan=2, sticky="w", pady=(16, 4))
+        self.fields["Source URL (optional)"] = ttk.Entry(details_tab)
+        self.fields["Source URL (optional)"].grid(row=2, column=0, columnspan=2, sticky="ew")
         self.market = tk.StringVar(value=next(iter(MARKET_LABELS)))
-        ttk.Combobox(right, textvariable=self.market, state="readonly",
-                     values=list(MARKET_LABELS)).grid(row=3, column=1, sticky="ew", pady=4)
-        ttk.Label(right, text="Posting text · paste a permitted posting, or select a saved job below").grid(
-            row=4, column=0, columnspan=2, sticky="w", pady=(12, 4))
-        self.posting = tk.Text(right, wrap="word", height=15, undo=True)
-        self.posting.grid(row=5, column=0, columnspan=2, sticky="nsew")
-        right.rowconfigure(5, weight=1)
-        self.evidence = tk.Text(right, wrap="word", height=6, state="disabled")
-        self.evidence.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        self.show_evidence("No saved review selected. New postings have no reviewed evidence.")
+        ttk.Label(details_tab, text="Market", style="Muted.TLabel").grid(row=3, column=0, columnspan=2, sticky="w", pady=(16, 4))
+        ttk.Combobox(details_tab, textvariable=self.market, state="readonly", values=list(MARKET_LABELS)).grid(row=4, column=0, columnspan=2, sticky="ew")
+        ttk.Label(details_tab, text="A market label keeps your search organized. It does not verify location eligibility or sponsorship.\n\nPaste the description in Job posting. Changes are saved only when you choose Save posting only or save a reviewed evidence version.", style="Muted.TLabel", wraplength=450).grid(row=5, column=0, columnspan=2, sticky="w", pady=20)
+        posting_tab.columnconfigure(0, weight=1)
+        posting_tab.rowconfigure(1, weight=1)
+        ttk.Label(posting_tab, text="READ THE ROLE. KEEP THE ORIGINAL WORDING.", style="Eyebrow.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 10))
+        self.posting = tk.Text(posting_tab, wrap="word", height=6, undo=True)
+        self.posting.grid(row=1, column=0, sticky="nsew")
+        posting_scroll = ttk.Scrollbar(posting_tab, command=self.posting.yview)
+        posting_scroll.grid(row=1, column=1, sticky="ns")
+        self.posting.configure(yscrollcommand=posting_scroll.set)
+        evidence_tab.columnconfigure(0, weight=1)
+        evidence_tab.rowconfigure(1, weight=1)
+        ttk.Label(evidence_tab, text="Exact quotes. Reviewed facts. Your decision.", style="Eyebrow.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 10))
+        self.evidence = tk.Text(evidence_tab, wrap="word", height=8, state="disabled")
+        self.evidence.grid(row=1, column=0, sticky="nsew")
+        evidence_scroll = ttk.Scrollbar(evidence_tab, command=self.evidence.yview)
+        evidence_scroll.grid(row=1, column=1, sticky="ns")
+        self.evidence.configure(yscrollcommand=evidence_scroll.set)
+        self.show_evidence("No saved review selected. Save a posting, then review its requirements and career evidence.")
+        next_actions = ttk.Frame(evidence_tab)
+        next_actions.grid(row=2, column=0, sticky="ew", pady=10)
+        ttk.Button(next_actions, text="Application notes / follow-up", command=self.open_tracker).pack(side="left")
+        export_menu = tk.Menu(self, tearoff=False)
+        export_menu.add_command(label="Preparation pack (.txt)", command=self.export_pack)
+        export_menu.add_command(label="Original review (.json)", command=self.export_selected)
+        export_menu.add_command(label="Import review JSON…", command=self.import_review)
+        ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
-        actions.grid(row=7, column=0, columnspan=2, sticky="w", pady=10)
-        ttk.Button(actions, text="Save posting only", command=self.save).grid(row=0, column=0, padx=4, pady=4)
-        ttk.Button(actions, text="Review evidence…", command=self.edit_evidence).grid(row=0, column=1, padx=4, pady=4)
-        ttk.Button(actions, text="Import review JSON…", command=self.import_review).grid(row=0, column=2, padx=4, pady=4)
-        ttk.Button(actions, text="New posting", command=self.new_posting).grid(row=1, column=0, padx=4, pady=4)
-        ttk.Button(actions, text="Reload saved review", command=self.reload_saved).grid(row=1, column=1, padx=4, pady=4)
-        self.status = tk.StringVar(value="Local shelf. Network requests only through explicit discovery or AI actions. No application submissions.")
-        ttk.Label(self, textvariable=self.status, wraplength=900).grid(
-            row=4, column=0, columnspan=2, sticky="w", pady=(12, 0))
+        actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
+        ttk.Button(actions, text="Save posting only", style="Primary.TButton", command=self.save).pack(side="left")
+        ttk.Button(actions, text="Review evidence", command=self.edit_evidence).pack(side="left", padx=8)
+        ttk.Button(actions, text="Reload saved", command=self.reload_saved).pack(side="right")
+        self.status = tk.StringVar(value="Your shelf stays local. Discovery and AI requests happen only when you choose them.")
+        status_label = ttk.Label(workspace, textvariable=self.status, style="AppMuted.TLabel", wraplength=900)
+        status_label.grid(row=4, column=0, sticky="ew", pady=(12, 0))
+        workspace.bind("<Configure>", lambda event: status_label.configure(wraplength=max(300, event.width - 44)))
+        polish_widgets(self)
         self.baseline = self.form_state()
         self.refresh()
         self.profile_changed()
 
+    def focus_workspace(self):
+        self.detail_tabs.select(0)
+        self.posting.focus_set()
+
     def profile_changed(self):
         profile = self.store.active_profile()
-        self.profile_status.set("Profile: " + profile["profile"]["name"] if profile else "Start here: create your career profile and reviewed facts.")
+        name = profile["profile"]["name"] if profile else ""
+        self.profile_status.set("Profile: " + name[:70] + ("…" if len(name) > 70 else "") if profile else "Start here: create your career profile and reviewed facts.")
 
     def open_discovery(self):
         if self.has_draft_changes():
@@ -132,13 +227,17 @@ class JobShelf(ttk.Frame):
         try:
             profile = self.store.active_profile()
             if profile is None:
-                self.status.set("Start with My career profile: add your identity and reviewed facts before building a resume.")
+                self.status.set("Start with Career profile: add your identity and reviewed facts before building a resume.")
                 return
             job = self.store.load(self.current_id) if self.current_id else None
             return ResumeBuilder(self.winfo_toplevel(), self.store, profile, job,
-                                 lambda: self.status.set("A reviewed resume version was saved. Export from the resume window."))
+                                 self.resume_saved)
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not open resumes", str(exc))
+
+    def resume_saved(self):
+        self.refresh()
+        self.status.set("A reviewed resume version was saved. Export from the resume window.")
 
     def open_practice(self):
         try:
@@ -146,8 +245,8 @@ class JobShelf(ttk.Frame):
             identifier = seed_practice(store)
             window = tk.Toplevel(self.winfo_toplevel())
             window.title(f"RoleWeave {APP_VERSION} - Synthetic practice")
-            window.geometry("1100x760")
-            window.minsize(900, 620)
+            window.geometry("1180x780")
+            window.minsize(1040, 700)
             shelf = JobShelf(window, store)
             shelf.show_saved(identifier)
             shelf.status.set("Synthetic practice workspace. Your main shelf has not been changed.")
@@ -165,7 +264,7 @@ class JobShelf(ttk.Frame):
         body = ttk.Frame(window, padding=20)
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="Start with one job and facts you can defend", font=("Segoe UI", 16)).pack(anchor="w")
-        instructions = ["1. My career profile: enter your identity, summary and sourced facts. Choose each fact's section and review it.",
+        instructions = ["1. Career profile: enter your identity, summary and sourced facts. Choose each fact's section and review it.",
                         "2. Paste a permitted posting or use Discover public jobs for one Greenhouse board. Choose the market explicitly.",
                         "3. Review evidence: select exact quotes and link relevant facts deliberately. Optional AI proposes quotes only after payload review and consent.",
                         "4. Build a resume: select reviewed claims, preview and approve. Save a frozen version, then export HTML/PDF.",
@@ -188,14 +287,25 @@ class JobShelf(ttk.Frame):
             rows = self.store.list_jobs(MARKET_LABELS.get(self.filter.get()),
                                         stage=None if self.stage_filter.get() == "All stages" else self.stage_filter.get(),
                                         query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None)
+            all_rows = self.store.list_jobs()
+            resume_count = len(self.store.list_resumes())
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(str(exc))
             return
         self.rows = rows
+        self.metric_values["saved"].set(str(len(all_rows)))
+        self.metric_values["due"].set(str(sum(1 for item in all_rows if item["follow_up"] and item["follow_up"] <= date.today().isoformat() and item["stage"] not in ("closed", "withdrawn"))))
+        self.metric_values["resumes"].set(str(resume_count))
+        self.library_count.set(f"{len(rows)} shown · {len(all_rows)} saved reviews")
         self.jobs.delete(0, "end")
         for item in self.rows:
             due = f" · follow-up {item['follow_up']}" if item['follow_up'] else ""
-            self.jobs.insert("end", f"[{item['stage']}] {item['company']} · {item['title']}{due}")
+            self.jobs.insert("end", f"{item['title']}  /  {item['company']}  ·  {item['stage']}{due}")
+        if rows:
+            self.empty_library.place_forget()
+        else:
+            self.empty_library.configure(text="No reviews match these filters.\nTry another market or search." if all_rows else "No saved reviews yet.\nDiscover a role or add a job.")
+            self.empty_library.place(relx=.5, rely=.5, anchor="center")
         self.select_job(self.current_id)
 
     def select_job(self, identifier):
@@ -248,6 +358,7 @@ class JobShelf(ttk.Frame):
         self.refresh()
         self.select_job(identifier)
         self.load_job(identifier)
+        self.detail_tabs.select(0)
 
     def reload_saved(self):
         if self.current_id is None:
@@ -295,6 +406,7 @@ class JobShelf(ttk.Frame):
                 raise ValueError("Database write failed; review was not saved") from exc
             self.show_saved(identifier)
             self.status.set("Reviewed snapshot saved. Original snapshots are preserved; links do not verify qualification.")
+            self.detail_tabs.select(1)
 
         return EvidenceEditor(self.winfo_toplevel(), data, save_review, self.store.active_profile())
 
@@ -325,14 +437,16 @@ class JobShelf(ttk.Frame):
         count = len(item["review"]["requirements"])
         lines = []
         for requirement in item["review"]["requirements"]:
-            lines.append(f"{requirement['state']}: {requirement['quote']}")
-            lines.extend(f"  {fact['claim']} (source: {fact['source']})" for fact in requirement["evidence"])
+            label = "Linked evidence" if requirement["evidence"] else "Needs your review"
+            lines.append(f"{label}  /  {requirement['quote']}")
+            lines.extend(f"  • {fact['claim']}\n    Source: {fact['source']}" for fact in requirement["evidence"])
+            lines.append("")
         self.show_evidence("\n".join(lines) or "No reviewed requirements in this snapshot.")
         self.current_id = identifier
+        self.review_title.set(item["title"][:110] + ("…" if len(item["title"]) > 110 else ""))
+        self.review_subtitle.set(f"{item['company'][:80]}  ·  {self.market.get()}")
         self.baseline = self.form_state()
-        self.status.set(f"Snapshot {item['input_sha256'][:12]} · {count} requirement(s). "
-                        "Review evidence to edit links; Save posting only discards links in the new snapshot. "
-                        "Export JSON to inspect its evidence. Eligibility and completeness are unverified.")
+        self.status.set(f"Saved review {identifier[:8]} · {count} requirement quotes. Review evidence before linking facts. Saving posting only creates a new review without links.")
 
     def new_posting(self):
         if not self.discard_draft():
@@ -340,12 +454,15 @@ class JobShelf(ttk.Frame):
         self.loaded_review = None
         self.current_id = None
         self.jobs.selection_clear(0, "end")
+        self.review_title.set("Review a new opportunity")
+        self.review_subtitle.set("Add a posting, then connect it to facts you can defend.")
+        self.detail_tabs.select(2)
         for field in self.fields.values():
             field.delete(0, "end")
         self.posting.delete("1.0", "end")
         self.baseline = self.form_state()
         self.show_evidence("No saved review selected. New postings have no reviewed evidence.")
-        self.status.set("New posting. Choose its market before saving.")
+        self.status.set("New posting. Enter title/company and market in Job details, then paste the description in Job posting.")
 
     def import_review(self):
         path = filedialog.askopenfilename(filetypes=[("Review JSON", "*.json")])
@@ -427,8 +544,8 @@ def main():
         raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
     root = tk.Tk()
     root.title(f"RoleWeave {APP_VERSION} - {'Synthetic practice' if args.demo else 'Job workspace'}")
-    root.geometry("1100x760")
-    root.minsize(900, 620)
+    root.geometry("1180x780")
+    root.minsize(1040, 700)
     try:
         path = new_practice_path(default_database_path().parent) if args.demo else args.db or default_database_path()
         store = JobStore(path)
@@ -438,7 +555,7 @@ def main():
             shelf.show_saved(identifier)
             shelf.status.set("Synthetic practice only. Your main workspace is unchanged.")
         elif not store.list_jobs() and not store.active_profile():
-            shelf.status.set("Welcome. Start with My career profile, or use Start here / help to open a separate synthetic practice workspace.")
+            shelf.status.set("Welcome. Start with Career profile, or use Getting started to open a separate synthetic practice workspace.")
         root.protocol("WM_DELETE_WINDOW", shelf.close)
     except (OSError, sqlite3.Error, ValueError) as exc:
         messagebox.showerror("Could not open local database", str(exc))
