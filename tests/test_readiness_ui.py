@@ -11,6 +11,19 @@ from job_store import JobStore
 
 @unittest.skipUnless(os.name == "nt", "Windows readiness interactions")
 class ReadinessUITests(unittest.TestCase):
+    def test_offline_request_export_excludes_session_key_and_never_sends(self):
+        editor = self.shelf.edit_evidence()
+        assistant = editor.open_ai()
+        assistant.key.set("SYNTHETIC_SECRET_KEY")
+        path = self.folder / "request.json"
+        with patch("ai_window.filedialog.asksaveasfilename", return_value=str(path)), patch.object(assistant.task, "start") as sender:
+            assistant.export_request()
+            sender.assert_not_called()
+        self.assertEqual(path.read_bytes(), assistant.payload)
+        self.assertNotIn(b"SYNTHETIC_SECRET_KEY", path.read_bytes())
+        assistant.close()
+        editor.destroy()
+
     def test_filtered_fact_selection_keeps_identity_and_imported_draft_is_guarded(self):
         editor = self.shelf.open_profile()
         editor.fact_query.set("SQL")
