@@ -14,5 +14,42 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
+      - run: python -m pip install -r requirements-test.txt
       - run: python -m unittest discover -s tests -v
       - run: python roleweave.py examples/synthetic.json
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - run: python -m pip install -r requirements-build.txt
+      - run: python build_windows.py
+      - name: Verify the packaged executable using synthetic data
+        shell: pwsh
+        run: |
+          $roleTest = Start-Process -FilePath './out/portable/RoleWeave/RoleWeave.exe' -ArgumentList '--self-test','out/package-smoke' -Wait -PassThru -WindowStyle Hidden
+          Get-Content out/package-smoke/report.json
+          if ($roleTest.ExitCode -ne 0) { exit 1 }
+          $roleReport = Get-Content out/package-smoke/report.json -Raw | ConvertFrom-Json
+          if (-not $roleReport.ok -or -not $roleReport.frozen) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RoleWeave-0.3.0-windows-x64
+          path: out/RoleWeave-0.3.0-windows-x64.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaged-runtime-smoke
+          path: out/package-smoke/report.json
