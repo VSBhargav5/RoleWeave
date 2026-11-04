@@ -1,7 +1,7 @@
 """Deliberate session-key AI request, then human selection into an unsaved review."""
 import tkinter as tk
 from tkinter import ttk
-from desktop_theme import polish_widgets
+from desktop_theme import polish_widgets, reserve_footer
 
 from ai_requirements import ENDPOINT, MODEL, posting_hash, propose_requirements, request_payload
 from background_task import BackgroundTask
@@ -58,6 +58,9 @@ class AIRequirementsWindow(tk.Toplevel):
         self.status = tk.StringVar(value="Nothing is sent until you authorize and press Send. No facts or links are generated.")
         ttk.Label(body, textvariable=self.status, wraplength=940).pack(anchor="w", pady=8)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
+        reserve_footer(body)
+        reserve_footer(request)
+        reserve_footer(results)
         polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Destroy>", self.destroyed)

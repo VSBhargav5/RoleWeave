@@ -3,7 +3,7 @@ import copy
 import tkinter as tk
 from tkinter import ttk, messagebox
 from uuid import uuid4
-from desktop_theme import polish_widgets
+from desktop_theme import polish_widgets, reserve_footer
 
 from roleweave import review, text, revise_fact, remove_fact
 from profile_editor import CareerFactPicker
@@ -80,6 +80,8 @@ class EvidenceEditor(tk.Toplevel):
         ttk.Button(body, text="Save reviewed snapshot", style="Primary.TButton", command=self.save).grid(row=5, column=0, sticky="w", pady=12)
         ttk.Button(body, text="Cancel · discard changes", command=self.destroy).grid(row=5, column=1, sticky="e")
         self.refresh()
+        reserve_footer(requirements)
+        reserve_footer(facts)
         polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.request_close)
 

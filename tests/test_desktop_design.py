@@ -62,8 +62,16 @@ class DesktopDesignTests(unittest.TestCase):
         from tkinter import ttk
         def buttons(widget):
             for child in widget.winfo_children():
-                if isinstance(child, ttk.Button) and child.cget("style") == "Primary.TButton" and child.winfo_ismapped():
-                    yield child
+                if isinstance(child, ttk.Button):
+                    ancestor, visible_tab = child, True
+                    while ancestor is not widget.winfo_toplevel():
+                        parent = ancestor.master
+                        if isinstance(parent, ttk.Notebook) and str(ancestor) != parent.select():
+                            visible_tab = False
+                            break
+                        ancestor = parent
+                    if visible_tab:
+                        yield child
                 yield from buttons(child)
 
         def assert_fits(window):
@@ -72,8 +80,10 @@ class DesktopDesignTests(unittest.TestCase):
                 with self.subTest(window=window.title(), action=button.cget("text")):
                     x = button.winfo_rootx() - window.winfo_rootx()
                     y = button.winfo_rooty() - window.winfo_rooty()
+                    self.assertTrue(button.winfo_ismapped(), "An action on the current page was hidden")
                     self.assertGreaterEqual(x, 0)
                     self.assertGreaterEqual(y, 0)
+                    self.assertGreaterEqual(button.winfo_height(), 28, "Action was collapsed by the layout")
                     self.assertLessEqual(x + button.winfo_width(), window.winfo_width())
                     self.assertLessEqual(y + button.winfo_height(), window.winfo_height())
 
@@ -83,20 +93,31 @@ class DesktopDesignTests(unittest.TestCase):
         profile = self.shelf.open_profile()
         profile.geometry("800x650")
         assert_fits(profile)
+        profile.tabs.select(1)
+        assert_fits(profile)
+        self.assertGreaterEqual(profile.facts.winfo_height(), 48)
         profile.close()
         resume = self.shelf.open_resume()
         resume.geometry("800x650")
+        assert_fits(resume)
+        resume.tabs.select(1)
         assert_fits(resume)
         resume.close()
         discovery = self.shelf.open_discovery()
         discovery.geometry("850x650")
         assert_fits(discovery)
+        self.assertGreaterEqual(discovery.preview.winfo_height(), 80)
         discovery.close()
         editor = self.shelf.edit_evidence()
         editor.geometry("800x700")
         assert_fits(editor)
+        self.assertGreaterEqual(editor.facts.winfo_height(), 48)
+        self.assertGreaterEqual(editor.requirements.winfo_height(), 48)
         assistant = editor.open_ai()
         assistant.geometry("820x650")
+        assert_fits(assistant)
+        self.assertGreaterEqual(assistant.payload_view.winfo_height(), 60)
+        assistant.tabs.select(1)
         assert_fits(assistant)
         assistant.close()
         editor.destroy()

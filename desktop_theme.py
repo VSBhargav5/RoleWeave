@@ -83,3 +83,19 @@ def polish_widgets(window):
                              relief="flat", borderwidth=0, highlightthickness=1, highlightbackground=LINE,
                              highlightcolor=ACCENT, selectborderwidth=0)
         polish_widgets(widget)
+
+
+def reserve_footer(container):
+    """Allocate fixed controls before expandable content can consume their space.
+
+    Called explicitly by packed dialogs. Keep their original visual order, but
+    reserve bottom space for controls/status after the first expanding pane.
+    """
+    children = container.pack_slaves()
+    expanding = [widget for widget in children if widget.pack_info().get("expand")]
+    if not expanding:
+        return
+    first = expanding[0]
+    for widget in reversed(children[children.index(first) + 1:]):
+        if widget not in expanding:
+            widget.pack_configure(side="bottom", before=first)

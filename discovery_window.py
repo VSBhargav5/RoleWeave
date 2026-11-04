@@ -2,7 +2,7 @@
 import sqlite3
 import tkinter as tk
 from tkinter import ttk
-from desktop_theme import polish_widgets
+from desktop_theme import polish_widgets, reserve_footer
 
 from background_task import BackgroundTask
 from discovery import board_path, discovered_snapshot, fetch_board
@@ -41,7 +41,7 @@ class DiscoveryWindow(tk.Toplevel):
         query = ttk.Entry(body, textvariable=self.query)
         query.pack(fill="x")
         query.bind("<KeyRelease>", lambda _event: self.filter_rows())
-        self.rows = ttk.Treeview(body, columns=("title", "location", "updated"), show="headings", height=7, selectmode="browse")
+        self.rows = ttk.Treeview(body, columns=("title", "location", "updated"), show="headings", height=4, selectmode="browse")
         for key, label, width in (("title", "Title", 400), ("location", "Provider location label", 280), ("updated", "Provider updated_at", 210)):
             self.rows.heading(key, text=label)
             self.rows.column(key, width=width)
@@ -58,6 +58,7 @@ class DiscoveryWindow(tk.Toplevel):
         self.status = tk.StringVar(value="No automatic eligibility, sponsorship or closure inference. Fetching does not submit an application.")
         ttk.Label(body, textvariable=self.status, wraplength=960).pack(anchor="w", pady=6)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
+        reserve_footer(body)
         polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Destroy>", lambda event: self.task.cancel() if event.widget is self else None)

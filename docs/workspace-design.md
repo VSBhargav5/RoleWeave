@@ -29,7 +29,9 @@ return to the evidence tab. Earlier versions remain intact. Navigation between
 tabs never saves or discards edits. Existing unsaved-change guards still apply.
 
 Profile, resume, discovery, AI and tracking dialogs use the same palette, fields
-and primary-action treatment. The main workspace supports a minimum 1040×700
+and primary-action treatment. Packed dialogs reserve space for actions/status
+before expandable reading areas; the career-fact tab separates its library from
+the fact editor. The main workspace supports a minimum 1040×700
 logical pixels; the evidence editor requires 800×700 so its Save action cannot
 be resized off the bottom. Other dialogs retain their existing minimum sizes.
 Logical pixels are scaled by Windows display settings. Very small displays or
@@ -51,7 +53,8 @@ python desktop.py --self-test out/new-design-check
 
 Use a fresh output folder. Native tests cover unchanged workflow behavior,
 global counts versus filters, draft-preserving tabs, resume-count refresh and
-primary actions fitting supported window sizes. Packaged smoke uses synthetic
+current-page actions staying visible, full-height and within supported window
+sizes, including every dialog tab. Packaged smoke uses synthetic
 discovery/AI results and makes no paid/provider call.
 
 For a focused 60–90 minute practice session, open the separate synthetic shelf.

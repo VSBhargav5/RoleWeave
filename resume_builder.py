@@ -6,7 +6,7 @@ import sqlite3
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import webbrowser
-from desktop_theme import polish_widgets
+from desktop_theme import polish_widgets, reserve_footer
 
 from resume_render import MAX_RESUME_BYTES, PDF_AVAILABLE, resume_text
 from career_profile import profile_snapshot
@@ -45,7 +45,7 @@ class ResumeBuilder(tk.Toplevel):
         label.bind("<KeyRelease>", self.invalidate)
         ttk.Label(create, text="Select relevant reviewed claims (Ctrl-click for multiple). Unreviewed claims are excluded.", wraplength=880).pack(anchor="w")
         self.choices = [fact for fact in profile["profile"]["facts"] if fact["reviewed"]]
-        self.facts = tk.Listbox(create, height=6, selectmode="extended", exportselection=False)
+        self.facts = tk.Listbox(create, height=4, selectmode="extended", exportselection=False)
         self.facts.pack(fill="x", pady=6)
         for fact in self.choices:
             self.facts.insert("end", f"{fact['section']} - {fact['claim']}")
@@ -80,6 +80,9 @@ class ResumeBuilder(tk.Toplevel):
         self.refresh_versions()
         if not self.choices:
             self.status.set("No reviewed career facts are available. Close this window and review facts in My career profile.")
+        reserve_footer(body)
+        reserve_footer(create)
+        reserve_footer(saved)
         polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
 
