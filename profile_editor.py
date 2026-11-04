@@ -1,0 +1,281 @@
+"""Human-authored career details and reusable sourced facts."""
+import copy
+import json
+import sqlite3
+import tkinter as tk
+from tkinter import messagebox, ttk
+from uuid import uuid4
+
+from career_profile import PROFILE_FIELDS, SECTIONS, imported_career_facts, validate_profile
+
+
+class CareerProfileEditor(tk.Toplevel):
+    def __init__(self, parent, store, on_save, job=None):
+        super().__init__(parent)
+        self.store, self.on_save, self.job = store, on_save, job
+        self.title("RoleWeave - Career profile")
+        self.geometry("960x760")
+        self.minsize(800, 650)
+        self.transient(parent)
+        self.grab_set()
+        body = ttk.Frame(self, padding=16)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="Your reusable career profile", font=("Segoe UI", 17)).pack(anchor="w")
+        ttk.Label(body, text="Enter only facts you can defend. Saving a correction preserves earlier versions.", wraplength=880).pack(anchor="w", pady=8)
+        versions = ttk.Frame(body)
+        versions.pack(fill="x", pady=4)
+        self.version_choice = ttk.Combobox(versions, state="readonly", width=52)
+        self.version_choice.pack(side="left", fill="x", expand=True)
+        self.version_choice.bind("<<ComboboxSelected>>", self.load_version)
+        ttk.Button(versions, text="Make selected version active", command=self.activate).pack(side="left", padx=8)
+        self.tabs = ttk.Notebook(body)
+        self.tabs.pack(fill="both", expand=True, pady=8)
+        details = ttk.Frame(self.tabs, padding=12)
+        facts = ttk.Frame(self.tabs, padding=12)
+        self.tabs.add(details, text="Identity and summary")
+        self.tabs.add(facts, text="Career / project facts")
+        details.columnconfigure(1, weight=1)
+        self.fields = {}
+        for row, key in enumerate(PROFILE_FIELDS[:-1]):
+            ttk.Label(details, text=key.replace("_", " ").title() + (" *" if key == "name" else "")).grid(row=row, column=0, sticky="w", padx=(0, 12), pady=6)
+            field = ttk.Entry(details)
+            field.grid(row=row, column=1, sticky="ew")
+            self.fields[key] = field
+        ttk.Label(details, text="Summary - your own reviewed wording; optional").grid(row=6, column=0, columnspan=2, sticky="w", pady=(16, 6))
+        self.summary = tk.Text(details, height=7, wrap="word", undo=True)
+        self.summary.grid(row=7, column=0, columnspan=2, sticky="nsew")
+        details.rowconfigure(7, weight=1)
+        ttk.Label(details, text="Dates, employers, degrees and metrics are never inferred. Include them in a claim only if you can verify them.", wraplength=850).grid(row=8, column=0, columnspan=2, sticky="w", pady=10)
+        self.facts = tk.Listbox(facts, height=7, exportselection=False)
+        self.facts.pack(fill="both", expand=True)
+        actions = ttk.Frame(facts)
+        actions.pack(fill="x", pady=8)
+        ttk.Button(actions, text="Load selected fact", command=self.load_fact).pack(side="left")
+        ttk.Button(actions, text="Remove from draft", command=self.remove_fact).pack(side="left", padx=8)
+        ttk.Button(actions, text="Copy linked job facts", command=self.copy_job_facts).pack(side="left")
+        ttk.Label(facts, text="Claim (include its context: project, employment, course or skill)").pack(anchor="w")
+        self.claim = tk.Text(facts, height=3, wrap="word")
+        self.claim.pack(fill="x", pady=4)
+        ttk.Label(facts, text="Source / provenance").pack(anchor="w")
+        self.source = ttk.Entry(facts)
+        self.source.pack(fill="x", pady=4)
+        controls = ttk.Frame(facts)
+        controls.pack(fill="x", pady=4)
+        self.section = tk.StringVar(value="Additional")
+        ttk.Combobox(controls, textvariable=self.section, values=SECTIONS, state="readonly", width=18).pack(side="left")
+        self.reviewed = tk.BooleanVar(value=False)
+        ttk.Checkbutton(controls, text="I reviewed this claim and source", variable=self.reviewed).pack(side="left", padx=12)
+        buttons = ttk.Frame(facts)
+        buttons.pack(fill="x", pady=8)
+        ttk.Button(buttons, text="Add new fact", command=self.add_fact).pack(side="left")
+        ttk.Button(buttons, text="Update loaded fact", command=self.update_fact).pack(side="left", padx=8)
+        ttk.Button(buttons, text="Clear fact fields", command=self.clear_fact).pack(side="left")
+        self.status = tk.StringVar(value="Profile revisions affect future copies. Older job reviews and resume versions remain unchanged.")
+        ttk.Label(body, textvariable=self.status, wraplength=880).pack(anchor="w", pady=8)
+        footer = ttk.Frame(body)
+        footer.pack(fill="x")
+        ttk.Button(footer, text="Save new profile version", command=self.save).pack(side="left")
+        ttk.Button(footer, text="Close", command=self.close).pack(side="right")
+        self.versions = store.list_profiles()
+        self.version_choice.configure(values=[row["created_at"][:19] + " UTC - " + row["id"][:8] for row in self.versions])
+        current = store.active_profile()
+        data = current["profile"] if current else {**{key: "" for key in PROFILE_FIELDS}, "facts": []}
+        self.selected_version = current["id"] if current else None
+        if current:
+            self.version_choice.current(next(i for i, row in enumerate(self.versions) if row["id"] == current["id"]))
+        self.set_data(data)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+
+    def set_data(self, data):
+        self.data = copy.deepcopy(data)
+        self.original = copy.deepcopy(data)
+        for key, field in self.fields.items():
+            field.delete(0, "end")
+            field.insert(0, data[key])
+        self.summary.delete("1.0", "end")
+        self.summary.insert("1.0", data["summary"])
+        self.clear_fact()
+        self.refresh_facts()
+
+    def content(self):
+        return {**{key: field.get() for key, field in self.fields.items()},
+                "summary": self.summary.get("1.0", "end-1c"), "facts": copy.deepcopy(self.data["facts"])}
+
+    def pending_fact(self):
+        return bool(self.claim.get("1.0", "end-1c").strip() or self.source.get().strip())
+
+    def dirty(self):
+        return self.content() != self.original or self.pending_fact()
+
+    def clear_fact(self):
+        self.fact_id = None
+        self.claim.delete("1.0", "end")
+        self.source.delete(0, "end")
+        self.reviewed.set(False)
+        self.section.set("Additional")
+
+    def refresh_facts(self):
+        self.facts.delete(0, "end")
+        for fact in self.data["facts"]:
+            self.facts.insert("end", f"[{fact['section']}] {'reviewed' if fact['reviewed'] else 'unreviewed'} - {fact['claim']}")
+
+    def load_fact(self):
+        if not self.facts.curselection():
+            self.status.set("Select a career fact first.")
+            return
+        if self.pending_fact():
+            self.status.set("Apply or clear pending fact fields first.")
+            return
+        fact = self.data["facts"][self.facts.curselection()[0]]
+        self.fact_id = fact["id"]
+        self.claim.insert("1.0", fact["claim"])
+        self.source.insert(0, fact["source"])
+        self.section.set(fact["section"])
+        self.reviewed.set(False)
+        self.status.set("Review was reset. Correct the claim, choose its section and review it before Update.")
+
+    def apply_fact(self, identifier):
+        fact = {"id": identifier, "claim": self.claim.get("1.0", "end-1c"), "source": self.source.get(),
+                "section": self.section.get(), "reviewed": self.reviewed.get()}
+        data = self.content()
+        data["name"] = data["name"] or "Draft"
+        validate_profile({**data, "facts": [fact]})
+        return fact
+
+    def add_fact(self):
+        try:
+            fact = self.apply_fact(str(uuid4()))
+        except ValueError as exc:
+            self.status.set(str(exc))
+            return
+        self.data["facts"].append(fact)
+        self.clear_fact()
+        self.refresh_facts()
+        self.status.set("Fact added to draft. Save the profile version to reuse it.")
+
+    def update_fact(self):
+        if self.fact_id is None:
+            self.status.set("Load a fact before updating it.")
+            return
+        try:
+            fact = self.apply_fact(self.fact_id)
+        except ValueError as exc:
+            self.status.set(str(exc))
+            return
+        self.data["facts"] = [fact if old["id"] == self.fact_id else old for old in self.data["facts"]]
+        self.clear_fact()
+        self.refresh_facts()
+        self.status.set("Correction is in this draft. Existing job and resume copies remain unchanged.")
+
+    def remove_fact(self):
+        if self.pending_fact() or not self.facts.curselection():
+            self.status.set("Clear pending fields and select a fact before removing it.")
+            return
+        if not messagebox.askyesno("Remove fact from draft?", "Earlier saved profile versions and copied job facts will remain intact.", parent=self):
+            return
+        del self.data["facts"][self.facts.curselection()[0]]
+        self.refresh_facts()
+
+    def copy_job_facts(self):
+        if not self.job:
+            self.status.set("Select a saved job in the workspace before opening the career profile.")
+            return
+        existing = {fact["source"] for fact in self.data["facts"]}
+        count = 0
+        for requirement in self.job["review"]["requirements"]:
+            for fact in requirement["evidence"]:
+                source = f"{fact['source']}\nSaved job {self.job['id']}, fact {fact['id']}"
+                if source not in existing:
+                    self.data["facts"].append({"id": str(uuid4()), "claim": fact["claim"], "source": source,
+                                               "reviewed": False, "section": "Additional"})
+                    existing.add(source)
+                    count += 1
+        self.refresh_facts()
+        self.status.set(f"Copied {count} linked claims as unreviewed Additional facts. Review and classify each yourself.")
+
+    def load_version(self, _event=None):
+        if self.dirty() and not messagebox.askyesno("Discard profile draft?", "Load another saved profile and discard these edits?", parent=self):
+            if self.selected_version:
+                self.version_choice.current(next(i for i, row in enumerate(self.versions) if row["id"] == self.selected_version))
+            else:
+                self.version_choice.set("")
+            return
+        try:
+            identifier = self.versions[self.version_choice.current()]["id"]
+            self.set_data(self.store.load_profile(identifier)["profile"])
+            self.selected_version = identifier
+            self.status.set("Historical version loaded. Make it active explicitly, or edit and save a new version.")
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+
+    def activate(self):
+        if self.dirty() or self.selected_version is None:
+            self.status.set("Save or discard edits before choosing an existing active version.")
+            return
+        try:
+            self.store.activate_profile(self.selected_version)
+            self.on_save()
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+            return
+        self.status.set("Selected profile version is now active for future job copies and resumes.")
+
+    def save(self):
+        if self.pending_fact():
+            self.status.set("Add/Update the pending fact, or Clear fact fields, before saving.")
+            return
+        data = self.content()
+        if data == self.original and self.selected_version is not None:
+            self.status.set("No profile changes. Use Make selected version active instead.")
+            return
+        try:
+            self.store.save_profile(json.dumps(data, ensure_ascii=False).encode("utf-8"))
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+            return
+        self.on_save()
+        self.destroy()
+
+    def close(self):
+        if self.dirty() and not messagebox.askyesno("Discard profile edits?", "These profile edits have not been saved. Discard them?", parent=self):
+            return
+        self.destroy()
+
+
+class CareerFactPicker(tk.Toplevel):
+    def __init__(self, parent, profile, on_copy):
+        super().__init__(parent)
+        self.parent_editor = parent
+        self.profile, self.on_copy = profile, on_copy
+        self.title("RoleWeave - Choose reviewed career facts")
+        self.geometry("800x440")
+        self.transient(parent)
+        self.grab_set()
+        ttk.Label(self, text=f"{profile['profile']['name']} - frozen profile {profile['id'][:8]}", padding=12).pack(anchor="w")
+        ttk.Label(self, text="Choose relevant facts. Copying does not link them to a job requirement.", wraplength=740).pack(anchor="w", padx=12)
+        self.choices = [fact for fact in profile["profile"]["facts"] if fact["reviewed"]]
+        self.list = tk.Listbox(self, selectmode="extended", exportselection=False, height=10)
+        self.list.pack(fill="both", expand=True, padx=12, pady=12)
+        for fact in self.choices:
+            self.list.insert("end", f"{fact['section']} - {fact['claim']}")
+        self.status = tk.StringVar(value="Only reviewed facts are available. Sources and profile version are preserved.")
+        ttk.Label(self, textvariable=self.status, wraplength=740).pack(anchor="w", padx=12)
+        ttk.Button(self, text="Copy selected facts into this review", command=self.copy).pack(anchor="w", padx=12, pady=12)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+
+    def close(self):
+        self.destroy()
+        if self.parent_editor.winfo_exists():
+            self.parent_editor.grab_set()
+
+    def copy(self):
+        identifiers = [self.choices[index]["id"] for index in self.list.curselection()]
+        if not identifiers:
+            self.status.set("Select at least one reviewed fact.")
+            return
+        try:
+            self.on_copy(imported_career_facts(self.profile, identifiers))
+        except ValueError as exc:
+            self.status.set(str(exc))
+            return
+        self.close()

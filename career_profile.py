@@ -18,6 +18,7 @@ def validate_profile(data):
             raise ValueError(f"{key} must be text within its length limit")
         if any(ord(char) < 32 and char not in "\n\t\r" for char in value):
             raise ValueError(f"{key} contains unsupported control characters")
+        value.encode("utf-8")
     if not isinstance(data["facts"], list):
         raise ValueError("Career facts must be a list")
     seen = set()
@@ -30,6 +31,10 @@ def validate_profile(data):
         seen.add(identifier)
         text(fact["claim"], "Claim")
         text(fact["source"], "Source")
+        for key in ("claim", "source"):
+            fact[key].encode("utf-8")
+            if any(ord(char) < 32 and char not in "\n\t\r" for char in fact[key]):
+                raise ValueError("Career fact contains unsupported control characters")
         if type(fact["reviewed"]) is not bool:
             raise ValueError("Career fact review must be a boolean")
         if not isinstance(fact["section"], str) or fact["section"] not in SECTIONS:
@@ -62,7 +67,7 @@ def imported_career_facts(profile, selected_ids):
     data, digest = profile_snapshot(profile["snapshot"])
     if digest != profile["snapshot_sha256"]:
         raise ValueError("Career profile fingerprint mismatch")
-    if not isinstance(selected_ids, list) or len(set(selected_ids)) != len(selected_ids):
+    if not isinstance(selected_ids, list) or any(not isinstance(value, str) for value in selected_ids) or len(set(selected_ids)) != len(selected_ids):
         raise ValueError("Select distinct career facts")
     facts = {fact["id"]: fact for fact in data["facts"]}
     result = []

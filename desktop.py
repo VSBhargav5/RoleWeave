@@ -11,6 +11,7 @@ from job_store import JobStore
 from evidence_editor import EvidenceEditor
 from applications import STAGES
 from application_tracker import ApplicationTracker
+from profile_editor import CareerProfileEditor
 from roleweave import MAX_BYTES, review_snapshot
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
@@ -24,13 +25,18 @@ class JobShelf(ttk.Frame):
         self.current_id = None
         self.pack(fill="both", expand=True)
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(2, weight=1)
+        self.rowconfigure(3, weight=1)
         ttk.Label(self, text="RoleWeave · Your local job shelf", font=("Segoe UI", 18)).grid(
             row=0, column=0, columnspan=2, sticky="w")
         ttk.Label(self, text="Save selected postings. Review evidence and eligibility separately.").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(4, 12))
+        toolbar = ttk.Frame(self)
+        toolbar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        ttk.Button(toolbar, text="My career profile…", command=self.open_profile).pack(side="left")
+        self.profile_status = tk.StringVar()
+        ttk.Label(toolbar, textvariable=self.profile_status).pack(side="left", padx=12)
         left = ttk.Frame(self, padding=(0, 0, 16, 0))
-        left.grid(row=2, column=0, sticky="nsew")
+        left.grid(row=3, column=0, sticky="nsew")
         self.search = tk.StringVar()
         search = ttk.Entry(left, textvariable=self.search)
         ttk.Label(left, text="Search title, company, URL or latest note").pack(anchor="w")
@@ -50,6 +56,9 @@ class JobShelf(ttk.Frame):
         ttk.Checkbutton(left, text="Follow-ups due today or earlier", variable=self.due_only, command=self.refresh).pack(anchor="w")
         self.jobs = tk.Listbox(left, width=34, height=10, exportselection=False)
         self.jobs.pack(fill="both", expand=True, pady=8)
+        horizontal = ttk.Scrollbar(left, orient="horizontal", command=self.jobs.xview)
+        horizontal.pack(fill="x")
+        self.jobs.configure(xscrollcommand=horizontal.set)
         self.jobs.bind("<<ListboxSelect>>", self.open_selected)
         ttk.Button(left, text="Application notes / follow-up…", command=self.open_tracker).pack(fill="x", pady=4)
         ttk.Button(left, text="Export preparation pack…", command=self.export_pack).pack(fill="x", pady=4)
@@ -57,7 +66,7 @@ class JobShelf(ttk.Frame):
         ttk.Button(left, text="Back up full shelf…", command=self.backup_shelf).pack(fill="x", pady=(8, 0))
         ttk.Button(left, text="Restore shelf backup…", command=self.restore_shelf).pack(fill="x", pady=4)
         right = ttk.Frame(self)
-        right.grid(row=2, column=1, sticky="nsew")
+        right.grid(row=3, column=1, sticky="nsew")
         right.columnconfigure(1, weight=1)
         self.fields = {}
         for row, label in enumerate(("Job title", "Company", "Source URL (optional)")):
@@ -86,9 +95,21 @@ class JobShelf(ttk.Frame):
         ttk.Button(actions, text="Reload saved review", command=self.reload_saved).grid(row=1, column=1, padx=4, pady=4)
         self.status = tk.StringVar(value="Local only. No scraping, AI requests or application submissions.")
         ttk.Label(self, textvariable=self.status, wraplength=900).grid(
-            row=3, column=0, columnspan=2, sticky="w", pady=(12, 0))
+            row=4, column=0, columnspan=2, sticky="w", pady=(12, 0))
         self.baseline = self.form_state()
         self.refresh()
+        self.profile_changed()
+
+    def profile_changed(self):
+        profile = self.store.active_profile()
+        self.profile_status.set("Profile: " + profile["profile"]["name"] if profile else "Start here: create your career profile and reviewed facts.")
+
+    def open_profile(self):
+        try:
+            job = self.store.load(self.current_id) if self.current_id else None
+            return CareerProfileEditor(self.winfo_toplevel(), self.store, self.profile_changed, job)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror("Could not open career profile", str(exc))
 
     def refresh(self):
         try:
@@ -203,7 +224,7 @@ class JobShelf(ttk.Frame):
             self.show_saved(identifier)
             self.status.set("Reviewed snapshot saved. Original snapshots are preserved; links do not verify qualification.")
 
-        return EvidenceEditor(self.winfo_toplevel(), data, save_review)
+        return EvidenceEditor(self.winfo_toplevel(), data, save_review, self.store.active_profile())
 
     def open_selected(self, _event=None):
         if not self.jobs.curselection():

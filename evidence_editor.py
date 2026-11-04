@@ -5,14 +5,16 @@ from tkinter import ttk, messagebox
 from uuid import uuid4
 
 from roleweave import review, text, revise_fact, remove_fact
+from profile_editor import CareerFactPicker
 
 
 class EvidenceEditor(tk.Toplevel):
-    def __init__(self, parent, data, on_save):
+    def __init__(self, parent, data, on_save, career_profile=None):
         super().__init__(parent)
         self.data = copy.deepcopy(data)
         self.original_data = copy.deepcopy(data)
         self.on_save = on_save
+        self.career_profile = career_profile
         self.editing_fact_id = None
         self.title("RoleWeave · Review requirements and evidence")
         self.geometry("1000x760")
@@ -67,6 +69,8 @@ class EvidenceEditor(tk.Toplevel):
         ttk.Checkbutton(facts, text="I reviewed this claim and its source", variable=self.reviewed).pack(anchor="w", pady=4)
         ttk.Button(facts, text="Add fact", command=self.add_fact).pack(anchor="w")
         ttk.Button(facts, text="Clear fact fields", command=self.clear_fact_form).pack(anchor="w", pady=4)
+        ttk.Button(facts, text="Copy reviewed career facts…", command=self.open_career_facts,
+                   state="normal" if career_profile else "disabled").pack(anchor="w", pady=4)
         self.status = tk.StringVar(value="Select an existing requirement to edit its quote or fact links. Unlinked means needs review.")
         ttk.Label(body, textvariable=self.status, wraplength=930).grid(row=4, column=0, columnspan=2, sticky="w")
         ttk.Button(body, text="Save reviewed snapshot", command=self.save).grid(row=5, column=0, sticky="w", pady=12)
@@ -95,6 +99,21 @@ class EvidenceEditor(tk.Toplevel):
         for fact in self.data["facts"]:
             state = "reviewed" if fact["reviewed"] else "unreviewed"
             self.facts.insert("end", f"[{state}] {fact['claim']} | {fact['source']}")
+
+    def open_career_facts(self):
+        if self.career_profile:
+            return CareerFactPicker(self, self.career_profile, self.copy_career_facts)
+
+    def copy_career_facts(self, facts):
+        existing = {fact["id"]: fact for fact in self.data["facts"]}
+        for fact in facts:
+            if fact["id"] in existing and existing[fact["id"]] != fact:
+                raise ValueError("A different fact already uses this copied ID; no facts were changed")
+        additions = [fact for fact in facts if fact["id"] not in existing]
+        review({**self.data, "facts": additions, "requirements": []})
+        self.data["facts"].extend(additions)
+        self.refresh()
+        self.status.set(f"Copied {len(additions)} frozen career facts. Select and link them to exact requirements before saving.")
 
     def use_selected_quote(self):
         try:
