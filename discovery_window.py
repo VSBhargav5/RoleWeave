@@ -58,6 +58,7 @@ class DiscoveryWindow(tk.Toplevel):
         ttk.Label(body, textvariable=self.status, wraplength=960).pack(anchor="w", pady=6)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
         self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Destroy>", lambda event: self.task.cancel() if event.widget is self else None)
 
     def fetch(self):
         token = self.token.get().strip()

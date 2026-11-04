@@ -27,6 +27,9 @@ class BackgroundTask:
         def poll():
             if self.active is None or self.active[0] is not token:
                 return
+            if not self.owner.winfo_exists():
+                self.cancel()
+                return
             if time.monotonic() >= deadline:
                 self.cancel()
                 failed("Local 60-second deadline reached. A sent request may still be processed remotely.")
