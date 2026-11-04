@@ -57,7 +57,7 @@ class ReadinessUITests(unittest.TestCase):
         self.root = tk.Tk()
         self.root.withdraw()
         self.addCleanup(self.root.destroy)
-        self.addCleanup(self.root.update_idletasks)
+        self.addCleanup(self.root.update)
         self.shelf = JobShelf(self.root, self.store)
         self.shelf.show_saved(self.job)
 
