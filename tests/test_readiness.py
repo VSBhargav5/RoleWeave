@@ -11,6 +11,15 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_job_order_is_explicit_stable_and_keeps_undated_followups_last(self):
+        second = self.store.save(self.source, "Analyst", "Zulu Co")
+        self.store.record_application(second, "saved", "", "2026-12-03")
+        self.assertEqual(self.store.list_jobs(sort="title")[0]["id"], second)
+        self.assertEqual(self.store.list_jobs(sort="company")[0]["id"], self.job)
+        self.assertEqual(self.store.list_jobs(sort="follow_up")[0]["id"], second)
+        with self.assertRaises(ValueError):
+            self.store.list_jobs(sort="sql injection")
+
     def test_source_links_never_launch_files_credentials_or_custom_schemes(self):
         from source_links import source_link
         self.assertEqual(source_link("https://example.invalid/jobs/123"), "https://example.invalid/jobs/123")

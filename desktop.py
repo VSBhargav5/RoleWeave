@@ -90,7 +90,14 @@ class JobShelf(ttk.Frame):
         left.grid_propagate(False)
         left.columnconfigure(0, weight=1)
         left.rowconfigure(6, weight=1)
-        ttk.Label(left, text="Your opportunities", style="Section.TLabel").grid(row=0, column=0, sticky="w")
+        library_heading = ttk.Frame(left)
+        library_heading.grid(row=0, column=0, sticky="ew")
+        ttk.Label(library_heading, text="Your opportunities", style="Section.TLabel").pack(side="left")
+        self.sort_order = tk.StringVar(value="newest")
+        sort_menu = tk.Menu(self, tearoff=False)
+        for label, value in (("Newest", "newest"), ("Oldest", "oldest"), ("Title", "title"), ("Company", "company"), ("Follow-up date", "follow_up")):
+            sort_menu.add_radiobutton(label=label, variable=self.sort_order, value=value, command=self.refresh)
+        ttk.Menubutton(library_heading, text="Order", menu=sort_menu).pack(side="right")
         self.library_count = tk.StringVar(value="No saved reviews")
         ttk.Label(left, textvariable=self.library_count, style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(3, 12))
         self.search = tk.StringVar()
@@ -303,7 +310,7 @@ class JobShelf(ttk.Frame):
             rows = self.store.list_jobs(MARKET_LABELS.get(self.filter.get()),
                                         stage=None if self.stage_filter.get() == "All stages" else self.stage_filter.get(),
                                         query=self.search.get(), due_on=date.today().isoformat() if self.due_only.get() else None,
-                                        search_posting=self.search_posting.get())
+                                        search_posting=self.search_posting.get(), sort=self.sort_order.get())
             all_rows = self.store.list_jobs()
             resume_count = len(self.store.list_resumes())
         except (OSError, ValueError, sqlite3.Error) as exc:

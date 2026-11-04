@@ -195,7 +195,9 @@ class JobStore:
                 raise ValueError("This exact review and job details are already saved") from exc
         return identifier
 
-    def list_jobs(self, market=None, stage=None, query="", due_on=None, search_posting=False):
+    def list_jobs(self, market=None, stage=None, query="", due_on=None, search_posting=False, sort="newest"):
+        if sort not in ("newest", "oldest", "title", "company", "follow_up"):
+            raise ValueError("Unknown job sort order")
         if type(search_posting) is not bool:
             raise ValueError("Posting search must be explicitly enabled or disabled")
         if market is not None and (not isinstance(market, str) or market not in MARKETS):
@@ -237,8 +239,14 @@ class JobStore:
                                        or item["stage"] in ("closed", "withdrawn")):
                 continue
             result.append(item)
-        if due_on is not None:
+        if sort == "oldest":
+            result.sort(key=lambda item: (item["captured_at"], item["id"]))
+        elif sort in ("title", "company"):
+            result.sort(key=lambda item: (item[sort].casefold(), item["title"].casefold(), item["id"]))
+        if sort == "follow_up" or (due_on is not None and sort == "newest"):
             result.sort(key=lambda item: (item["follow_up"], item["captured_at"], item["id"]))
+            if sort == "follow_up":
+                result.sort(key=lambda item: not bool(item["follow_up"]))
         return result
 
     def load(self, identifier):
