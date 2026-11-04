@@ -11,6 +11,16 @@ from roleweave import review_snapshot
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_version_diff_reveals_source_change_without_inheriting_application_state(self):
+        from review_history import review_difference
+        self.store.record_application(self.job, "applied", "Original review only")
+        data = json.loads(self.source)
+        data["posting"] += " Additional source sentence."
+        revised = self.store.save(json.dumps(data).encode(), "Synthetic Engineer", "Example Co")
+        difference = review_difference(self.store.load(self.job), self.store.load(revised))
+        self.assertIn("Additional source sentence", difference)
+        self.assertEqual(self.store.application_history(revised), [])
+
     def test_bulk_calendar_has_one_container_and_only_active_dated_events(self):
         from workspace_exports import follow_up_list
         second = self.store.save(self.source, "Other", "Example")
