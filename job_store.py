@@ -12,6 +12,7 @@ from uuid import uuid4
 from roleweave import MARKETS, review_snapshot, text
 from applications import EVENT_FIELDS, STAGES, follow_up_date, validate_event, validate_history
 from preparation_pack import build_pack
+from career_profile import profile_snapshot
 
 MAX_BACKUP_BYTES = 64 * 1024 * 1024
 BACKUP_FORMAT = "roleweave-backup-v2"
@@ -58,6 +59,50 @@ class JobStore:
                 revision INTEGER NOT NULL, stage TEXT NOT NULL, note TEXT NOT NULL,
                 follow_up TEXT NOT NULL, recorded_at TEXT NOT NULL,
                 UNIQUE(job_id, revision))""")
+            db.execute("""CREATE TABLE IF NOT EXISTS career_profiles (
+                id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
+                snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""")
+            db.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+
+    def save_profile(self, snapshot):
+        _data, digest = profile_snapshot(snapshot)
+        identifier = str(uuid4())
+        with closing(sqlite3.connect(self.path)) as db, db:
+            current = db.execute("SELECT value FROM app_settings WHERE key='active_profile'").fetchone()
+            if current and db.execute("SELECT 1 FROM career_profiles WHERE id=? AND snapshot_sha256=?", (current[0], digest)).fetchone():
+                raise ValueError("This profile is unchanged; no new version was saved")
+            db.execute("INSERT INTO career_profiles VALUES (?, ?, ?, ?)",
+                       (identifier, datetime.now(timezone.utc).isoformat(), digest, snapshot))
+            db.execute("INSERT OR REPLACE INTO app_settings VALUES ('active_profile', ?)", (identifier,))
+        return identifier
+
+    def load_profile(self, identifier):
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute("SELECT * FROM career_profiles WHERE id=?", (identifier,)).fetchone()
+        if row is None:
+            raise ValueError("Career profile version was not found")
+        item = dict(row)
+        data, digest = profile_snapshot(item["snapshot"])
+        if digest != item["snapshot_sha256"]:
+            raise ValueError("Career profile fingerprint mismatch")
+        item["profile"] = data
+        return item
+
+    def active_profile(self):
+        with closing(sqlite3.connect(self.path)) as db:
+            row = db.execute("SELECT value FROM app_settings WHERE key='active_profile'").fetchone()
+        return self.load_profile(row[0]) if row else None
+
+    def list_profiles(self):
+        with closing(sqlite3.connect(self.path)) as db:
+            db.row_factory = sqlite3.Row
+            return [dict(row) for row in db.execute("SELECT id, created_at, snapshot_sha256 FROM career_profiles ORDER BY created_at DESC, id")]
+
+    def activate_profile(self, identifier):
+        self.load_profile(identifier)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("INSERT OR REPLACE INTO app_settings VALUES ('active_profile', ?)", (identifier,))
 
     def save(self, snapshot, title, company, source_url=""):
         result = review_snapshot(snapshot)
