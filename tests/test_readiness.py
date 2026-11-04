@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from safe_export import publish_bytes
 
 from job_store import JobStore
 from roleweave import review_snapshot
@@ -27,3 +29,16 @@ class ReadinessTests(unittest.TestCase):
                 self.store.record_application(self.job, "saved", value)
         self.assertEqual(len(self.store.list_jobs()), 1)
         self.assertEqual(self.store.application_history(self.job), [])
+
+    def test_exports_publish_only_complete_bytes_and_never_clobber(self):
+        output = self.folder / "review.json"
+        with patch("safe_export.os.fsync", side_effect=OSError("synthetic disk error")):
+            with self.assertRaises(OSError):
+                self.store.export(self.job, output)
+        self.assertFalse(output.exists())
+        self.assertEqual(list(self.folder.glob(".roleweave-*")), [])
+        self.store.export(self.job, output)
+        self.assertEqual(output.read_bytes(), self.source)
+        with self.assertRaises(FileExistsError):
+            publish_bytes(output, b"replacement")
+        self.assertEqual(output.read_bytes(), self.source)
