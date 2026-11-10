@@ -33,5 +33,8 @@ def record_submission(store, job_id, dossier, submitted_on, channel, reference, 
                "Dossier reference does not prove which files were sent.\n"
                f"Your observation: {note or 'No additional note'}")
     # Preserve the current follow-up explicitly; history is append-only.
-    current = current_application(store.application_history(job_id))
+    history = store.application_history(job_id)
+    if any(event["stage"] == "applied" and event["note"] == message for event in history):
+        raise ValueError("This exact submission observation is already recorded")
+    current = current_application(history)
     return store.record_application(job_id, "applied", message, current["follow_up"])

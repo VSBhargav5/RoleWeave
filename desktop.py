@@ -21,6 +21,7 @@ from application_dossier import verify_dossier
 from dossier_window import DossierWindow
 from letter_window import LetterWindow, FrozenLetterWindow
 from cover_letter import read_letter
+from submission_window import SubmissionWindow
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 from desktop_theme import apply_theme, polish_widgets
@@ -200,6 +201,7 @@ class JobShelf(ttk.Frame):
         next_actions.grid(row=2, column=0, sticky="ew", pady=10)
         ttk.Button(next_actions, text="Application notes / follow-up", command=self.open_tracker).pack(side="left")
         export_menu = tk.Menu(self, tearoff=False)
+        export_menu.add_command(label="Record my manual submission...", command=self.open_submission)
         export_menu.add_command(label="Prepare reviewed cover letter...", command=self.open_letter)
         export_menu.add_command(label="Open frozen letter version...", command=self.open_letter_file)
         export_menu.add_command(label="Private application dossier...", command=self.open_dossier)
@@ -235,6 +237,12 @@ class JobShelf(ttk.Frame):
     def focus_workspace(self):
         self.detail_tabs.select(0)
         self.posting.focus_set()
+
+    def open_submission(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before recording its submission observation.")
+            return
+        return SubmissionWindow(self.winfo_toplevel(), self.store, self.current_id, self.tracking_changed)
 
     def open_letter(self):
         if self.current_id is None or self.has_draft_changes():
