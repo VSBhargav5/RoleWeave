@@ -111,7 +111,6 @@ def verify_dossier(source):
                 raise ValueError("Invalid member fingerprint")
             if value["bytes"] != len(parts[name]) or value["sha256"] != hashlib.sha256(parts[name]).hexdigest():
                 raise ValueError("Dossier member fingerprint mismatch")
-        record, digest = resume_snapshot(parts["resume-version.json"])
         events = json_object(parts["history.json"])
         if not isinstance(events, list) or type(manifest["history_revision"]) is not int:
             raise ValueError("Invalid dossier history")
