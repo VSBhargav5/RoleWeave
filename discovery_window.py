@@ -51,6 +51,17 @@ class DiscoveryWindow(tk.Toplevel):
         query = ttk.Entry(body, textvariable=self.query)
         query.pack(fill="x")
         query.bind("<KeyRelease>", lambda _event: self.filter_rows())
+        filter_options = ttk.Frame(body)
+        filter_options.pack(fill="x", pady=4)
+        self.search_description = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filter_options, text="Search description too", variable=self.search_description, command=self.filter_rows).pack(side="left")
+        ttk.Label(filter_options, text="Exclude phrase").pack(side="left", padx=8)
+        self.exclude = tk.StringVar()
+        exclude = ttk.Entry(filter_options, textvariable=self.exclude, width=26)
+        exclude.pack(side="left")
+        exclude.bind("<KeyRelease>", lambda _event: self.filter_rows())
+        self.filtered_count = tk.StringVar(value="0 of 0 observed posts")
+        ttk.Label(filter_options, textvariable=self.filtered_count).pack(side="right")
         self.rows = ttk.Treeview(body, columns=("title", "location", "updated"), show="headings", height=4, selectmode="browse")
         for key, label, width in (("title", "Title", 400), ("location", "Provider location label", 280), ("updated", "Provider time label", 210)):
             self.rows.heading(key, text=label)
@@ -179,8 +190,17 @@ class DiscoveryWindow(tk.Toplevel):
         self.preview.delete("1.0", "end")
         self.preview.configure(state="disabled")
         query = self.query.get().casefold()
-        self.visible = [row for row in (self.feed["jobs"] if self.feed else [])
-                        if query in (row["title"] + " " + row["location"]).casefold()]
+        excluded = self.exclude.get().casefold()
+        observed = self.feed["jobs"] if self.feed else []
+        self.visible = []
+        for row in observed:
+            haystack = row["title"] + " " + row["location"]
+            if self.search_description.get():
+                haystack += " " + row["posting"]
+            haystack = haystack.casefold()
+            if query in haystack and (not excluded or excluded not in haystack):
+                self.visible.append(row)
+        self.filtered_count.set(f"{len(self.visible)} of {len(observed)} observed posts")
         for index, row in enumerate(self.visible):
             self.rows.insert("", "end", iid=str(index), values=(row["title"], row["location"], row["updated_at"]))
 

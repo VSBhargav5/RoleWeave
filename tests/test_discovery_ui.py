@@ -105,3 +105,21 @@ class DiscoveryUITests(unittest.TestCase):
         self.assertEqual(self.window.feed, original)
         self.assertEqual(self.window.company.get(), "")
         self.assertIn("Offline", self.window.status.get())
+
+    def test_description_and_exclusion_filters_are_local_and_clear_hidden_preview(self):
+        self.window.received(self.feed)
+        with patch("provider_boards.request_bytes") as network:
+            self.window.query.set("SQL preferred")
+            self.window.filter_rows()
+            self.assertEqual(len(self.window.visible), 0)
+            self.window.search_description.set(True)
+            self.window.filter_rows()
+            self.assertEqual(len(self.window.visible), 1)
+            self.window.rows.selection_set("0")
+            self.window.preview_selected()
+            self.window.exclude.set("Python required")
+            self.window.filter_rows()
+            self.assertEqual(len(self.window.visible), 0)
+            self.assertEqual(self.window.preview.get("1.0", "end").strip(), "")
+            self.assertIn("0 of 1", self.window.filtered_count.get())
+            network.assert_not_called()
