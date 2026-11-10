@@ -61,3 +61,36 @@ class LetterUITests(unittest.TestCase):
         self.window.destroy()
         self.shelf.posting.insert("end", "Unsaved job edit")
         self.assertIsNone(self.shelf.open_letter())
+
+    def test_application_forms_fit_minimum_size_with_visible_actions(self):
+        from tkinter import ttk
+        from submission_window import SubmissionWindow
+        from correspondence_window import CorrespondenceWindow
+        self.root.deiconify()
+        windows = [self.window,
+                   SubmissionWindow(self.root, self.store, self.job, lambda _identifier: None),
+                   CorrespondenceWindow(self.root, self.store, self.job, lambda _identifier: None)]
+        def walk(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from walk(child)
+        for window in windows:
+            window.deiconify()
+            window.geometry("850x650")
+            window.update()
+            for widget in walk(window):
+                if not isinstance(widget, ttk.Button) or not widget.winfo_ismapped():
+                    continue
+                x = widget.winfo_rootx() - window.winfo_rootx()
+                y = widget.winfo_rooty() - window.winfo_rooty()
+                self.assertGreaterEqual(widget.winfo_height(), 28, widget.cget("text"))
+                self.assertLessEqual(x + widget.winfo_width(), window.winfo_width(), widget.cget("text"))
+                self.assertLessEqual(y + widget.winfo_height(), window.winfo_height(), widget.cget("text"))
+            if hasattr(window, "body_text"):
+                self.assertGreaterEqual(window.body_text.winfo_height(), 80)
+            if hasattr(window, "tabs"):
+                window.tabs.select(1)
+                window.update()
+                output = window.output if hasattr(window, "output") else window.quote
+                self.assertGreaterEqual(output.winfo_height(), 80)
+            window.destroy()

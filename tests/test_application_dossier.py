@@ -118,3 +118,36 @@ class ApplicationDossierTests(unittest.TestCase):
                             "Human introduction.", "Thank you.", confirmed=True)
         with self.assertRaisesRegex(ValueError, "same frozen profile"):
             build_dossier(item, resume, [], letter=wrong)
+
+    def test_duplicate_members_and_recompression_are_rejected(self):
+        import warnings
+        from application_dossier import verify_dossier
+        export_dossier(self.store, self.job, self.resume, self.path, confirmed=True)
+        original = self.path.read_bytes()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with zipfile.ZipFile(self.path, "a") as archive:
+                archive.writestr("resume.txt", b"duplicate")
+        with self.assertRaises(ValueError):
+            verify_dossier(self.path)
+        with zipfile.ZipFile(BytesIO(original)) as source, zipfile.ZipFile(self.path, "w", compression=zipfile.ZIP_DEFLATED) as target:
+            for name in source.namelist():
+                target.writestr(name, source.read(name))
+        with self.assertRaises(ValueError):
+            verify_dossier(self.path)
+
+    def test_pdf_must_replay_from_selected_claims_even_if_record_hashes_are_recomputed(self):
+        import base64
+        from application_dossier import verify_dossier_bytes
+        item = self.store.load(self.job)
+        identifier = self.store.create_resume(self.profile, ["project-python"], "With PDF", self.job, include_pdf=True, confirmed=True)
+        resume = self.store.load_resume(identifier)
+        self.assertEqual(verify_dossier_bytes(build_dossier(item, resume, []))["file_count"], 7)
+        record = dict(resume["resume"])
+        fake = b"%PDF-1.4 invented content with a plausible prefix"
+        record["pdf_base64"] = base64.b64encode(fake).decode()
+        record["pdf_sha256"] = hashlib.sha256(fake).hexdigest()
+        snapshot = json.dumps(record).encode()
+        altered = dict(resume, snapshot=snapshot, snapshot_sha256=hashlib.sha256(snapshot).hexdigest())
+        with self.assertRaisesRegex(ValueError, "PDF does not replay"):
+            build_dossier(item, altered, [])

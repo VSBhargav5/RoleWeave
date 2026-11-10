@@ -30,3 +30,14 @@ class RecipientBundleTests(unittest.TestCase):
         self.assertFalse(self.path.exists())
         with self.assertRaises(ValueError):
             recipient_bytes(b"corrupt", ["txt"])
+
+    def test_matching_letter_can_be_exported_without_private_source_record(self):
+        from cover_letter import make_letter
+        item = self.store.load(self.job)
+        letter = make_letter(self.store.load_profile(self.profile), ["project-python"], item,
+                             "I value reliable systems.", "Thank you.", confirmed=True)
+        dossier = build_dossier(item, self.store.load_resume(self.resume), [], letter=letter)
+        with zipfile.ZipFile(BytesIO(recipient_bytes(dossier, ["txt", "letter"]))) as archive:
+            self.assertEqual(set(archive.namelist()), {"resume.txt", "cover-letter.txt"})
+            self.assertIn("reliable systems", archive.read("cover-letter.txt").decode())
+            self.assertNotIn("source_snapshot", archive.read("cover-letter.txt").decode())

@@ -9,7 +9,7 @@ import zipfile
 from applications import validate_history
 from career_profile import profile_snapshot
 from preparation_pack import build_pack
-from resume_render import resume_text
+from resume_render import resume_text, resume_pdf
 from resume_versions import decoded, resume_snapshot
 from roleweave import MAX_BYTES, review_snapshot, text
 from safe_export import publish_bytes
@@ -32,13 +32,16 @@ def dossier_parts(item, resume_item, events, letter=None):
     if any(event["job_id"] != item["id"] for event in events):
         raise ValueError("History belongs to a different saved review")
     profile, _digest = profile_snapshot(decoded(record["profile_snapshot_base64"], MAX_BYTES))
+    pdf = decoded(record["pdf_base64"], 8 * 1024 * 1024)
+    if pdf and pdf != resume_pdf(profile, record["selected_fact_ids"]):
+        raise ValueError("Frozen PDF does not replay with this renderer; preserve its original and use its matching source build")
     parts = {"review.json": item["snapshot"], "resume-version.json": resume_item["snapshot"],
              "history.json": json.dumps(events, ensure_ascii=True).encode(),
              "preparation.txt": build_pack(item, events),
              "resume.html": decoded(record["html_base64"], 8 * 1024 * 1024),
              "resume.txt": resume_text(profile, record["selected_fact_ids"]).encode("utf-8")}
     if record["pdf_base64"]:
-        parts["resume.pdf"] = decoded(record["pdf_base64"], 8 * 1024 * 1024)
+        parts["resume.pdf"] = pdf
     if letter is not None:
         from cover_letter import letter_snapshot
         letter_record, _letter_digest = letter_snapshot(letter)
