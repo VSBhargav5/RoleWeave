@@ -25,6 +25,26 @@ def source_endpoint(provider, token):
     raise ValueError("Unsupported discovery provider")
 
 
+def board_identity(value):
+    from urllib.parse import urlsplit
+    if not isinstance(value, str) or any(c.isspace() for c in value) or "\\" in value:
+        raise ValueError("Use an exact public employer board URL")
+    try:
+        url = urlsplit(value)
+        if url.scheme != "https" or url.username or url.password or url.port is not None or url.query or url.fragment:
+            raise ValueError()
+        hosts = {"boards.greenhouse.io": "greenhouse", "job-boards.greenhouse.io": "greenhouse",
+                 "jobs.lever.co": "lever", "jobs.eu.lever.co": "lever-eu", "jobs.ashbyhq.com": "ashby"}
+        provider = hosts[url.hostname]
+        token = url.path.strip("/")
+        if url.path not in ("/" + token, "/" + token + "/"):
+            raise ValueError()
+        source_endpoint(provider, token)
+    except (KeyError, ValueError, TypeError):
+        raise ValueError("Use a supported employer board URL without a job ID, query or credentials") from None
+    return provider, token
+
+
 def field(value, label, *, optional=False):
     if optional and value in (None, ""):
         return "Not stated"

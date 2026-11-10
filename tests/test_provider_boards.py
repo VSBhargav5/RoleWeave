@@ -92,3 +92,14 @@ class ProviderBoardTests(unittest.TestCase):
         row[0]["extra"] = float("nan")
         with self.assertRaises(ValueError):
             self.parse(row)
+
+    def test_board_url_resolution_only_accepts_supported_exact_board_urls(self):
+        from provider_boards import board_identity
+        self.assertEqual(board_identity("https://jobs.eu.lever.co/synthetic/"), ("lever-eu", "synthetic"))
+        self.assertEqual(board_identity("https://job-boards.greenhouse.io/synthetic"), ("greenhouse", "synthetic"))
+        for value in ("https://evil.invalid/synthetic", "https://jobs.lever.co/synthetic/job-id",
+                      "https://jobs.lever.co/synthetic?token=secret", "http://jobs.lever.co/synthetic",
+                      "https://user:secret@jobs.lever.co/synthetic", "https://jobs.lever.co:443/synthetic",
+                      "https://jobs.lever.co//synthetic", "https://jobs.lever.co/synthetic#private"):
+            with self.assertRaises(ValueError):
+                board_identity(value)

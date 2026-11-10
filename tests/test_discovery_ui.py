@@ -123,3 +123,12 @@ class DiscoveryUITests(unittest.TestCase):
             self.assertEqual(self.window.preview.get("1.0", "end").strip(), "")
             self.assertIn("0 of 1", self.window.filtered_count.get())
             network.assert_not_called()
+
+    def test_board_url_resolves_locally_without_reusing_employer_label(self):
+        with patch("discovery_window.simpledialog.askstring", return_value="https://jobs.ashbyhq.com/synthetic"), patch("provider_boards.request_bytes") as network:
+            self.window.use_board_url()
+            network.assert_not_called()
+        self.assertEqual(self.window.provider.get(), "ashby")
+        self.assertEqual(self.window.token.get(), "synthetic")
+        self.assertEqual(self.window.company.get(), "")
+        self.assertIsNone(self.window.feed)

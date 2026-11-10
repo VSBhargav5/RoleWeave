@@ -1,12 +1,12 @@
 """Fetch, preview and deliberately import one public employer board."""
 import sqlite3
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, simpledialog, ttk
 from desktop_theme import polish_widgets, reserve_footer
 
 from background_task import BackgroundTask
 from discovery import discovered_snapshot
-from provider_boards import PROVIDERS, source_endpoint, fetch_source
+from provider_boards import PROVIDERS, source_endpoint, fetch_source, board_identity
 from discovery_archive import export_archive, load_archive, compare_observations
 
 
@@ -24,7 +24,7 @@ class DiscoveryWindow(tk.Toplevel):
         body = ttk.Frame(self, padding=16)
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="Discover one employer's public job board", font=("Segoe UI", 15)).pack(anchor="w")
-        ttk.Label(body, text="Explicit GET only. The provider sees the board token and connection metadata; your profile is not sent.", wraplength=960).pack(anchor="w", pady=6)
+        ttk.Label(body, text="Explicit GET only. The provider sees the board token and connection metadata; your profile is not sent.", wraplength=800).pack(anchor="w", pady=4)
         inputs = ttk.Frame(body)
         inputs.pack(fill="x")
         self.provider = tk.StringVar(value="greenhouse")
@@ -44,8 +44,15 @@ class DiscoveryWindow(tk.Toplevel):
         self.fetch_button = ttk.Button(actions, text="Fetch public board", style="Primary.TButton", command=self.fetch)
         self.fetch_button.pack(side="left")
         ttk.Button(actions, text="Cancel fetch", command=self.cancel).pack(side="left", padx=8)
-        ttk.Button(actions, text="Save observation", command=self.export_observation).pack(side="left", padx=8)
-        ttk.Button(actions, text="Open saved observation", command=self.open_observation).pack(side="left")
+        observation_tools = ttk.Menubutton(actions, text="Observation tools")
+        menu = tk.Menu(observation_tools, tearoff=False)
+        for label, command in (("Use employer board URL", self.use_board_url),
+                               ("Save observation", self.export_observation),
+                               ("Open saved observation", self.open_observation),
+                               ("Compare observation", self.compare_observation)):
+            menu.add_command(label=label, command=command)
+        observation_tools.configure(menu=menu)
+        observation_tools.pack(side="left", padx=8)
         ttk.Label(body, text="Filter returned titles / locations locally").pack(anchor="w")
         self.query = tk.StringVar()
         query = ttk.Entry(body, textvariable=self.query)
@@ -62,13 +69,13 @@ class DiscoveryWindow(tk.Toplevel):
         exclude.bind("<KeyRelease>", lambda _event: self.filter_rows())
         self.filtered_count = tk.StringVar(value="0 of 0 observed posts")
         ttk.Label(filter_options, textvariable=self.filtered_count).pack(side="right")
-        self.rows = ttk.Treeview(body, columns=("title", "location", "updated"), show="headings", height=4, selectmode="browse")
+        self.rows = ttk.Treeview(body, columns=("title", "location", "updated"), show="headings", height=2, selectmode="browse")
         for key, label, width in (("title", "Title", 400), ("location", "Provider location label", 280), ("updated", "Provider time label", 210)):
             self.rows.heading(key, text=label)
             self.rows.column(key, width=width)
-        self.rows.pack(fill="both", expand=True, pady=8)
+        self.rows.pack(fill="both", expand=True, pady=4)
         self.rows.bind("<<TreeviewSelect>>", self.preview_selected)
-        self.preview = tk.Text(body, height=9, wrap="word", state="disabled")
+        self.preview = tk.Text(body, height=3, wrap="word", state="disabled")
         self.preview.pack(fill="both", expand=True)
         bottom = ttk.Frame(body)
         bottom.pack(fill="x", pady=8)
@@ -76,9 +83,9 @@ class DiscoveryWindow(tk.Toplevel):
         self.market = tk.StringVar(value="")
         ttk.Combobox(bottom, values=list(markets), textvariable=self.market, state="readonly", width=29).pack(side="left", padx=8)
         ttk.Button(bottom, text="Import selected posting", command=self.import_selected).pack(side="left")
-        ttk.Button(bottom, text="Compare observation", command=self.compare_observation).pack(side="left", padx=8)
+
         self.status = tk.StringVar(value="No automatic eligibility, sponsorship or closure inference. Fetching does not submit an application.")
-        ttk.Label(body, textvariable=self.status, wraplength=960).pack(anchor="w", pady=6)
+        ttk.Label(body, textvariable=self.status, wraplength=800).pack(anchor="w", pady=4)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
         reserve_footer(body)
         polish_widgets(self)
@@ -99,6 +106,21 @@ class DiscoveryWindow(tk.Toplevel):
             self.fetch_button.configure(state="disabled")
             self.status.set("Fetching https://" + host + path)
             self.task.start(lambda event: fetch_source(provider, token, event), self.received, self.failed)
+        except ValueError as exc:
+            self.status.set(str(exc))
+
+    def use_board_url(self):
+        value = simpledialog.askstring("Employer board", "Paste the HTTPS employer board URL (not an individual job):", parent=self)
+        if value is None:
+            return
+        try:
+            provider, token = board_identity(value)
+            self.source_changed()
+            self.provider.set(provider)
+            self.token.delete(0, "end")
+            self.token.insert(0, token)
+            self.company.delete(0, "end")
+            self.status.set("Board selected locally. Enter a checked employer label, then explicitly Fetch.")
         except ValueError as exc:
             self.status.set(str(exc))
 
