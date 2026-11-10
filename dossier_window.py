@@ -10,6 +10,11 @@ from application_dossier import build_dossier
 from desktop_theme import polish_widgets, reserve_footer
 from safe_export import publish_bytes
 from recipient_bundle import recipient_bytes
+from cover_letter import read_letter
+from letter_window import LetterWindow
+from career_profile import profile_snapshot
+from resume_versions import decoded
+from roleweave import MAX_BYTES
 
 
 class DossierWindow(tk.Toplevel):
@@ -17,6 +22,7 @@ class DossierWindow(tk.Toplevel):
         self.job = store.load(job_id)
         super().__init__(parent)
         self.store, self.prepared = store, None
+        self.letter_snapshot = None
         self.title("RoleWeave - Private application dossier")
         self.geometry("1000x760")
         self.minsize(850, 650)
@@ -40,12 +46,19 @@ class DossierWindow(tk.Toplevel):
         self.resume_text = tk.Text(tabs, wrap="word", state="disabled", height=6)
         tabs.add(self.manifest, text="Private manifest and files")
         tabs.add(self.resume_text, text="Frozen resume text")
+        self.letter_text = tk.Text(tabs, wrap="word", state="disabled", height=6)
+        tabs.add(self.letter_text, text="Frozen letter text")
         self.confirmed = tk.BooleanVar(value=False)
         ttk.Checkbutton(body, text="I reviewed this private archive and confirm local export.", variable=self.confirmed).pack(anchor="w")
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
         ttk.Button(actions, text="Export private dossier ZIP", command=self.export).pack(side="left")
         ttk.Button(actions, text="Export resume files only", command=self.export_resume_files).pack(side="left", padx=8)
+        letter_menu = tk.Menu(self, tearoff=False)
+        letter_menu.add_command(label="Prepare letter from matching profile", command=self.prepare_matching_letter)
+        letter_menu.add_command(label="Attach saved matching letter", command=self.attach_letter)
+        letter_menu.add_command(label="Remove letter", command=self.clear_letter)
+        ttk.Menubutton(actions, text="Letter", menu=letter_menu).pack(side="left")
         ttk.Button(actions, text="Close", command=self.destroy).pack(side="right")
         self.status = tk.StringVar(value="Create a job-specific frozen resume first." if not self.versions else "No submission will be recorded or sent.")
         ttk.Label(body, textvariable=self.status, wraplength=800).pack(anchor="w")
@@ -55,7 +68,7 @@ class DossierWindow(tk.Toplevel):
     def invalidate(self, _event=None):
         self.prepared = None
         self.confirmed.set(False)
-        for output in (self.manifest, self.resume_text):
+        for output in (self.manifest, self.resume_text, self.letter_text):
             output.configure(state="normal")
             output.delete("1.0", "end")
             output.configure(state="disabled")
@@ -67,11 +80,12 @@ class DossierWindow(tk.Toplevel):
             if not selection:
                 raise ValueError("Select an exact-review resume version")
             identifier = self.versions[selection[0]]["id"]
-            payload = build_dossier(self.job, self.store.load_resume(identifier), self.store.application_history(self.job["id"]))
+            payload = build_dossier(self.job, self.store.load_resume(identifier), self.store.application_history(self.job["id"]), letter=self.letter_snapshot)
             with zipfile.ZipFile(BytesIO(payload)) as archive:
                 manifest = archive.read("manifest.json").decode("utf-8")
                 resume = archive.read("resume.txt").decode("utf-8")
-            for output, content in ((self.manifest, manifest), (self.resume_text, resume)):
+                letter = archive.read("cover-letter.txt").decode("utf-8") if "cover-letter.txt" in archive.namelist() else "No letter attached."
+            for output, content in ((self.manifest, manifest), (self.resume_text, resume), (self.letter_text, letter)):
                 output.configure(state="normal")
                 output.insert("1.0", content)
                 output.configure(state="disabled")
@@ -80,17 +94,53 @@ class DossierWindow(tk.Toplevel):
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(str(exc))
 
+    def prepare_matching_letter(self):
+        try:
+            selection = self.choices.curselection()
+            if not selection:
+                raise ValueError("Select the frozen resume whose profile the letter should use")
+            resume = self.store.load_resume(self.versions[selection[0]]["id"])["resume"]
+            snapshot = decoded(resume["profile_snapshot_base64"], MAX_BYTES)
+            profile, digest = profile_snapshot(snapshot)
+            item = {"id": resume["profile_id"], "snapshot": snapshot,
+                    "snapshot_sha256": digest, "profile": profile}
+            return LetterWindow(self, item, self.job)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+
+    def attach_letter(self):
+        try:
+            selection = self.choices.curselection()
+            if not selection:
+                raise ValueError("Select the exact resume before attaching its matching letter")
+            path = filedialog.askopenfilename(parent=self, filetypes=[("Private frozen letter", "*.json")])
+            if not path:
+                return
+            snapshot, _record = read_letter(path)
+            resume = self.store.load_resume(self.versions[selection[0]]["id"])
+            build_dossier(self.job, resume, self.store.application_history(self.job["id"]), letter=snapshot)
+            self.invalidate()
+            self.letter_snapshot = snapshot
+            self.status.set("Matching letter attached. Preview and review all documents before confirming.")
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+
+    def clear_letter(self):
+        self.invalidate()
+        self.letter_snapshot = None
+        self.status.set("Letter removed from this draft dossier.")
+
     def export_resume_files(self):
         try:
             selection = self.choices.curselection()
             if self.prepared is None or not self.confirmed.get() or not selection or self.versions[selection[0]]["id"] != self.prepared[0]:
                 raise ValueError("Preview and confirm this exact resume selection first")
-            value = simpledialog.askstring("Resume documents", "Formats to include, separated by commas: txt, html, pdf", parent=self)
+            value = simpledialog.askstring("Resume documents", "Formats to include, separated by commas: txt, html, pdf, letter", parent=self)
             if value is None:
                 return
             formats = [part.strip() for part in value.split(",")]
             payload = recipient_bytes(self.prepared[1], formats)
-            if not messagebox.askyesno("Review resume files", "Export only: " + ", ".join("resume." + value for value in formats) + "\nPrivate evidence and history are excluded. Review the documents before sending them yourself.", parent=self):
+            if not messagebox.askyesno("Review resume files", "Export only: " + ", ".join("cover-letter.txt" if value == "letter" else "resume." + value for value in formats) + "\nPrivate evidence and history are excluded. Review the documents before sending them yourself.", parent=self):
                 return
             path = filedialog.asksaveasfilename(parent=self, defaultextension=".zip", filetypes=[("Resume documents only", "*.zip")])
             if path:

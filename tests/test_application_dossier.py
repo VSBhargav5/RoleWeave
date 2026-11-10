@@ -98,3 +98,23 @@ class ApplicationDossierTests(unittest.TestCase):
         self.path.write_bytes(b"broken")
         with self.assertRaises(ValueError):
             verify_dossier(self.path)
+
+    def test_matching_letter_is_bound_into_v2_dossier_and_replays(self):
+        from cover_letter import make_letter
+        from application_dossier import verify_dossier_bytes
+        profile = self.store.load_profile(self.profile)
+        item, resume = self.store.load(self.job), self.store.load_resume(self.resume)
+        letter = make_letter(profile, ["project-python"], item, "I value reliable systems.",
+                             "Thank you for your time.", confirmed=True)
+        payload = build_dossier(item, resume, [], letter=letter)
+        self.assertEqual(verify_dossier_bytes(payload)["file_count"], 8)
+        with zipfile.ZipFile(BytesIO(payload)) as archive:
+            self.assertEqual(json.loads(archive.read("manifest.json"))["format"], "roleweave-dossier-v2")
+            self.assertEqual(archive.read("cover-letter-version.json"), letter)
+        altered = synthetic_profile()
+        altered["name"] = "Another profile version"
+        other = self.store.save_profile(json.dumps(altered).encode())
+        wrong = make_letter(self.store.load_profile(other), ["project-python"], item,
+                            "Human introduction.", "Thank you.", confirmed=True)
+        with self.assertRaisesRegex(ValueError, "same frozen profile"):
+            build_dossier(item, resume, [], letter=wrong)

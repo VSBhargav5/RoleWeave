@@ -18,7 +18,7 @@ MAX_DOSSIER_BYTES = 64 * 1024 * 1024
 JOB_FIELDS = ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")
 
 
-def dossier_parts(item, resume_item, events):
+def dossier_parts(item, resume_item, events, letter=None):
     record, digest = resume_snapshot(resume_item["snapshot"])
     if digest != resume_item["snapshot_sha256"]:
         raise ValueError("Frozen resume fingerprint mismatch")
@@ -39,18 +39,30 @@ def dossier_parts(item, resume_item, events):
              "resume.txt": resume_text(profile, record["selected_fact_ids"]).encode("utf-8")}
     if record["pdf_base64"]:
         parts["resume.pdf"] = decoded(record["pdf_base64"], 8 * 1024 * 1024)
+    if letter is not None:
+        from cover_letter import letter_snapshot
+        letter_record, _letter_digest = letter_snapshot(letter)
+        if letter_record["job_context"] != context:
+            raise ValueError("Letter belongs to a different exact review")
+        if letter_record["profile_id"] != record["profile_id"] or letter_record["profile_sha256"] != record["profile_sha256"]:
+            raise ValueError("Letter and resume must use the same frozen profile version")
+        parts["cover-letter-version.json"] = letter
+        parts["cover-letter.txt"] = letter_record["text"].encode("utf-8")
     return parts
 
 
-def build_dossier(item, resume_item, events):
+def build_dossier(item, resume_item, events, letter=None):
     text(resume_item["id"], "Resume version ID")
-    parts = dossier_parts(item, resume_item, events)
+    parts = dossier_parts(item, resume_item, events, letter)
     manifest = {"format": "roleweave-dossier-v1", "contains_private_evidence": True,
                 "submission_verified": False, "job": {key: item[key] for key in JOB_FIELDS},
                 "resume_id": resume_item["id"], "resume_snapshot_sha256": resume_item["snapshot_sha256"],
                 "history_revision": events[-1]["revision"] if events else 0,
                 "files": {name: {"sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)}
                           for name, payload in parts.items()}}
+    if letter is not None:
+        manifest["format"] = "roleweave-dossier-v2"
+        manifest["letter_snapshot_sha256"] = hashlib.sha256(letter).hexdigest()
     parts["manifest.json"] = json.dumps(manifest, ensure_ascii=True, indent=2).encode()
     if sum(map(len, parts.values())) > MAX_DOSSIER_BYTES - 16384:
         raise ValueError("Private dossier exceeds the 64 MiB limit")
@@ -89,12 +101,12 @@ def verify_dossier_bytes(payload):
         raise ValueError("Dossier must be bytes of at most 64 MiB")
     from network_io import json_object
     allowed = {"manifest.json", "review.json", "resume-version.json", "history.json",
-               "preparation.txt", "resume.html", "resume.txt", "resume.pdf"}
+               "preparation.txt", "resume.html", "resume.txt", "resume.pdf", "cover-letter-version.json", "cover-letter.txt"}
     try:
         with zipfile.ZipFile(BytesIO(payload)) as archive:
             entries = archive.infolist()
             names = [info.filename for info in entries]
-            if len(names) != len(set(names)) or not 7 <= len(names) <= 8 or not set(names) <= allowed:
+            if len(names) != len(set(names)) or not 7 <= len(names) <= 10 or not set(names) <= allowed:
                 raise ValueError("Unexpected or duplicate dossier members")
             if sum(info.file_size for info in entries) > MAX_DOSSIER_BYTES:
                 raise ValueError("Expanded dossier exceeds 64 MiB")
@@ -104,7 +116,9 @@ def verify_dossier_bytes(payload):
         manifest = json_object(parts.pop("manifest.json"))
         keys = {"format", "contains_private_evidence", "submission_verified", "job",
                 "resume_id", "resume_snapshot_sha256", "history_revision", "files"}
-        if not isinstance(manifest, dict) or set(manifest) != keys or manifest["format"] != "roleweave-dossier-v1":
+        if isinstance(manifest, dict) and manifest.get("format") == "roleweave-dossier-v2":
+            keys.add("letter_snapshot_sha256")
+        if not isinstance(manifest, dict) or set(manifest) != keys or manifest["format"] not in ("roleweave-dossier-v1", "roleweave-dossier-v2"):
             raise ValueError("Unsupported dossier manifest")
         if manifest["contains_private_evidence"] is not True or manifest["submission_verified"] is not False:
             raise ValueError("Unsupported dossier privacy/submission declaration")
@@ -125,7 +139,12 @@ def verify_dossier_bytes(payload):
         resume = {"id": manifest["resume_id"], "snapshot": parts["resume-version.json"],
                   "snapshot_sha256": manifest["resume_snapshot_sha256"]}
         text(resume["id"], "Resume version ID")
-        expected = dossier_parts(item, resume, events)
+        letter = parts.get("cover-letter-version.json")
+        if (manifest["format"] == "roleweave-dossier-v2") != (letter is not None) or (letter is not None) != ("cover-letter.txt" in parts):
+            raise ValueError("Dossier letter declaration mismatch")
+        if letter is not None and hashlib.sha256(letter).hexdigest() != manifest["letter_snapshot_sha256"]:
+            raise ValueError("Dossier letter fingerprint mismatch")
+        expected = dossier_parts(item, resume, events, letter)
         if parts != expected or manifest["history_revision"] != (events[-1]["revision"] if events else 0):
             raise ValueError("Dossier documents do not replay from frozen evidence")
         return {"job": manifest["job"], "resume_id": resume["id"],

@@ -86,3 +86,22 @@ class DossierUITests(unittest.TestCase):
         with zipfile.ZipFile(path) as archive:
             self.assertEqual(archive.namelist(), ["resume.txt"])
         self.assertEqual(self.store.application_history(self.job), [])
+
+    def test_matching_letter_attachment_invalidates_preview_and_can_be_removed(self):
+        from cover_letter import make_letter
+        item = self.store.load(self.job)
+        profile = self.store.active_profile()
+        path = self.folder / "letter.json"
+        path.write_bytes(make_letter(profile, ["project-python"], item, "I value reliable systems.", "Thank you.", confirmed=True))
+        self.window.choices.selection_set(0)
+        self.window.preview()
+        self.window.confirmed.set(True)
+        with patch("dossier_window.filedialog.askopenfilename", return_value=str(path)):
+            self.window.attach_letter()
+        self.assertIsNone(self.window.prepared)
+        self.assertFalse(self.window.confirmed.get())
+        self.window.preview()
+        self.assertIn("reliable systems", self.window.letter_text.get("1.0", "end"))
+        self.window.clear_letter()
+        self.assertIsNone(self.window.letter_snapshot)
+        self.assertIsNone(self.window.prepared)
