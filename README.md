@@ -11,7 +11,7 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Start on Windows
 
-Version 0.6.0 redesigns the Windows workspace with a navigation rail, summary
+Version 0.7.0 redesigns the Windows workspace with a navigation rail, summary
 cards, separate posting/evidence/details tabs and a shared visual theme. Public
 Greenhouse discovery, reviewed AI quote proposals, resumes and follow-ups remain
 available through the redesigned interface. Core features need no account, key or server. AI alone needs your own
@@ -221,7 +221,7 @@ Follow [the resume and recovery exercise](docs/resume-first-principles.md).
 Manual posting capture, evidence review, tracking, preparation packs, reusable
 profile versions, reviewed HTML/PDF resumes and v3 recovery are implemented.
 One public source adapter, optional AI requirement-quote assistance and calendar
-file export are available. Additional sources, email/account integrations and
+file export are available. Broader source coverage, email/account integrations and
 manual installer acceptance remain pending. Personal usefulness, live AI quality, real outcomes
 and complete manual file-dialog coverage remain unverified.
 
@@ -241,3 +241,5 @@ builds the portable app and runs its synthetic profile/resume/recovery self-test
 Neither tests nor a package build establish personal usefulness or ATS behavior.
 
 Windows per-user setup and uninstall: [installation guide](docs/windows-installation.md).
+
+V0.7 expands discovery to Lever global/EU and Ashby, with local filters and verified offline observation archives. [Discovery guide and exercise](docs/discovery-workflow.md).

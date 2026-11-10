@@ -41,6 +41,23 @@ def run_self_test(folder, shelf_type):
         discovery.rows.selection_set("0")
         discovery.import_selected()
         assert len(store.list_jobs()) == 3, discovery.status.get()
+        from provider_boards import parse_source
+        from discovery_archive import export_archive, load_archive, compare_observations
+        for provider, filename in (("lever", "lever-synthetic.json"),
+                                   ("lever-eu", "lever-synthetic.json"),
+                                   ("ashby", "ashby-synthetic.json")):
+            feed = parse_source((RESOURCE_ROOT / "examples" / filename).read_bytes(), provider, "synthetic")
+            discovery.provider.set(provider)
+            discovery.received(feed)
+            discovery.rows.selection_set("0")
+            discovery.preview_selected()
+            assert feed["jobs"][0]["title"] in discovery.rows.item("0", "values")
+            archive = folder / (provider + "-observation.json")
+            export_archive(feed, archive)
+            replay = load_archive(archive)
+            assert replay == feed
+            assert all(row["state"] == "unchanged" for row in compare_observations(feed, replay))
+        report["checks"].append("multi-provider-discovery-and-byte-exact-offline-replay")
         discovery.close()
         shelf.show_saved(job)
         editor = shelf.edit_evidence()

@@ -2,6 +2,7 @@
 import http.client
 import json
 import time
+from runtime_paths import APP_VERSION
 
 
 class Cancelled(ValueError):
@@ -9,11 +10,17 @@ class Cancelled(ValueError):
 
 
 def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 1024):
-    if host not in ("boards-api.greenhouse.io", "api.openai.com") or not path.startswith("/"):
+    if host not in ("boards-api.greenhouse.io", "api.openai.com", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com") or not path.startswith("/"):
         raise ValueError("Unsupported provider endpoint")
+    if host != "api.openai.com" and (key is not None or body is not None):
+        raise ValueError("Public job-board requests must be unauthenticated GET requests")
+    if any(ord(c) < 33 or ord(c) > 126 for c in path) or path.startswith("//"):
+        raise ValueError("Unsupported provider path")
+    if type(limit) is not int or not 1 <= limit <= 8 * 1024 * 1024:
+        raise ValueError("Unsupported provider response limit")
     if cancel is not None and cancel.is_set():
         raise Cancelled("Cancelled locally")
-    headers = {"Accept": "application/json", "User-Agent": "RoleWeave/0.4"}
+    headers = {"Accept": "application/json", "User-Agent": "RoleWeave/" + APP_VERSION}
     if key is not None:
         if not isinstance(key, str) or not key or len(key) > 1000 or not key.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in key):
             raise ValueError("Enter a valid session API key")

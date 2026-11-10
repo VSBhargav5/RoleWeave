@@ -60,6 +60,20 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class NetworkTests(unittest.TestCase):
+    def test_public_boards_never_receive_credentials_or_post_bodies(self):
+        for options in ({"key": "synthetic-key"}, {"body": b"private"}):
+            with patch("network_io.http.client.HTTPSConnection") as connection:
+                with self.assertRaisesRegex(ValueError, "unauthenticated"):
+                    request_bytes("boards-api.greenhouse.io", "/v1/boards/example/jobs", **options)
+                connection.assert_not_called()
+
+    def test_malformed_path_and_invalid_limits_never_dispatch(self):
+        for path, limit in (("/bad\r\npath", 1), ("//other", 1), ("/ok", 0), ("/ok", True), ("/ok", 9000000)):
+            with patch("network_io.http.client.HTTPSConnection") as connection:
+                with self.assertRaises(ValueError):
+                    request_bytes("boards-api.greenhouse.io", path, limit=limit)
+                connection.assert_not_called()
+
     def test_no_redirect_retry_or_provider_body_error_leak(self):
         with patch("network_io.http.client.HTTPSConnection") as factory:
             response = factory.return_value.getresponse.return_value

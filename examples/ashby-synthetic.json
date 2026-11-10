@@ -1,0 +1,23 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "title": "Synthetic AI Engineer",
+      "jobUrl": "https://jobs.ashbyhq.com/synthetic/synthetic-ashby-id",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Hybrid",
+      "location": "Synthetic City",
+      "secondaryLocations": [
+        {
+          "location": "Synthetic Region"
+        }
+      ],
+      "publishedAt": "2026-11-10T00:00:00Z",
+      "descriptionPlain": "Python required. Evaluate model outputs."
+    },
+    {
+      "isListed": false
+    }
+  ]
+}
