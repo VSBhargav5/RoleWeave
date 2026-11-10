@@ -1,12 +1,13 @@
 """Fetch, preview and deliberately import one public employer board."""
 import sqlite3
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, ttk
 from desktop_theme import polish_widgets, reserve_footer
 
 from background_task import BackgroundTask
 from discovery import discovered_snapshot
 from provider_boards import PROVIDERS, source_endpoint, fetch_source
+from discovery_archive import export_archive, load_archive
 
 
 class DiscoveryWindow(tk.Toplevel):
@@ -43,6 +44,8 @@ class DiscoveryWindow(tk.Toplevel):
         self.fetch_button = ttk.Button(actions, text="Fetch public board", style="Primary.TButton", command=self.fetch)
         self.fetch_button.pack(side="left")
         ttk.Button(actions, text="Cancel fetch", command=self.cancel).pack(side="left", padx=8)
+        ttk.Button(actions, text="Save observation", command=self.export_observation).pack(side="left", padx=8)
+        ttk.Button(actions, text="Open saved observation", command=self.open_observation).pack(side="left")
         ttk.Label(body, text="Filter returned titles / locations locally").pack(anchor="w")
         self.query = tk.StringVar()
         query = ttk.Entry(body, textvariable=self.query)
@@ -85,6 +88,33 @@ class DiscoveryWindow(tk.Toplevel):
             self.status.set("Fetching https://" + host + path)
             self.task.start(lambda event: fetch_source(provider, token, event), self.received, self.failed)
         except ValueError as exc:
+            self.status.set(str(exc))
+
+    def export_observation(self):
+        try:
+            if not self.feed:
+                raise ValueError("Fetch or open an observation first")
+            path = filedialog.asksaveasfilename(parent=self, defaultextension=".json", filetypes=[("Private discovery archive", "*.json")])
+            if path:
+                export_archive(self.feed, path)
+                self.status.set("Observation saved with original response bytes. Keep private; integrity is not authenticity.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def open_observation(self):
+        path = filedialog.askopenfilename(parent=self, filetypes=[("Private discovery archive", "*.json")])
+        if not path:
+            return
+        try:
+            feed = load_archive(path)
+            self.task.cancel()
+            self.provider.set(feed["provider"])
+            self.token.delete(0, "end")
+            self.token.insert(0, feed["token"])
+            self.company.delete(0, "end")
+            self.received(feed)
+            self.status.set("Offline replay at " + feed["fetched_at"] + "; availability unverified. Enter a checked employer label before importing.")
+        except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 
     def source_changed(self):

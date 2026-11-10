@@ -88,3 +88,20 @@ class DiscoveryUITests(unittest.TestCase):
                 start.call_args.args[0](None)
                 fetch.assert_called_once_with("ashby", "synthetic", None)
         self.assertIn("api.ashbyhq.com", self.window.status.get())
+
+    def test_archive_roundtrip_is_offline_and_clears_old_employer_label(self):
+        from provider_boards import parse_source
+        from test_provider_boards import lever_fixture
+        self.window.provider.set("lever")
+        self.window.received(parse_source(json.dumps(lever_fixture()).encode(), "lever", "synthetic"))
+        path = str(Path(self.temp.name) / "board.json")
+        original = self.window.feed
+        with patch("discovery_window.filedialog.asksaveasfilename", return_value=path):
+            self.window.export_observation()
+        self.window.source_changed()
+        with patch("discovery_window.filedialog.askopenfilename", return_value=path), patch("provider_boards.request_bytes") as network:
+            self.window.open_observation()
+            network.assert_not_called()
+        self.assertEqual(self.window.feed, original)
+        self.assertEqual(self.window.company.get(), "")
+        self.assertIn("Offline", self.window.status.get())
