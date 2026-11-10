@@ -53,3 +53,34 @@ jobs:
         with:
           name: packaged-runtime-smoke
           path: out/package-smoke/report.json
+
+      - name: Build per-user installer
+        shell: pwsh
+        run: python build_installer.py --compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+      - name: Verify isolated install, upgrade and uninstall preserve user data
+        shell: pwsh
+        run: |
+          $installRoot = Join-Path $env:RUNNER_TEMP 'roleweave-install-smoke'
+          $dataRoot = Join-Path $env:LOCALAPPDATA 'RoleWeave'
+          if (Test-Path $dataRoot) { throw 'Synthetic data path must be absent' }
+          New-Item -ItemType Directory -Path $dataRoot | Out-Null
+          Set-Content (Join-Path $dataRoot 'preserve-me.txt') 'synthetic-preservation-marker'
+          $setup = Resolve-Path out/RoleWeave-0.6.0-windows-x64-setup.exe
+          $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $installRoot + '"'))
+          1..2 | ForEach-Object {
+            $process = Start-Process $setup -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
+            if ($process.ExitCode -ne 0) { throw 'Setup failed' }
+          }
+          $smoke = Join-Path $env:RUNNER_TEMP 'roleweave-installed-smoke'
+          $process = Start-Process (Join-Path $installRoot 'RoleWeave.exe') -ArgumentList @('--self-test', $smoke) -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Installed runtime failed' }
+          $report = Get-Content (Join-Path $smoke 'report.json') -Raw | ConvertFrom-Json
+          if (-not $report.ok -or -not $report.frozen) { throw 'Installed report failed' }
+          $process = Start-Process (Join-Path $installRoot 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0 -or (Test-Path (Join-Path $installRoot 'RoleWeave.exe'))) { throw 'Uninstall failed' }
+          if ((Get-Content (Join-Path $dataRoot 'preserve-me.txt')) -ne 'synthetic-preservation-marker') { throw 'User data changed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RoleWeave-0.6.0-windows-x64-setup
+          path: out/RoleWeave-0.6.0-windows-x64-setup.exe
+          if-no-files-found: error

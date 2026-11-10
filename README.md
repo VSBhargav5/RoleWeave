@@ -222,7 +222,7 @@ Manual posting capture, evidence review, tracking, preparation packs, reusable
 profile versions, reviewed HTML/PDF resumes and v3 recovery are implemented.
 One public source adapter, optional AI requirement-quote assistance and calendar
 file export are available. Additional sources, email/account integrations and
-an installer remain pending. Personal usefulness, live AI quality, real outcomes
+manual installer acceptance remain pending. Personal usefulness, live AI quality, real outcomes
 and complete manual file-dialog coverage remain unverified.
 
 ## Reproduce the checks / build
@@ -239,3 +239,5 @@ environment, then run `python build_windows.py`. Build output stays under `out/`
 CI tests Python 3.11/3.12 on Windows/Linux (native UI checks run on Windows),
 builds the portable app and runs its synthetic profile/resume/recovery self-test.
 Neither tests nor a package build establish personal usefulness or ATS behavior.
+
+Windows per-user setup and uninstall: [installation guide](docs/windows-installation.md).
