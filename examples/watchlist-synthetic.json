@@ -1,0 +1,23 @@
+{
+  "format": "roleweave-watchlist-v1",
+  "name": "Synthetic employer boards",
+  "boards": [
+    {
+      "provider": "lever",
+      "token": "synthetic",
+      "company": "Synthetic Co",
+      "market": "india_remote"
+    },
+    {
+      "provider": "ashby",
+      "token": "synthetic",
+      "company": "Synthetic AI Co",
+      "market": "relocation"
+    }
+  ],
+  "filters": {
+    "include": "",
+    "exclude": "",
+    "search_description": false
+  }
+}

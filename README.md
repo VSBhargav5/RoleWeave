@@ -11,7 +11,7 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Start on Windows
 
-Version0.8 adds reviewed cover letters, exact private application dossiers,
+Version0.8.1 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -20,10 +20,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.8.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.8.1-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.8.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.8.1-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -247,3 +247,5 @@ Windows per-user setup and uninstall: [installation guide](docs/windows-installa
 V0.7 expands discovery to Lever global/EU and Ashby, with local filters and verified offline observation archives. [Discovery guide and exercise](docs/discovery-workflow.md).
 
 See [application delivery and local correspondence](docs/application-delivery.md) for exact private dossiers and recipient-only files.
+
+[Employer watchlists](docs/employer-watchlists.md) save explicit board choices and local filters. Multi-board Windows collection preview is the next step; a bounded explicit source CLI is available.

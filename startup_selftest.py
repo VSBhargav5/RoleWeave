@@ -147,6 +147,29 @@ def run_self_test(folder, shelf_type):
         assert restored.active_profile()["snapshot"] == store.active_profile()["snapshot"]
         assert restored.restore(folder / "synthetic-backup.json") == (0, 4)
         report["checks"].append("v3-profile-resume-history-recovery")
+        from employer_watchlist import read_watchlist, save_watchlist
+        from watchlist_fetch import collection_rows
+        from provider_boards import parse_source
+        watchlist_data = read_watchlist(RESOURCE_ROOT / "examples/watchlist-synthetic.json")
+        save_watchlist(watchlist_data, folder / "synthetic-watchlist.json")
+        watchlist = shelf.open_watchlist()
+        watchlist.withdraw()
+        watchlist.boards = watchlist_data["boards"]
+        watchlist.name.set(watchlist_data["name"])
+        watchlist.refresh_rows()
+        watchlist.rows.selection_set("0")
+        watchlist.load_selected()
+        board_window = watchlist.open_board()
+        assert board_window is not None, watchlist.status.get()
+        assert board_window.provider.get() == "lever"
+        assert board_window.feed is None
+        board_window.destroy()
+        watchlist.destroy()
+        feeds = [{"board_index": index, "feed": parse_source((RESOURCE_ROOT / "examples" / filename).read_bytes(), provider, "synthetic")}
+                 for index, (provider, filename) in enumerate((("lever", "lever-synthetic.json"), ("ashby", "ashby-synthetic.json")))]
+        assert len(collection_rows({"watchlist": watchlist_data, "feeds": feeds})) == 2
+        report["checks"].append("portable-watchlist-and-offline-source-reuse")
+
         report["ok"] = True
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"[:4000]
