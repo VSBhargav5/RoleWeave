@@ -43,7 +43,8 @@ class ApplicationTracker(tk.Toplevel):
         ttk.Label(body, textvariable=self.status, wraplength=740).grid(row=7, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Button(body, text="Record observation", style="Primary.TButton", command=self.record).grid(row=8, column=0, sticky="w")
         ttk.Button(body, text="Close", command=self.close).grid(row=8, column=1, sticky="e")
-        ttk.Button(body, text="Export saved follow-up to calendar (.ics)…", command=self.export_calendar).grid(row=9, column=0, columnspan=2, sticky="w", pady=8)
+        ttk.Button(body, text="Export follow-up calendar (.ics)", command=self.export_calendar).grid(row=9, column=0, sticky="w", pady=8)
+        ttk.Button(body, text="Reload saved tracking", command=self.reload_current).grid(row=9, column=1, sticky="e", pady=8)
         polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.refresh()
@@ -66,7 +67,7 @@ class ApplicationTracker(tk.Toplevel):
             self.status.set("No change to record. Add a note or change the stage/follow-up date.")
             return
         try:
-            event = self.store.record_application(self.identifier, self.stage.get(), note, self.follow_up.get())
+            event = self.store.record_application(self.identifier, self.stage.get(), note, self.follow_up.get(), expected_revision=self.current.get("revision", 0))
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(f"Could not record: {exc}")
             return
@@ -78,6 +79,15 @@ class ApplicationTracker(tk.Toplevel):
             self.status.set("Observation saved. Earlier entries and original review bytes are unchanged.")
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(f"Observation saved, but view refresh failed: {exc}")
+
+    def reload_current(self):
+        pending = (self.note.get("1.0", "end-1c").strip() or self.stage.get() != self.current["stage"]
+                   or self.follow_up.get() != self.current["follow_up"])
+        if pending and not messagebox.askyesno("Discard unrecorded tracking edits?", "Discard these edits and reload the latest saved tracking?", parent=self):
+            return
+        self.note.delete("1.0", "end")
+        self.refresh()
+        self.status.set("Latest saved tracking loaded. Review it before recording a new observation.")
 
     def close(self):
         pending = (self.note.get("1.0", "end-1c").strip() or self.stage.get() != self.current["stage"]

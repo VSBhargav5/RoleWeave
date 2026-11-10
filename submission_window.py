@@ -87,6 +87,7 @@ class SubmissionWindow(tk.Toplevel):
             self.status.set("User-reported submission recorded; original evidence and earlier history retained.")
             self.on_change(self.job["id"])
         except (OSError, ValueError, sqlite3.Error) as exc:
+            self.confirmed.set(False)
             self.status.set(str(exc))
 
     def close(self):

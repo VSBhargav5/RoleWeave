@@ -104,6 +104,7 @@ class CorrespondenceWindow(tk.Toplevel):
             self.baseline = self.state()
             self.status.set("Exact excerpt recorded; stage and follow-up retained. Original email is not copied.")
         except (OSError, ValueError, sqlite3.Error) as exc:
+            self.confirmed.set(False)
             self.status.set(str(exc))
             return
         try:

@@ -314,7 +314,9 @@ class JobStore:
         validate_history(events)
         return events
 
-    def record_application(self, identifier, stage, note="", follow_up=""):
+    def record_application(self, identifier, stage, note="", follow_up="", *, expected_revision=None):
+        if expected_revision is not None and (type(expected_revision) is not int or expected_revision < 0):
+            raise ValueError("Expected history revision must be a nonnegative integer")
         self.load(identifier)
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("PRAGMA foreign_keys=ON")
@@ -322,6 +324,8 @@ class JobStore:
             rows = db.execute("SELECT * FROM application_events WHERE job_id=? ORDER BY revision", (identifier,)).fetchall()
             history = [dict(zip(EVENT_FIELDS, row)) for row in rows]
             validate_history(history)
+            if expected_revision is not None and expected_revision != len(history):
+                raise ValueError("Application history changed; reload and review the latest stage/follow-up before recording")
             event = {"id": str(uuid4()), "job_id": identifier, "revision": len(history) + 1,
                      "stage": stage, "note": note, "follow_up": follow_up,
                      "recorded_at": datetime.now(timezone.utc).isoformat()}

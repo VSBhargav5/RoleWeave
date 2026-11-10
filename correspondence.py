@@ -27,4 +27,4 @@ def record_correspondence(store, job_id, source, quote, note, *, confirmed=False
     if any(event["note"] == message for event in history):
         raise ValueError("This exact correspondence observation is already recorded")
     current = current_application(history)
-    return store.record_application(job_id, current["stage"], message, current["follow_up"])
+    return store.record_application(job_id, current["stage"], message, current["follow_up"], expected_revision=len(history))

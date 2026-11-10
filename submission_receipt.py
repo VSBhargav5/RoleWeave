@@ -37,4 +37,4 @@ def record_submission(store, job_id, dossier, submitted_on, channel, reference, 
     if any(event["stage"] == "applied" and event["note"] == message for event in history):
         raise ValueError("This exact submission observation is already recorded")
     current = current_application(history)
-    return store.record_application(job_id, "applied", message, current["follow_up"])
+    return store.record_application(job_id, "applied", message, current["follow_up"], expected_revision=len(history))
