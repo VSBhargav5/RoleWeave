@@ -7,7 +7,7 @@ from desktop_theme import polish_widgets, reserve_footer
 from background_task import BackgroundTask
 from discovery import discovered_snapshot
 from provider_boards import PROVIDERS, source_endpoint, fetch_source
-from discovery_archive import export_archive, load_archive
+from discovery_archive import export_archive, load_archive, compare_observations
 
 
 class DiscoveryWindow(tk.Toplevel):
@@ -65,6 +65,7 @@ class DiscoveryWindow(tk.Toplevel):
         self.market = tk.StringVar(value="")
         ttk.Combobox(bottom, values=list(markets), textvariable=self.market, state="readonly", width=29).pack(side="left", padx=8)
         ttk.Button(bottom, text="Import selected posting", command=self.import_selected).pack(side="left")
+        ttk.Button(bottom, text="Compare observation", command=self.compare_observation).pack(side="left", padx=8)
         self.status = tk.StringVar(value="No automatic eligibility, sponsorship or closure inference. Fetching does not submit an application.")
         ttk.Label(body, textvariable=self.status, wraplength=960).pack(anchor="w", pady=6)
         ttk.Button(body, text="Close", command=self.close).pack(anchor="e")
@@ -88,6 +89,29 @@ class DiscoveryWindow(tk.Toplevel):
             self.status.set("Fetching https://" + host + path)
             self.task.start(lambda event: fetch_source(provider, token, event), self.received, self.failed)
         except ValueError as exc:
+            self.status.set(str(exc))
+
+    def compare_observation(self):
+        try:
+            if not self.feed:
+                raise ValueError("Fetch or open the current observation first")
+            path = filedialog.askopenfilename(parent=self, filetypes=[("Earlier discovery archive", "*.json")])
+            if not path:
+                return
+            before = load_archive(path)
+            result = compare_observations(before, self.feed)
+            window = tk.Toplevel(self)
+            window.title("RoleWeave - Observed board changes")
+            window.geometry("850x550")
+            output = tk.Text(window, wrap="word")
+            output.pack(fill="both", expand=True, padx=16, pady=16)
+            output.insert("1.0", "Earlier: " + before["fetched_at"] + "\nCurrent: " + self.feed["fetched_at"] +
+                          "\nNot observed does not mean closed. No saved jobs or stages changed.\n\n" +
+                          "\n".join(row["state"] + " | " + row["title"] + " | " + row["url"] for row in result))
+            output.configure(state="disabled")
+            ttk.Button(window, text="Close", command=window.destroy).pack(pady=8)
+            return window
+        except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 
     def export_observation(self):

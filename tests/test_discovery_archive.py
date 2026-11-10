@@ -35,3 +35,19 @@ class DiscoveryArchiveTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             export_archive({"jobs": []}, self.path)
         self.assertFalse(self.path.exists())
+
+    def test_comparison_reports_observations_without_resolving_applications(self):
+        from discovery_archive import compare_observations
+        before = dict(self.feed, jobs=[
+            {"id": "one", "title": "Before", "url": "https://example.invalid/one"},
+            {"id": "gone", "title": "Absent later", "url": "https://example.invalid/gone"}])
+        after = dict(self.feed, jobs=[
+            {"id": "one", "title": "After", "url": "https://example.invalid/one"},
+            {"id": "new", "title": "New", "url": "https://example.invalid/new"}])
+        states = {row["id"]: row["state"] for row in compare_observations(before, after)}
+        self.assertEqual(states, {"one": "changed", "gone": "not_observed", "new": "added"})
+        self.assertTrue(all(row["state"] == "unchanged" for row in compare_observations(before, before)))
+        with self.assertRaises(ValueError):
+            compare_observations(before, dict(after, token="another"))
+        with self.assertRaises(ValueError):
+            compare_observations(before, dict(after, provider="ashby"))

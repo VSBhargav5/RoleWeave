@@ -50,3 +50,19 @@ def load_archive(source):
     feed["fetched_at"] = data["observed_at"]
     archive_bytes(feed)
     return feed
+
+
+def compare_observations(before, after):
+    if (before["provider"], before["token"]) != (after["provider"], after["token"]):
+        raise ValueError("Compare observations of the same provider and board only")
+    old = {row["id"]: row for row in before["jobs"]}
+    new = {row["id"]: row for row in after["jobs"]}
+    result = []
+    for identifier in sorted(old.keys() | new.keys(), key=str):
+        left, right = old.get(identifier), new.get(identifier)
+        state = "added" if left is None else "not_observed" if right is None else "unchanged" if left == right else "changed"
+        row = right if right is not None else left
+        result.append({"state": state, "id": identifier, "title": row["title"], "url": row["url"]})
+    return result
+
+
