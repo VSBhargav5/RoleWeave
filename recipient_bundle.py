@@ -1,4 +1,4 @@
-"""Export only reviewed resume documents, excluding the private dossier evidence."""
+"""Export reviewed application documents, excluding the private dossier evidence."""
 import argparse
 from io import BytesIO
 from pathlib import Path
@@ -17,7 +17,7 @@ def recipient_bytes(dossier, formats):
         for format in formats:
             name = "cover-letter.txt" if format == "letter" else "resume." + format
             if name not in source.namelist():
-                raise ValueError("Selected resume format is unavailable: " + format)
+                raise ValueError("Selected document format is unavailable: " + format)
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
             target.writestr(info, source.read(name))
     return output.getvalue()
@@ -25,7 +25,7 @@ def recipient_bytes(dossier, formats):
 
 def export_recipient_bundle(dossier, destination, formats, *, confirmed=False):
     if confirmed is not True:
-        raise ValueError("Review the intended resume formats and confirm export")
+        raise ValueError("Review the intended document formats and confirm export")
     if Path(destination).suffix.lower() != ".zip":
         raise ValueError("Choose a .zip filename")
     payload = recipient_bytes(dossier, formats)

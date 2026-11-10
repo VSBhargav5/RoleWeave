@@ -93,6 +93,40 @@ def run_self_test(folder, shelf_type):
         store.export_follow_up(job, folder / "synthetic-follow-up.ics")
         assert b"DTSTART;VALUE=DATE:20261203" in (folder / "synthetic-follow-up.ics").read_bytes()
         report["checks"].append("private-calendar-export")
+        from application_dossier import verify_dossier_bytes
+        from cover_letter import export_letter
+        from correspondence import record_correspondence
+        from recipient_bundle import export_recipient_bundle
+        from submission_receipt import record_submission
+        from datetime import date
+        letter = shelf.open_letter()
+        letter.withdraw()
+        letter.choices.selection_set(0)
+        letter.motivation.insert("1.0", "Synthetic interest in reliable data workflows.")
+        letter.preview()
+        assert letter.prepared is not None, letter.status.get()
+        letter_bytes = letter.prepared[1]
+        export_letter(letter_bytes, folder / "synthetic-letter.json", "json", confirmed=True)
+        export_letter(letter_bytes, folder / "synthetic-letter.txt", "txt", confirmed=True)
+        letter.destroy()
+        dossier = shelf.open_dossier()
+        dossier.withdraw()
+        dossier.choices.selection_set(0)
+        dossier.letter_snapshot = letter_bytes
+        dossier.preview()
+        assert dossier.prepared is not None, dossier.status.get()
+        dossier_bytes = dossier.prepared[1]
+        from safe_export import publish_bytes
+        publish_bytes(folder / "synthetic-private-dossier.zip", dossier_bytes)
+        assert verify_dossier_bytes(dossier_bytes)["job"]["id"] == job
+        export_recipient_bundle(dossier_bytes, folder / "synthetic-recipient-files.zip", ["pdf", "letter"], confirmed=True)
+        dossier.destroy()
+        record_submission(store, job, dossier_bytes, date.today().isoformat(), "Employer portal",
+                          "Synthetic reference", "Offline synthetic observation only.", confirmed=True)
+        mail = (RESOURCE_ROOT / "examples/reply-synthetic.eml").read_bytes()
+        record_correspondence(store, job, mail, "Please suggest a time", "Synthetic correspondence observation.", confirmed=True)
+        assert store.application_history(job)[-1]["stage"] == "applied"
+        report["checks"].append("private-dossier-letter-recipient-files-and-manual-correspondence")
         store.backup(folder / "synthetic-backup.json")
         review_list_csv(store.list_jobs(), folder / "synthetic-reviews.csv")
         assert follow_up_list(store, store.list_jobs(), folder / "synthetic-followups.ics") == 1

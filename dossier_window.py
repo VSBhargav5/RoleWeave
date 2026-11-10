@@ -53,7 +53,7 @@ class DossierWindow(tk.Toplevel):
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
         ttk.Button(actions, text="Export private dossier ZIP", command=self.export).pack(side="left")
-        ttk.Button(actions, text="Export resume files only", command=self.export_resume_files).pack(side="left", padx=8)
+        ttk.Button(actions, text="Export recipient files", command=self.export_resume_files).pack(side="left", padx=8)
         letter_menu = tk.Menu(self, tearoff=False)
         letter_menu.add_command(label="Prepare letter from matching profile", command=self.prepare_matching_letter)
         letter_menu.add_command(label="Attach saved matching letter", command=self.attach_letter)
@@ -135,7 +135,7 @@ class DossierWindow(tk.Toplevel):
             selection = self.choices.curselection()
             if self.prepared is None or not self.confirmed.get() or not selection or self.versions[selection[0]]["id"] != self.prepared[0]:
                 raise ValueError("Preview and confirm this exact resume selection first")
-            value = simpledialog.askstring("Resume documents", "Formats to include, separated by commas: txt, html, pdf, letter", parent=self)
+            value = simpledialog.askstring("Recipient documents", "Formats to include, separated by commas: txt, html, pdf, letter", parent=self)
             if value is None:
                 return
             formats = [part.strip() for part in value.split(",")]
@@ -145,7 +145,7 @@ class DossierWindow(tk.Toplevel):
             path = filedialog.asksaveasfilename(parent=self, defaultextension=".zip", filetypes=[("Resume documents only", "*.zip")])
             if path:
                 publish_bytes(path, payload)
-                self.status.set("Selected resume documents exported. Nothing was sent or marked applied.")
+                self.status.set("Selected documents exported. Nothing was sent or marked applied.")
         except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 
