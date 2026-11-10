@@ -71,3 +71,20 @@ class DiscoveryUITests(unittest.TestCase):
         self.shelf.posting.insert("end", "Unsaved posting")
         self.assertIsNone(self.shelf.open_discovery())
         self.assertIn("Unsaved posting", self.shelf.posting.get("1.0", "end"))
+
+    def test_provider_switch_rejects_late_results_and_old_selections(self):
+        self.window.received(self.feed)
+        self.window.rows.selection_set("0")
+        self.window.provider.set("lever")
+        with self.assertRaisesRegex(ValueError, "provider changed"):
+            self.window.selected()
+        self.window.received(self.feed)
+        self.assertIsNone(self.window.feed)
+        self.assertEqual(self.window.rows.get_children(), ())
+        self.window.provider.set("ashby")
+        with patch("discovery_window.fetch_source", return_value={"jobs": []}) as fetch:
+            with patch.object(self.window.task, "start") as start:
+                self.window.fetch()
+                start.call_args.args[0](None)
+                fetch.assert_called_once_with("ashby", "synthetic", None)
+        self.assertIn("api.ashbyhq.com", self.window.status.get())

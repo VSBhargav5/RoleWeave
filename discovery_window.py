@@ -5,7 +5,8 @@ from tkinter import ttk
 from desktop_theme import polish_widgets, reserve_footer
 
 from background_task import BackgroundTask
-from discovery import board_path, discovered_snapshot, fetch_board
+from discovery import discovered_snapshot
+from provider_boards import PROVIDERS, source_endpoint, fetch_source
 
 
 class DiscoveryWindow(tk.Toplevel):
@@ -21,16 +22,22 @@ class DiscoveryWindow(tk.Toplevel):
         self.task = BackgroundTask(self)
         body = ttk.Frame(self, padding=16)
         body.pack(fill="both", expand=True)
-        ttk.Label(body, text="Discover one employer's public Greenhouse board", font=("Segoe UI", 15)).pack(anchor="w")
+        ttk.Label(body, text="Discover one employer's public job board", font=("Segoe UI", 15)).pack(anchor="w")
         ttk.Label(body, text="Explicit GET only. The provider sees the board token and connection metadata; your profile is not sent.", wraplength=960).pack(anchor="w", pady=6)
         inputs = ttk.Frame(body)
         inputs.pack(fill="x")
-        ttk.Label(inputs, text="Board token").grid(row=0, column=0, sticky="w")
+        self.provider = tk.StringVar(value="greenhouse")
+        ttk.Label(inputs, text="Provider").grid(row=0, column=0, sticky="w")
+        provider = ttk.Combobox(inputs, values=PROVIDERS, textvariable=self.provider, state="readonly", width=24)
+        provider.grid(row=0, column=1, padx=8, pady=(0, 6))
+        provider.bind("<<ComboboxSelected>>", lambda _event: self.source_changed())
+        ttk.Label(inputs, text="Lever EU has a separate board region; choose it explicitly.").grid(row=0, column=2, columnspan=2, sticky="w")
+        ttk.Label(inputs, text="Board token").grid(row=1, column=0, sticky="w")
         self.token = ttk.Entry(inputs, width=26)
-        self.token.grid(row=0, column=1, padx=8)
-        ttk.Label(inputs, text="Employer label (your label)").grid(row=0, column=2)
+        self.token.grid(row=1, column=1, padx=8)
+        ttk.Label(inputs, text="Employer label (your label)").grid(row=1, column=2)
         self.company = ttk.Entry(inputs, width=32)
-        self.company.grid(row=0, column=3, padx=8)
+        self.company.grid(row=1, column=3, padx=8)
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
         self.fetch_button = ttk.Button(actions, text="Fetch public board", style="Primary.TButton", command=self.fetch)
@@ -42,7 +49,7 @@ class DiscoveryWindow(tk.Toplevel):
         query.pack(fill="x")
         query.bind("<KeyRelease>", lambda _event: self.filter_rows())
         self.rows = ttk.Treeview(body, columns=("title", "location", "updated"), show="headings", height=4, selectmode="browse")
-        for key, label, width in (("title", "Title", 400), ("location", "Provider location label", 280), ("updated", "Provider updated_at", 210)):
+        for key, label, width in (("title", "Title", 400), ("location", "Provider location label", 280), ("updated", "Provider time label", 210)):
             self.rows.heading(key, text=label)
             self.rows.column(key, width=width)
         self.rows.pack(fill="both", expand=True, pady=8)
@@ -66,7 +73,8 @@ class DiscoveryWindow(tk.Toplevel):
     def fetch(self):
         token = self.token.get().strip()
         try:
-            path = board_path(token)
+            provider = self.provider.get()
+            host, path = source_endpoint(provider, token)
             if self.task.active is not None:
                 raise ValueError("Cancel or wait for the current fetch")
             # Clear visible results before a new observation; failure cannot import
@@ -74,14 +82,28 @@ class DiscoveryWindow(tk.Toplevel):
             self.feed = None
             self.filter_rows()
             self.fetch_button.configure(state="disabled")
-            self.status.set("Fetching https://boards-api.greenhouse.io" + path)
-            self.task.start(lambda event: fetch_board(token, event), self.received, self.failed)
+            self.status.set("Fetching https://" + host + path)
+            self.task.start(lambda event: fetch_source(provider, token, event), self.received, self.failed)
         except ValueError as exc:
             self.status.set(str(exc))
 
+    def source_changed(self):
+        self.task.cancel()
+        self.feed = None
+        self.filter_rows()
+        self.fetch_button.configure(state="normal")
+        self.status.set("Provider changed. Fetch the selected board before importing.")
+
     def received(self, feed):
         self.fetch_button.configure(state="normal")
+        if feed.get("provider", "greenhouse") != self.provider.get():
+            self.feed = None
+            self.filter_rows()
+            self.status.set("Provider changed while fetching; results discarded.")
+            return
         if feed["token"] != self.token.get().strip():
+            self.feed = None
+            self.filter_rows()
             self.status.set("Board token changed while fetching; results discarded. Fetch again.")
             return
         self.feed = feed
@@ -112,6 +134,8 @@ class DiscoveryWindow(tk.Toplevel):
         selection = self.rows.selection()
         if not self.feed or not selection:
             raise ValueError("Fetch and select a posting first")
+        if self.feed.get("provider", "greenhouse") != self.provider.get():
+            raise ValueError("Discovery provider changed; fetch again before importing")
         if self.feed["token"] != self.token.get().strip():
             raise ValueError("Board token changed; fetch again before importing")
         return self.visible[int(selection[0])]
