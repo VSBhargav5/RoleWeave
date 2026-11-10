@@ -71,3 +71,18 @@ class DossierUITests(unittest.TestCase):
             y = button.winfo_rooty() - self.window.winfo_rooty()
             self.assertGreaterEqual(button.winfo_height(), 28)
             self.assertLessEqual(y + button.winfo_height(), self.window.winfo_height())
+
+    def test_recipient_export_requires_format_review_and_excludes_private_members(self):
+        import zipfile
+        self.window.choices.selection_set(0)
+        self.window.preview()
+        self.window.confirmed.set(True)
+        path = self.folder / "resume-files.zip"
+        with patch("dossier_window.simpledialog.askstring", return_value="txt"), patch("dossier_window.messagebox.askyesno", return_value=False), patch("dossier_window.filedialog.asksaveasfilename") as save:
+            self.window.export_resume_files()
+            save.assert_not_called()
+        with patch("dossier_window.simpledialog.askstring", return_value="txt"), patch("dossier_window.messagebox.askyesno", return_value=True), patch("dossier_window.filedialog.asksaveasfilename", return_value=str(path)):
+            self.window.export_resume_files()
+        with zipfile.ZipFile(path) as archive:
+            self.assertEqual(archive.namelist(), ["resume.txt"])
+        self.assertEqual(self.store.application_history(self.job), [])

@@ -3,12 +3,13 @@ from io import BytesIO
 import json
 import sqlite3
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 import zipfile
 
 from application_dossier import build_dossier
 from desktop_theme import polish_widgets, reserve_footer
 from safe_export import publish_bytes
+from recipient_bundle import recipient_bytes
 
 
 class DossierWindow(tk.Toplevel):
@@ -44,6 +45,7 @@ class DossierWindow(tk.Toplevel):
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
         ttk.Button(actions, text="Export private dossier ZIP", command=self.export).pack(side="left")
+        ttk.Button(actions, text="Export resume files only", command=self.export_resume_files).pack(side="left", padx=8)
         ttk.Button(actions, text="Close", command=self.destroy).pack(side="right")
         self.status = tk.StringVar(value="Create a job-specific frozen resume first." if not self.versions else "No submission will be recorded or sent.")
         ttk.Label(body, textvariable=self.status, wraplength=800).pack(anchor="w")
@@ -76,6 +78,25 @@ class DossierWindow(tk.Toplevel):
             self.prepared = (identifier, payload)
             self.status.set("Exact bytes prepared. Review the privacy warning and files, then confirm.")
         except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+
+    def export_resume_files(self):
+        try:
+            selection = self.choices.curselection()
+            if self.prepared is None or not self.confirmed.get() or not selection or self.versions[selection[0]]["id"] != self.prepared[0]:
+                raise ValueError("Preview and confirm this exact resume selection first")
+            value = simpledialog.askstring("Resume documents", "Formats to include, separated by commas: txt, html, pdf", parent=self)
+            if value is None:
+                return
+            formats = [part.strip() for part in value.split(",")]
+            payload = recipient_bytes(self.prepared[1], formats)
+            if not messagebox.askyesno("Review resume files", "Export only: " + ", ".join("resume." + value for value in formats) + "\nPrivate evidence and history are excluded. Review the documents before sending them yourself.", parent=self):
+                return
+            path = filedialog.asksaveasfilename(parent=self, defaultextension=".zip", filetypes=[("Resume documents only", "*.zip")])
+            if path:
+                publish_bytes(path, payload)
+                self.status.set("Selected resume documents exported. Nothing was sent or marked applied.")
+        except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 
     def export(self):

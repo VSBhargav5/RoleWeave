@@ -79,11 +79,15 @@ def export_dossier(store, job_id, resume_id, destination, *, confirmed=False):
 
 def verify_dossier(source):
     """Read without extraction, check every member and replay document contracts."""
-    from network_io import json_object
     with Path(source).open("rb") as handle:
         payload = handle.read(MAX_DOSSIER_BYTES + 1)
-    if len(payload) > MAX_DOSSIER_BYTES:
-        raise ValueError("Dossier exceeds 64 MiB")
+    return verify_dossier_bytes(payload)
+
+
+def verify_dossier_bytes(payload):
+    if not isinstance(payload, bytes) or len(payload) > MAX_DOSSIER_BYTES:
+        raise ValueError("Dossier must be bytes of at most 64 MiB")
+    from network_io import json_object
     allowed = {"manifest.json", "review.json", "resume-version.json", "history.json",
                "preparation.txt", "resume.html", "resume.txt", "resume.pdf"}
     try:
