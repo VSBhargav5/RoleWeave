@@ -10,7 +10,7 @@ from network_io import json_object, request_bytes
 from roleweave import text
 from source_links import source_link
 
-PROVIDERS = ("greenhouse", "lever", "lever-eu")
+PROVIDERS = ("greenhouse", "lever", "lever-eu", "ashby")
 
 
 def source_endpoint(provider, token):
@@ -20,6 +20,8 @@ def source_endpoint(provider, token):
     if provider in ("lever", "lever-eu"):
         host = "api.lever.co" if provider == "lever" else "api.eu.lever.co"
         return host, f"/v0/postings/{token}?mode=json&limit=1000"
+    if provider == "ashby":
+        return "api.ashbyhq.com", f"/posting-api/job-board/{token}"
     raise ValueError("Unsupported discovery provider")
 
 
@@ -44,12 +46,52 @@ def source_row(provider, token, record, identifier, title, url, location, observ
             "location": location, "updated_at": observed_time, "posting": posting}
 
 
+def parse_ashby(snapshot, token):
+    data = json_object(snapshot)
+    if not isinstance(data, dict) or data.get("apiVersion") != "1" or not isinstance(data.get("jobs"), list) or len(data["jobs"]) > 10000:
+        raise ValueError("Unsupported Ashby job-board contract")
+    rows, seen = [], set()
+    for record in data["jobs"]:
+        if not isinstance(record, dict) or type(record.get("isListed")) is not bool:
+            raise ValueError("Ashby listing visibility must be explicit")
+        if record["isListed"] is False:
+            continue
+        url = field(record.get("jobUrl"), "Ashby job URL")
+        if url in seen:
+            raise ValueError("Duplicate Ashby job URL")
+        seen.add(url)
+        published = field(record.get("publishedAt"), "Ashby publishedAt")
+        try:
+            if datetime.fromisoformat(published.replace("Z", "+00:00")).utcoffset() is None:
+                raise ValueError()
+        except ValueError:
+            raise ValueError("Ashby publishedAt needs an explicit timezone") from None
+        secondary = record.get("secondaryLocations", [])
+        if not isinstance(secondary, list) or len(secondary) > 100:
+            raise ValueError("Unsupported Ashby secondary locations")
+        locations = [field(record.get("location"), "Location", optional=True)]
+        for item in secondary:
+            if not isinstance(item, dict):
+                raise ValueError("Unsupported Ashby location")
+            locations.append(field(item.get("location"), "Secondary location"))
+        location = " | ".join(dict.fromkeys(locations))
+        field(location, "Combined location")
+        body = text(record.get("descriptionPlain"), "Ashby description")
+        rows.append(source_row("ashby", token, record, url, record.get("title"), url, location,
+                               "Last published: " + published, body))
+    return rows
+
+
 def parse_source(snapshot, provider, token):
     source_endpoint(provider, token)
     if len(snapshot) > MAX_FEED_BYTES:
         raise ValueError("Board exceeds 8 MiB")
     if provider == "greenhouse":
         feed = parse_board(snapshot, token)
+    elif provider == "ashby":
+        feed = {"jobs": parse_ashby(snapshot, token), "token": token,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+                "response_sha256": hashlib.sha256(snapshot).hexdigest()}
     else:
         records = json_object(snapshot)
         if not isinstance(records, list) or len(records) >= 1000:

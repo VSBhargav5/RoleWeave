@@ -9,7 +9,7 @@ class Cancelled(ValueError):
 
 
 def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 1024):
-    if host not in ("boards-api.greenhouse.io", "api.openai.com", "api.lever.co", "api.eu.lever.co") or not path.startswith("/"):
+    if host not in ("boards-api.greenhouse.io", "api.openai.com", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com") or not path.startswith("/"):
         raise ValueError("Unsupported provider endpoint")
     if host != "api.openai.com" and (key is not None or body is not None):
         raise ValueError("Public job-board requests must be unauthenticated GET requests")

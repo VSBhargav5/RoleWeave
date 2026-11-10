@@ -60,3 +60,35 @@ class ProviderBoardTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     request_bytes(host, "/v0/postings/synthetic", key="synthetic-key")
                 connect.assert_not_called()
+
+    def test_ashby_only_listed_posts_and_exact_plain_text_are_used(self):
+        data = {"apiVersion": "1", "jobs": [
+            {"isListed": True, "jobUrl": "https://jobs.ashbyhq.com/synthetic/one",
+             "title": "AI Engineer", "descriptionPlain": "Python and SQL.",
+             "publishedAt": "2026-11-10T00:00:00Z", "location": "Hybrid",
+             "secondaryLocations": [{"location": "India"}], "isRemote": True},
+            {"isListed": False}]}
+        feed = self.parse(data, "ashby")
+        self.assertEqual(len(feed["jobs"]), 1)
+        self.assertEqual(feed["jobs"][0]["location"], "Hybrid | India")
+        self.assertIn("Last published:", feed["jobs"][0]["updated_at"])
+        self.assertNotIn("eligible", feed["jobs"][0]["posting"])
+        self.assertEqual(source_endpoint("ashby", "synthetic")[0], "api.ashbyhq.com")
+        for change in ({"isListed": None}, {"publishedAt": "2026-11-10"},
+                       {"secondaryLocations": {}}, {"jobUrl": "https://user:secret@example.invalid"}):
+            changed = json.loads(json.dumps(data))
+            changed["jobs"][0].update(change)
+            with self.assertRaises(ValueError):
+                self.parse(changed, "ashby")
+        data["jobs"] = data["jobs"][:1] * 2
+        with self.assertRaises(ValueError):
+            self.parse(data, "ashby")
+
+    def test_ashby_unsupported_contract_and_nan_metadata_are_rejected(self):
+        for data in ({}, {"apiVersion": "2", "jobs": []}, {"apiVersion": "1", "jobs": {}}):
+            with self.assertRaises(ValueError):
+                self.parse(data, "ashby")
+        row = lever_fixture()
+        row[0]["extra"] = float("nan")
+        with self.assertRaises(ValueError):
+            self.parse(row)
