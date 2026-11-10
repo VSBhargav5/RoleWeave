@@ -65,3 +65,22 @@ class WatchlistUITests(unittest.TestCase):
         self.window.destroy()
         self.shelf.posting.insert("end", "Unsaved job")
         self.assertIsNone(self.shelf.open_watchlist())
+
+    def test_watchlist_actions_fit_the_supported_minimum(self):
+        from tkinter import ttk
+        self.root.deiconify()
+        self.window.deiconify()
+        self.window.geometry("900x700")
+        self.window.update()
+        self.assertGreaterEqual(self.window.rows.winfo_height(), 48)
+        def walk(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from walk(child)
+        for widget in walk(self.window):
+            if isinstance(widget, ttk.Button) and widget.winfo_ismapped():
+                x = widget.winfo_rootx() - self.window.winfo_rootx()
+                y = widget.winfo_rooty() - self.window.winfo_rooty()
+                self.assertGreaterEqual(widget.winfo_height(), 28)
+                self.assertLessEqual(x + widget.winfo_width(), self.window.winfo_width())
+                self.assertLessEqual(y + widget.winfo_height(), self.window.winfo_height())
