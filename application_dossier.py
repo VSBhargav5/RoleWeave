@@ -77,15 +77,78 @@ def export_dossier(store, job_id, resume_id, destination, *, confirmed=False):
     return hashlib.sha256(payload).hexdigest()
 
 
+def verify_dossier(source):
+    """Read without extraction, check every member and replay document contracts."""
+    from network_io import json_object
+    with Path(source).open("rb") as handle:
+        payload = handle.read(MAX_DOSSIER_BYTES + 1)
+    if len(payload) > MAX_DOSSIER_BYTES:
+        raise ValueError("Dossier exceeds 64 MiB")
+    allowed = {"manifest.json", "review.json", "resume-version.json", "history.json",
+               "preparation.txt", "resume.html", "resume.txt", "resume.pdf"}
+    try:
+        with zipfile.ZipFile(BytesIO(payload)) as archive:
+            entries = archive.infolist()
+            names = [info.filename for info in entries]
+            if len(names) != len(set(names)) or not 7 <= len(names) <= 8 or not set(names) <= allowed:
+                raise ValueError("Unexpected or duplicate dossier members")
+            if sum(info.file_size for info in entries) > MAX_DOSSIER_BYTES:
+                raise ValueError("Expanded dossier exceeds 64 MiB")
+            if any(info.flag_bits & 1 or info.compress_type != zipfile.ZIP_STORED for info in entries):
+                raise ValueError("Unsupported encrypted or recompressed dossier")
+            parts = {info.filename: archive.read(info) for info in entries}
+        manifest = json_object(parts.pop("manifest.json"))
+        keys = {"format", "contains_private_evidence", "submission_verified", "job",
+                "resume_id", "resume_snapshot_sha256", "history_revision", "files"}
+        if not isinstance(manifest, dict) or set(manifest) != keys or manifest["format"] != "roleweave-dossier-v1":
+            raise ValueError("Unsupported dossier manifest")
+        if manifest["contains_private_evidence"] is not True or manifest["submission_verified"] is not False:
+            raise ValueError("Unsupported dossier privacy/submission declaration")
+        if not isinstance(manifest["files"], dict) or set(manifest["files"]) != set(parts):
+            raise ValueError("Manifest members do not match archive")
+        for name, value in manifest["files"].items():
+            if not isinstance(value, dict) or set(value) != {"sha256", "bytes"} or type(value["bytes"]) is not int:
+                raise ValueError("Invalid member fingerprint")
+            if value["bytes"] != len(parts[name]) or value["sha256"] != hashlib.sha256(parts[name]).hexdigest():
+                raise ValueError("Dossier member fingerprint mismatch")
+        record, digest = resume_snapshot(parts["resume-version.json"])
+        events = json_object(parts["history.json"])
+        if not isinstance(events, list) or type(manifest["history_revision"]) is not int:
+            raise ValueError("Invalid dossier history")
+        item = manifest["job"]
+        if not isinstance(item, dict) or set(item) != set(JOB_FIELDS):
+            raise ValueError("Invalid dossier job context")
+        item = dict(item, snapshot=parts["review.json"])
+        resume = {"id": manifest["resume_id"], "snapshot": parts["resume-version.json"],
+                  "snapshot_sha256": manifest["resume_snapshot_sha256"]}
+        text(resume["id"], "Resume version ID")
+        expected = dossier_parts(item, resume, events)
+        if parts != expected or manifest["history_revision"] != (events[-1]["revision"] if events else 0):
+            raise ValueError("Dossier documents do not replay from frozen evidence")
+        return {"job": manifest["job"], "resume_id": resume["id"],
+                "history_revision": manifest["history_revision"], "file_count": len(parts),
+                "sha256": hashlib.sha256(payload).hexdigest(), "submission_verified": False}
+    except (zipfile.BadZipFile, KeyError, TypeError, RuntimeError, NotImplementedError) as exc:
+        raise ValueError("Invalid or unsupported private dossier") from None
+
+
 def main():
     from job_store import JobStore
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", type=Path, required=True)
-    parser.add_argument("--job", required=True)
-    parser.add_argument("--resume", required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--verify", type=Path, help="Verify an existing dossier without opening a shelf")
+    parser.add_argument("--db", type=Path)
+    parser.add_argument("--job")
+    parser.add_argument("--resume")
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--confirm-private", action="store_true")
     args = parser.parse_args()
+    if args.verify:
+        if any((args.db, args.job, args.resume, args.output, args.confirm_private)):
+            parser.error("--verify cannot be combined with export arguments")
+        print(json.dumps(verify_dossier(args.verify), indent=2))
+        return
+    if not all((args.db, args.job, args.resume, args.output)):
+        parser.error("Export requires --db, --job, --resume and --output")
     if not args.db.is_file():
         parser.error("Existing shelf database required; no database was created")
     if not args.confirm_private:

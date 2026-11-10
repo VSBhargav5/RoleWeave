@@ -58,3 +58,43 @@ class ApplicationDossierTests(unittest.TestCase):
         events[0]["job_id"] = "different"
         with self.assertRaises(ValueError):
             build_dossier(self.store.load(self.job), self.store.load_resume(self.resume), events)
+
+    def test_verifier_replays_all_documents_without_extracting(self):
+        from application_dossier import verify_dossier
+        export_dossier(self.store, self.job, self.resume, self.path, confirmed=True)
+        before = set(self.folder.iterdir())
+        report = verify_dossier(self.path)
+        self.assertEqual(report["job"]["id"], self.job)
+        self.assertFalse(report["submission_verified"])
+        self.assertEqual(before, set(self.folder.iterdir()))
+
+    def rewrite(self, change):
+        with zipfile.ZipFile(self.path) as archive:
+            parts = {name: archive.read(name) for name in archive.namelist()}
+        change(parts)
+        with zipfile.ZipFile(self.path, "w", compression=zipfile.ZIP_STORED) as archive:
+            for name, payload in parts.items():
+                archive.writestr(name, payload)
+
+    def test_forged_export_with_updated_hash_still_fails_source_replay(self):
+        from application_dossier import verify_dossier
+        export_dossier(self.store, self.job, self.resume, self.path, confirmed=True)
+        def change(parts):
+            parts["resume.txt"] = b"Invented work experience"
+            manifest = json.loads(parts["manifest.json"])
+            manifest["files"]["resume.txt"] = {"sha256": hashlib.sha256(parts["resume.txt"]).hexdigest(),
+                                               "bytes": len(parts["resume.txt"])}
+            parts["manifest.json"] = json.dumps(manifest).encode()
+        self.rewrite(change)
+        with self.assertRaisesRegex(ValueError, "replay"):
+            verify_dossier(self.path)
+
+    def test_extra_paths_duplicates_and_broken_zip_are_rejected(self):
+        from application_dossier import verify_dossier
+        export_dossier(self.store, self.job, self.resume, self.path, confirmed=True)
+        self.rewrite(lambda parts: parts.update({"../outside.txt": b"not extracted"}))
+        with self.assertRaises(ValueError):
+            verify_dossier(self.path)
+        self.path.write_bytes(b"broken")
+        with self.assertRaises(ValueError):
+            verify_dossier(self.path)
