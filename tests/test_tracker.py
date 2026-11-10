@@ -75,3 +75,19 @@ class TrackerTests(unittest.TestCase):
             self.tracker.close()
         self.assertTrue(self.tracker.winfo_exists())
         self.assertEqual(self.store.application_history(self.job), [])
+
+    def test_stale_tracker_keeps_draft_and_explicit_reload_resolves_conflict(self):
+        self.store.record_application(self.job, "interview", "Newer window", "2026-12-03")
+        self.tracker.stage.set("applied")
+        self.tracker.note.insert("1.0", "My unsaved draft")
+        self.tracker.record()
+        self.assertIn("history changed", self.tracker.status.get())
+        self.assertIn("unsaved draft", self.tracker.note.get("1.0", "end"))
+        self.assertEqual(len(self.store.application_history(self.job)), 1)
+        with patch("application_tracker.messagebox.askyesno", return_value=False):
+            self.tracker.reload_current()
+        self.assertIn("unsaved draft", self.tracker.note.get("1.0", "end"))
+        with patch("application_tracker.messagebox.askyesno", return_value=True):
+            self.tracker.reload_current()
+        self.assertEqual(self.tracker.stage.get(), "interview")
+        self.assertEqual(self.tracker.follow_up.get(), "2026-12-03")

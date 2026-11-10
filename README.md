@@ -11,17 +11,19 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Start on Windows
 
-Version 0.7.0 redesigns the Windows workspace with a navigation rail, summary
-cards, separate posting/evidence/details tabs and a shared visual theme. Public
-Greenhouse discovery, reviewed AI quote proposals, resumes and follow-ups remain
-available through the redesigned interface. Core features need no account, key or server. AI alone needs your own
-OpenAI key and explicit authorization for each potentially charged request.
-Personal usefulness still needs your trial.
+Version0.8 adds reviewed cover letters, exact private application dossiers,
+recipient-only document exports, manual submission receipts and local email
+excerpt review. Source-bound records and conflict-safe tracking preserve prior
+evidence. [Application delivery guide](docs/application-delivery.md).
 
-For the portable build, extract the **whole** `RoleWeave-0.6.0-windows-x64.zip`
+Core features run locally. Optional AI requires your own session key and
+per-request consent. Live quality, personal usefulness and connected-account
+integrations remain unverified.
+
+For the portable build, extract the **whole** `RoleWeave-0.8.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
-The build is unsigned; an installer and automatic updates are not provided.
-The CI run's `RoleWeave-0.6.0-windows-x64` artifact contains this ZIP.
+The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
+The CI run's `RoleWeave-0.8.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -243,3 +245,5 @@ Neither tests nor a package build establish personal usefulness or ATS behavior.
 Windows per-user setup and uninstall: [installation guide](docs/windows-installation.md).
 
 V0.7 expands discovery to Lever global/EU and Ashby, with local filters and verified offline observation archives. [Discovery guide and exercise](docs/discovery-workflow.md).
+
+See [application delivery and local correspondence](docs/application-delivery.md) for exact private dossiers and recipient-only files.
