@@ -23,6 +23,7 @@ from letter_window import LetterWindow, FrozenLetterWindow
 from cover_letter import read_letter
 from submission_window import SubmissionWindow
 from correspondence_window import CorrespondenceWindow
+from watchlist_window import WatchlistWindow
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 from desktop_theme import apply_theme, polish_widgets
@@ -202,6 +203,7 @@ class JobShelf(ttk.Frame):
         next_actions.grid(row=2, column=0, sticky="ew", pady=10)
         ttk.Button(next_actions, text="Application notes / follow-up", command=self.open_tracker).pack(side="left")
         export_menu = tk.Menu(self, tearoff=False)
+        export_menu.add_command(label="Employer watchlists...", command=self.open_watchlist)
         export_menu.add_command(label="Review local email correspondence...", command=self.open_correspondence)
         export_menu.add_command(label="Record my manual submission...", command=self.open_submission)
         export_menu.add_command(label="Prepare reviewed cover letter...", command=self.open_letter)
@@ -359,6 +361,12 @@ class JobShelf(ttk.Frame):
         profile = self.store.active_profile()
         name = profile["profile"]["name"] if profile else ""
         self.profile_status.set("Profile: " + name[:70] + ("…" if len(name) > 70 else "") if profile else "Start here: create your career profile and reviewed facts.")
+
+    def open_watchlist(self):
+        if self.has_draft_changes():
+            self.status.set("Save/discard posting edits before using employer watchlists.")
+            return
+        return WatchlistWindow(self.winfo_toplevel(), self.store, MARKET_LABELS, self.show_saved)
 
     def open_discovery(self):
         if self.has_draft_changes():
