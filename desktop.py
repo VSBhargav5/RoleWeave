@@ -28,7 +28,7 @@ from rehearsal_window import RehearsalWindow
 from rehearsal_journal import read_rehearsal, rehearsal_source_item
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
-from desktop_theme import apply_theme, polish_widgets
+from desktop_theme import apply_theme, polish_widgets, reserve_footer
 from source_links import source_link
 from workspace_exports import review_list_csv, follow_up_list
 from review_history import ReviewHistory
@@ -476,30 +476,78 @@ class JobShelf(ttk.Frame):
 
     def open_help(self):
         window = tk.Toplevel(self.winfo_toplevel())
-        window.title(f"RoleWeave {APP_VERSION} - Getting started")
-        window.geometry("820x620")
+        window.title(f"RoleWeave {APP_VERSION} - Getting started and readiness")
+        window.geometry("900x700")
+        window.minsize(700, 500)
         window.transient(self.winfo_toplevel())
         window.grab_set()
-        body = ttk.Frame(window, padding=20)
+        body = ttk.Frame(window, padding=16)
         body.pack(fill="both", expand=True)
-        ttk.Label(body, text="Start with one job and facts you can defend", font=("Segoe UI", 16)).pack(anchor="w")
-        instructions = ["1. Career profile: enter your identity, summary and sourced facts. Choose each fact's section and review it.",
-                        "2. Paste a permitted posting or use Discover public jobs for one Greenhouse board. Choose the market explicitly.",
-                        "3. Review evidence: select exact quotes and link relevant facts deliberately. Optional AI proposes quotes only after payload review and consent.",
-                        "4. Build a resume: select reviewed claims, preview and approve. Save a frozen version, then export HTML/PDF.",
-                        "5. Application notes: record decisions and follow-up dates; export a calendar file if useful. Nothing submits applications or links calendar accounts.",
-                        "6. Back up the full shelf regularly. V3 includes your profile, resume versions and application history."]
-        for instruction in instructions:
-            ttk.Label(body, text=instruction, wraplength=760).pack(anchor="w", pady=7)
-        ttk.Label(body, text=f"Current database:\n{self.store.path.resolve()}\nExports and backups contain private information and are not encrypted.",
-                  wraplength=760).pack(anchor="w", pady=12)
-        ttk.Label(body, text="Moving from a source checkout to a standalone portable app? Back up here, then restore in the new app. Source and portable defaults use different data folders.",
-                  wraplength=760).pack(anchor="w", pady=6)
+        ttk.Label(body, text="Start with one job and facts you can defend", font=("Segoe UI", 15), wraplength=650).pack(anchor="w")
+        ttk.Label(body, text="Core local MVP: 8 workflow groups implemented and tested offline. Personal acceptance and optional live services need separate checks.", wraplength=650).pack(anchor="w", pady=8)
+        tabs = ttk.Notebook(body)
+        tabs.pack(fill="both", expand=True)
+        pages = {
+            "First use": "\n\n".join([
+                "1. Use the separate synthetic practice workspace first. It never replaces your personal shelf.",
+                "2. Career profile: enter identity and sourced facts. Review each claim and distinguish projects from employment.",
+                "3. Paste a permitted job or use Public job discovery / Employer watchlists. Greenhouse, Lever global/EU and Ashby are supported subsets. Fetch is deliberate; board compatibility and limits vary.",
+                "4. Choose India/remote or relocation explicitly. Review exact requirement quotes and link relevant evidence. A location label is not eligibility or sponsorship proof.",
+                "5. Build a reviewed resume. Preview and approve selected claims, save a frozen version, export HTML/PDF/TXT. Review files can prepare a reviewed letter and private dossier, then recipient-only files.",
+                "6. Record decisions, manual submission observations and local email excerpts yourself. Nothing sends applications, reads a mailbox or links accounts. Export follow-ups as calendar files if useful.",
+                "7. Evidence & next steps > Review files > Write/save rehearsal answers: choose questions, draft, reveal evidence, save/reopen and compare exact-source private versions. Time and draft changes do not prove learning.",
+                "8. Back up the full shelf and test restore in a separate practice database. Review files can inspect backups, check storage and audit saved sources/references. Keep separate exported files backed up too."
+            ]),
+            "Readiness and remaining work": "\n\n".join([
+                "READY FOR A LOCAL TRIAL - 8/8 core workflow groups implemented and offline tested. This is not proof of personal usefulness or a production-readiness percentage.",
+                "1. Windows portable/installed runtime: automated delivery checks pass; manual wizard/scaling acceptance remains yours.",
+                "2. Posting review, exact evidence and separate markets: implemented and regression-tested.",
+                "3. Reusable reviewed career profiles: implemented and regression-tested.",
+                "4. Frozen resume and reviewed letter preparation: implemented and regression-tested; personally proofread every exported document.",
+                "5. Private dossiers and recipient-only files: implemented and regression-tested; private source/history files are not recruiter attachments.",
+                "6. Manual application stages, follow-ups and correspondence: implemented and regression-tested; observations do not prove delivery or sender authenticity.",
+                "7. Source-bound rehearsal drafts, packs and differences: implemented and regression-tested; no answer grading or learning claim.",
+                "8. Shelf backup/restore and read-only audits: implemented and regression-tested; no recovery guarantee for arbitrary corruption.",
+                "PARTLY VALIDATED: Public discovery depends on the selected board. Live checks parsed Greenhouse and Lever EU; Lever global's example was empty. Ashby's example board exceeded the supported posting size and was refused, not partially imported.",
+                "LIVE TRIAL NEEDED: Optional AI quote proposals are implemented/offline tested. Enter a key only in the app and consent to one reviewed request; API cost/quality and account access are not verified.",
+                "CLIENT TRIAL NEEDED: Local calendar export is tested; your calendar client's import behavior is unverified.",
+                "NOT IMPLEMENTED: Connected mailbox/calendar/account sync, global automatic job search and automatic applications. These are outside the local MVP; don't grant account access until a deliberate integration is agreed.",
+                "PERSONAL ACCEPTANCE: Complete one permitted posting-to-document-to-tracking-to-restore workflow, note problems, and check every career claim. This cannot be marked complete by more commits."
+            ]),
+            "Your data and boundaries": (
+                f"Current database:\n{self.store.path.resolve()}\n\n"
+                "Portable/installed builds use LOCALAPPDATA/RoleWeave/jobs.db; source launchers use the repository private/jobs.db. They are different shelves. Back up the source shelf and explicitly restore it in the portable app if migrating.\n\n"
+                "Shelf backups include saved reviews, profiles, frozen resumes and application history, not unsaved drafts or separate journal/letter/dossier/source archive files. Keep private backups of those files separately.\n\n"
+                "Exports and backups are unencrypted. Check recipient-only files before sharing. Source hashes detect byte changes; they do not authenticate claims.\n\n"
+                "Discovery sends a public board token and normal connection metadata. Optional AI sends only the reviewed posting payload after explicit consent. No API key is read from files/environment or saved in the shelf. Cancelling locally cannot reverse provider processing or charges.\n\n"
+                "No service is contacted when this guide opens. No installer, export, account linking or application submission is automatic."
+            )
+        }
+        window.help_pages = {}
+        for title, content in pages.items():
+            pane = ttk.Frame(tabs, padding=8)
+            pane.rowconfigure(0, weight=1)
+            pane.columnconfigure(0, weight=1)
+            output = tk.Text(pane, wrap="word", height=8)
+            output.grid(row=0, column=0, sticky="nsew")
+            scroll = ttk.Scrollbar(pane, orient="vertical", command=output.yview)
+            scroll.grid(row=0, column=1, sticky="ns")
+            output.configure(yscrollcommand=scroll.set)
+            output.insert("1.0", content)
+            output.configure(state="disabled")
+            window.help_pages[title] = output
+            tabs.add(pane, text=title)
+        window.help_tabs = tabs
+        actions = ttk.Frame(body)
+        actions.pack(fill="x", pady=(12, 0))
         def practice():
             window.destroy()
             self.open_practice()
-        ttk.Button(body, text="Open separate synthetic practice workspace", command=practice).pack(anchor="w", pady=10)
-        ttk.Button(body, text="Close", command=window.destroy).pack(anchor="e")
+        ttk.Button(actions, text="Open separate synthetic practice workspace", command=practice).pack(side="left")
+        ttk.Button(actions, text="Close", command=window.destroy).pack(side="right")
+        reserve_footer(body)
+        polish_widgets(window)
+        return window
 
     def refresh(self):
         try:

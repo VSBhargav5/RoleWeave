@@ -103,3 +103,15 @@ class ProviderBoardTests(unittest.TestCase):
                       "https://jobs.lever.co//synthetic", "https://jobs.lever.co/synthetic#private"):
             with self.assertRaises(ValueError):
                 board_identity(value)
+
+    def test_oversized_ashby_row_rejects_whole_board_with_actionable_context(self):
+        row = {"isListed": True, "jobUrl": "https://jobs.ashbyhq.com/synthetic/one", "title": "Synthetic role",
+               "descriptionPlain": "Python required.", "publishedAt": "2026-11-11T00:00:00Z"}
+        second = {**row, "jobUrl": "https://jobs.ashbyhq.com/synthetic/two", "descriptionPlain": "x" * 357572}
+        with self.assertRaisesRegex(ValueError, "source row 2.*357572.*50000.*Entire board refused") as error:
+            self.parse({"apiVersion": "1", "jobs": [row, second]}, "ashby")
+        self.assertIn("no partial import", str(error.exception))
+        self.assertNotIn("x" * 100, str(error.exception))
+        second["descriptionPlain"] = "x" * 49999
+        with self.assertRaisesRegex(ValueError, "posting plus source metadata.*entire board refused"):
+            self.parse({"apiVersion": "1", "jobs": [second]}, "ashby")

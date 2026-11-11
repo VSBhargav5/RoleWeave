@@ -61,6 +61,8 @@ def source_row(provider, token, record, identifier, title, url, location, observ
     posting = (f"Provider: {provider}\nBoard: {token}\nPost identity: {identifier}\nSource: {url}\n"
                f"Provider time label: {observed_time}\nLocation label: {location}\n"
                f"Provider record SHA256 (normalized JSON): {digest}\n\n{body}")
+    if len(posting) > 50000:
+        raise ValueError(provider + " posting plus source metadata exceeds 50000 characters; entire board refused. Choose another board or review a permitted posting manually; no partial import was made.")
     text(posting, "Posting")
     return {"id": identifier, "title": field(title, "Title"), "url": url,
             "location": location, "updated_at": observed_time, "posting": posting}
@@ -71,7 +73,7 @@ def parse_ashby(snapshot, token):
     if not isinstance(data, dict) or data.get("apiVersion") != "1" or not isinstance(data.get("jobs"), list) or len(data["jobs"]) > 10000:
         raise ValueError("Unsupported Ashby job-board contract")
     rows, seen = [], set()
-    for record in data["jobs"]:
+    for record_number, record in enumerate(data["jobs"], 1):
         if not isinstance(record, dict) or type(record.get("isListed")) is not bool:
             raise ValueError("Ashby listing visibility must be explicit")
         if record["isListed"] is False:
@@ -96,7 +98,10 @@ def parse_ashby(snapshot, token):
             locations.append(field(item.get("location"), "Secondary location"))
         location = " | ".join(dict.fromkeys(locations))
         field(location, "Combined location")
-        body = text(record.get("descriptionPlain"), "Ashby description")
+        description = record.get("descriptionPlain")
+        if isinstance(description, str) and len(description) > 50000:
+            raise ValueError(f"Ashby listed posting at source row {record_number} has a {len(description)}-character description; maximum supported is 50000. Entire board refused. Choose another board or review a permitted posting manually; no partial import was made.")
+        body = text(description, "Ashby description")
         rows.append(source_row("ashby", token, record, url, record.get("title"), url, location,
                                "Last published: " + published, body))
     return rows

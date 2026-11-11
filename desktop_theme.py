@@ -15,7 +15,8 @@ def apply_theme(window):
     style = ttk.Style(window)
     if "roleweave" not in style.theme_names():
         style.theme_create("roleweave", parent="clam")
-    style.theme_use("roleweave")
+    if style.theme_use() != "roleweave":
+        style.theme_use("roleweave")
     style.configure(".", font=("Segoe UI", 10), background=PAPER, foreground=INK)
     style.configure("TFrame", background=PAPER)
     style.configure("App.TFrame", background=CANVAS)
@@ -67,6 +68,9 @@ def apply_theme(window):
     window.option_add("*TCombobox*Listbox.font", ("Segoe UI", 10))
     window.option_add("*TCombobox*Listbox.background", PAPER)
     window.option_add("*TCombobox*Listbox.foreground", INK)
+    # ttk queues ThemeChanged at idle. Drain it while this Tk interpreter still
+    # owns its event command, including windows closed before mainloop starts.
+    window.update_idletasks()
 
 
 def polish_widgets(window):

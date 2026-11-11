@@ -27,6 +27,11 @@ def run_self_test(folder, shelf_type):
         root.withdraw()
         shelf = shelf_type(root, store)
         shelf.show_saved(job)
+        guide = shelf.open_help()
+        guide.withdraw()
+        assert "8/8" in guide.help_pages["Readiness and remaining work"].get("1.0", "end")
+        guide.destroy()
+        report["checks"].append("current-onboarding-and-readiness-boundaries")
         profile = shelf.open_profile()
         profile.withdraw()
         assert profile.fields["name"].get() == "Synthetic Candidate"

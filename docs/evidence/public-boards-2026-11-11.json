@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-11-11T04:42:51Z",
+  "scope": "One unauthenticated bounded GET per documented example board. No personal data, applications or model calls. Original bodies retained only in ignored local output; hashes are not authenticity or completeness proof.",
+  "parser_version": "0.10.1; identical size limits retained in 0.10.2 with actionable rejection context.",
+  "results": [
+    {
+      "provider": "greenhouse",
+      "token": "greenhouse",
+      "endpoint": "https://boards-api.greenhouse.io/v1/boards/greenhouse/jobs?content=true",
+      "checked_at": "2026-11-11T04:42:51.488369+00:00",
+      "method": "GET",
+      "authenticated": false,
+      "response_bytes": 241492,
+      "response_sha256": "c50564fdadb5758918b8aee204e1e7902c6e4f8094676fc0f98d7b41756f1677",
+      "status": "parsed",
+      "observed_posts": 19
+    },
+    {
+      "provider": "lever",
+      "token": "lever",
+      "endpoint": "https://api.lever.co/v0/postings/lever?mode=json&limit=1000",
+      "checked_at": "2026-11-11T04:42:51.488369+00:00",
+      "method": "GET",
+      "authenticated": false,
+      "response_bytes": 2,
+      "response_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "status": "parsed",
+      "observed_posts": 0
+    },
+    {
+      "provider": "lever-eu",
+      "token": "lever",
+      "endpoint": "https://api.eu.lever.co/v0/postings/lever?mode=json&limit=1000",
+      "checked_at": "2026-11-11T04:42:51.489374+00:00",
+      "method": "GET",
+      "authenticated": false,
+      "response_bytes": 111100,
+      "response_sha256": "5179dcd2ca0165aeabc34f43670a1403874c19448e09d70fd7d281a6de3a4b92",
+      "status": "parsed",
+      "observed_posts": 6
+    },
+    {
+      "provider": "ashby",
+      "token": "Ashby",
+      "endpoint": "https://api.ashbyhq.com/posting-api/job-board/Ashby",
+      "checked_at": "2026-11-11T04:42:51.489374+00:00",
+      "method": "GET",
+      "authenticated": false,
+      "response_bytes": 4381205,
+      "response_sha256": "6507e9c116cf9106114262ec4c0606d178694fe428d6d016b444077367fad5ed",
+      "status": "failed",
+      "error": "ValueError: Ashby description must be nonblank text of at most 50000 characters"
+    }
+  ]
+}
