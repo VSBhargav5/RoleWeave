@@ -223,6 +223,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Compare related saved versions", command=self.open_versions)
         export_menu.add_command(label="Practise linked interview evidence", command=self.open_practice_cards)
         export_menu.add_command(label="Write/save rehearsal answers...", command=self.open_rehearsal)
+        export_menu.add_command(label="Google Calendar follow-up sync...", command=self.open_google_calendar)
         export_menu.add_command(label="Open private rehearsal version...", command=self.open_rehearsal_file)
         export_menu.add_command(label="Check local database storage", command=self.check_database)
         export_menu.add_command(label="Audit saved sources and references (read-only)", command=self.audit_shelf)
@@ -474,6 +475,16 @@ class JobShelf(ttk.Frame):
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not open practice", str(exc))
 
+    def open_google_calendar(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before Calendar sync.")
+            return
+        from google_calendar_window import GoogleCalendarWindow
+        try:
+            return GoogleCalendarWindow(self.winfo_toplevel(), self.store, self.current_id)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
+
     def open_help(self):
         window = tk.Toplevel(self.winfo_toplevel())
         window.title(f"RoleWeave {APP_VERSION} - Getting started and readiness")
@@ -510,8 +521,8 @@ class JobShelf(ttk.Frame):
                 "8. Shelf backup/restore and read-only audits: implemented and regression-tested; no recovery guarantee for arbitrary corruption.",
                 "PARTLY VALIDATED: Public discovery depends on the selected board. Live checks parsed Greenhouse and Lever EU; Lever global's example was empty. Ashby's example board exceeded the supported posting size and was refused, not partially imported.",
                 "LIVE TRIAL NEEDED: Optional AI quote proposals are implemented/offline tested. Enter a key only in the app and consent to one reviewed request; API cost/quality and account access are not verified.",
-                "CLIENT TRIAL NEEDED: Local calendar export is tested; your calendar client's import behavior is unverified.",
-                "NOT IMPLEMENTED: Connected mailbox/calendar/account sync, global automatic job search and automatic applications. These are outside the local MVP; don't grant account access until a deliberate integration is agreed.",
+                "LIVE CALENDAR TRIAL NEEDED: Local calendar export is tested. Review files > Google Calendar follow-up sync now supports explicit app-created-calendar OAuth and one reviewed reminder at a time. Desktop OAuth client setup, Google consent and real writes remain unverified.",
+                "NOT IMPLEMENTED: Connected mailbox sync, general calendar synchronization, global automatic job search and automatic applications. Narrow Google follow-up sync is optional and requires your reviewed account consent; it is not background two-way account synchronization.",
                 "PERSONAL ACCEPTANCE: Complete one permitted posting-to-document-to-tracking-to-restore workflow, note problems, and check every career claim. This cannot be marked complete by more commits."
             ]),
             "Your data and boundaries": (
@@ -520,7 +531,7 @@ class JobShelf(ttk.Frame):
                 "Shelf backups include saved reviews, profiles, frozen resumes and application history, not unsaved drafts or separate journal/letter/dossier/source archive files. Keep private backups of those files separately.\n\n"
                 "Exports and backups are unencrypted. Check recipient-only files before sharing. Source hashes detect byte changes; they do not authenticate claims.\n\n"
                 "Discovery sends a public board token and normal connection metadata. Optional AI sends only the reviewed posting payload after explicit consent. No API key is read from files/environment or saved in the shelf. Cancelling locally cannot reverse provider processing or charges.\n\n"
-                "No service is contacted when this guide opens. No installer, export, account linking or application submission is automatic."
+                "No service is contacted when this guide opens. No installer, export, account linking or application submission is automatic. Optional Google follow-up sync is available through Review files and requires separate scope/read/write confirmations."
             )
         }
         window.help_pages = {}

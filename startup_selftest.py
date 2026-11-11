@@ -231,6 +231,19 @@ def run_self_test(folder, shelf_type):
         assert audit["ok"], audit["issues"]
         export_audit(audit, folder / "synthetic-shelf-audit.json", confirmed=True)
         report["checks"].append("read-only-shelf-source-and-reference-audit")
+        from google_calendar_sync import desired_event, prepare_sync
+        calendar_window = shelf.open_google_calendar()
+        calendar_window.withdraw()
+        calendar_window.local_preview()
+        expected_event = desired_event(store.load(job), store.application_history(job))
+        assert expected_event["summary"] == "RoleWeave follow-up"
+        assert expected_event["start"]["date"]
+        calendar_plan = prepare_sync(store.load(job), store.application_history(job), "synthetic@group.calendar.google.com")
+        calendar_window.prepared((calendar_plan, None))
+        assert "proposed_event" in calendar_window.preview.get("1.0", "end")
+        assert calendar_window.credentials is None
+        calendar_window.close()
+        report["checks"].append("google-calendar-offline-review-no-account-or-send")
         report["ok"] = True
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"[:4000]
