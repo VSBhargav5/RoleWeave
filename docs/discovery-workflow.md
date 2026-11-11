@@ -47,7 +47,7 @@ Ashby accepts API version 1 and explicit isListed booleans. Unlisted records are
 excluded. Job URL supplies identity because the documented public contract does
 not require an ID field. Secondary location labels are retained. Missing/unsupported
 required content fails closed. Provider salary numbers are not normalized or scored.
-Live new-provider feeds and complete real-employer compatibility remain unverified.
+A limited live example check on11November parsed Greenhouse and Lever EU; global Lever returned an empty list. Ashby's example exceeded the posting limit and was refused. See [readiness evidence](personal-readiness.md). Complete real-employer compatibility remains unverified.
 
 ## Offline verification and practice
 

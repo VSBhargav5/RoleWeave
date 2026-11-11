@@ -11,7 +11,10 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Start on Windows
 
-Version0.10.1 includes reviewed cover letters, exact private application dossiers,
+[What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
+
+
+Version0.10.2 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -20,10 +23,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.10.1-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.10.2-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.10.1-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.10.2-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -254,4 +257,4 @@ See [application delivery and local correspondence](docs/application-delivery.md
 
 [V0.10 private rehearsal journals](docs/rehearsal-workflow.md) add source-bound answer/reflection drafts, explicit local time, selected evidence packs and exact-source version differences without scoring learning.
 
-[V0.10.1 read-only shelf audit](docs/shelf-audit.md) checks saved source fingerprints and cross-references beyond SQLite structure, without changing the shelf.
+[V0.10.2 read-only shelf audit](docs/shelf-audit.md) checks saved source fingerprints and cross-references beyond SQLite structure, without changing the shelf.
