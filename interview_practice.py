@@ -2,18 +2,7 @@
 import tkinter as tk
 from tkinter import ttk
 from desktop_theme import polish_widgets, reserve_footer
-from roleweave import review_snapshot
-
-
-def practice_cards(item):
-    result = review_snapshot(item["snapshot"])
-    if result["input_sha256"] != item["input_sha256"]:
-        raise ValueError("Practice source fingerprint mismatch")
-    return [{"quote": row["quote"],
-             "prompt": "Explain a relevant example for this exact requirement. Distinguish project practice from employment.",
-             "evidence": "\n\n".join(f"{fact['claim']}\nSource: {fact['source']}" for fact in row["evidence"]) or
-                         "No evidence linked. Review this open question; do not invent an example."}
-            for row in result["requirements"]]
+from rehearsal_cards import practice_cards
 
 
 class InterviewPractice(tk.Toplevel):

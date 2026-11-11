@@ -34,6 +34,20 @@ def job_context(item):
             "snapshot_base64": encoded(item["snapshot"])}
 
 
+def validate_job_context(context):
+    keys = {"id", "title", "company", "source_url", "market", "captured_at", "input_sha256", "snapshot_base64"}
+    if not isinstance(context, dict) or set(context) != keys:
+        raise ValueError("Document requires an exact saved job context")
+    for key in ("id", "title", "company", "captured_at"):
+        text(context[key], "Job context " + key)
+    if not isinstance(context["source_url"], str) or len(context["source_url"]) > 50000:
+        raise ValueError("Invalid job context URL")
+    source = review_snapshot(decoded(context["snapshot_base64"], MAX_BYTES))
+    if source["input_sha256"] != context["input_sha256"] or source["market"] != context["market"]:
+        raise ValueError("Document job source fingerprint mismatch")
+    return context
+
+
 def make_resume_version(profile, identifiers, label, job=None, include_pdf=True):
     text(label, "Resume version label")
     if len(label) > 2000 or type(include_pdf) is not bool:
@@ -79,14 +93,5 @@ def resume_snapshot(snapshot):
         raise ValueError("Resume PDF fingerprint mismatch")
     context = record["job_context"]
     if context is not None:
-        keys = {"id", "title", "company", "source_url", "market", "captured_at", "input_sha256", "snapshot_base64"}
-        if not isinstance(context, dict) or set(context) != keys:
-            raise ValueError("Invalid resume job context")
-        for key in ("id", "title", "company", "captured_at"):
-            text(context[key], "Job context " + key)
-        if not isinstance(context["source_url"], str) or len(context["source_url"]) > 50000:
-            raise ValueError("Invalid job context URL")
-        source = review_snapshot(decoded(context["snapshot_base64"], MAX_BYTES))
-        if source["input_sha256"] != context["input_sha256"] or source["market"] != context["market"]:
-            raise ValueError("Resume job source fingerprint mismatch")
+        validate_job_context(context)
     return record, hashlib.sha256(snapshot).hexdigest()
