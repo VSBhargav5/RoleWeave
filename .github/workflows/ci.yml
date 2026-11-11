@@ -45,8 +45,8 @@ jobs:
           if (-not $roleReport.ok -or -not $roleReport.frozen) { exit 1 }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.11.0-windows-x64
-          path: out/RoleWeave-0.11.0-windows-x64.zip
+          name: RoleWeave-0.12.0-windows-x64
+          path: out/RoleWeave-0.12.0-windows-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
@@ -65,7 +65,7 @@ jobs:
           if (Test-Path $dataRoot) { throw 'Synthetic data path must be absent' }
           New-Item -ItemType Directory -Path $dataRoot | Out-Null
           Set-Content (Join-Path $dataRoot 'preserve-me.txt') 'synthetic-preservation-marker'
-          $setup = Resolve-Path out/RoleWeave-0.11.0-windows-x64-setup.exe
+          $setup = Resolve-Path out/RoleWeave-0.12.0-windows-x64-setup.exe
           $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $installRoot + '"'))
           1..2 | ForEach-Object {
             $process = Start-Process $setup -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
@@ -81,6 +81,6 @@ jobs:
           if ((Get-Content (Join-Path $dataRoot 'preserve-me.txt')) -ne 'synthetic-preservation-marker') { throw 'User data changed' }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.11.0-windows-x64-setup
-          path: out/RoleWeave-0.11.0-windows-x64-setup.exe
+          name: RoleWeave-0.12.0-windows-x64-setup
+          path: out/RoleWeave-0.12.0-windows-x64-setup.exe
           if-no-files-found: error
