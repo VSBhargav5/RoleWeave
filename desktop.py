@@ -225,6 +225,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Write/save rehearsal answers...", command=self.open_rehearsal)
         export_menu.add_command(label="Open private rehearsal version...", command=self.open_rehearsal_file)
         export_menu.add_command(label="Check local database storage", command=self.check_database)
+        export_menu.add_command(label="Audit saved sources and references (read-only)", command=self.audit_shelf)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -327,6 +328,23 @@ class JobShelf(ttk.Frame):
         try:
             counts = inspect_database(self.store.path)
             messagebox.showinfo("Read-only storage check", "SQLite quick_check passed.\n" + "\n".join(f"{key}: {value}" for key, value in counts.items()) + "\nThis checks storage structure, not source authenticity or completeness.", parent=self.winfo_toplevel())
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def audit_shelf(self):
+        try:
+            from shelf_audit import audit_database, export_audit
+            report = audit_database(self.store.path)
+            summary = ("Stored source/reference checks passed." if report["ok"] else "Stored source/reference issues found. Preserve this shelf; no repair was attempted.")
+            summary += "\n" + "\n".join(f"{key}: {value}" for key, value in report["counts"].items())
+            summary += "\nIssues: " + str(len(report["issues"])) + "\n" + "\n".join(row["table"] + ": " + row["code"] for row in report["issues"][:12])
+            summary += "\nThis does not authenticate career claims or guarantee recovery. Separate journal/dossier/archive files are outside this check.\n\nExport a private JSON report with stored IDs and check results?"
+            if messagebox.askyesno("Read-only shelf source/reference audit", summary, parent=self.winfo_toplevel()):
+                path = filedialog.asksaveasfilename(parent=self.winfo_toplevel(), defaultextension=".json", filetypes=[("Private shelf audit", "*.json")])
+                if path:
+                    export_audit(report, path, confirmed=True)
+            self.status.set("Read-only audit finished: " + str(len(report["issues"])) + " issues. No shelf data changed.")
+            return report
         except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 

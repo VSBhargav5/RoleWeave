@@ -11,6 +11,18 @@ from job_store import JobStore
 
 @unittest.skipUnless(os.name == "nt", "Windows readiness interactions")
 class ReadinessUITests(unittest.TestCase):
+    def test_shelf_audit_reports_without_network_or_database_mutation(self):
+        before = self.store.path.read_bytes()
+        with patch("desktop.messagebox.askyesno", return_value=False):
+            report = self.shelf.audit_shelf()
+        self.assertTrue(report["ok"])
+        self.assertEqual(self.store.path.read_bytes(), before)
+        target = self.folder / "private-audit.json"
+        with patch("desktop.messagebox.askyesno", return_value=True), patch("desktop.filedialog.asksaveasfilename", return_value=str(target)):
+            self.shelf.audit_shelf()
+        self.assertTrue(json.loads(target.read_bytes())["ok"])
+        self.assertEqual(self.store.path.read_bytes(), before)
+
     def test_offline_request_export_excludes_session_key_and_never_sends(self):
         editor = self.shelf.edit_evidence()
         assistant = editor.open_ai()
