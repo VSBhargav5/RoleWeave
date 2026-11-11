@@ -5,25 +5,11 @@ from pathlib import Path
 
 from career_profile import profile_snapshot, unique_json
 from resume_render import selected_facts
-from resume_versions import decoded, encoded, job_context
-from roleweave import MAX_BYTES, review_snapshot, text
+from resume_versions import decoded, encoded, job_context, validate_job_context as checked_context
+from roleweave import MAX_BYTES, text
 from safe_export import publish_bytes
 
 MAX_LETTER_BYTES = 4 * 1024 * 1024
-
-
-def checked_context(context):
-    fields = {"id", "title", "company", "source_url", "market", "captured_at", "input_sha256", "snapshot_base64"}
-    if not isinstance(context, dict) or set(context) != fields:
-        raise ValueError("Cover letter requires an exact saved job context")
-    for key in ("id", "title", "company", "captured_at"):
-        text(context[key], "Job " + key)
-    if not isinstance(context["source_url"], str) or len(context["source_url"]) > 50000:
-        raise ValueError("Invalid job source URL")
-    review = review_snapshot(decoded(context["snapshot_base64"], MAX_BYTES))
-    if review["input_sha256"] != context["input_sha256"] or review["market"] != context["market"]:
-        raise ValueError("Cover-letter job source fingerprint mismatch")
-    return context
 
 
 def render_letter(profile, identifiers, context, motivation, closing):

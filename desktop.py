@@ -24,6 +24,8 @@ from cover_letter import read_letter
 from submission_window import SubmissionWindow
 from correspondence_window import CorrespondenceWindow
 from watchlist_window import WatchlistWindow
+from rehearsal_window import RehearsalWindow
+from rehearsal_journal import read_rehearsal, rehearsal_source_item
 from discovery_window import DiscoveryWindow
 from roleweave import MAX_BYTES, review_snapshot
 from desktop_theme import apply_theme, polish_widgets
@@ -220,6 +222,8 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Export filtered active follow-ups (.ics)", command=self.export_followups)
         export_menu.add_command(label="Compare related saved versions", command=self.open_versions)
         export_menu.add_command(label="Practise linked interview evidence", command=self.open_practice_cards)
+        export_menu.add_command(label="Write/save rehearsal answers...", command=self.open_rehearsal)
+        export_menu.add_command(label="Open private rehearsal version...", command=self.open_rehearsal_file)
         export_menu.add_command(label="Check local database storage", command=self.check_database)
         ttk.Menubutton(next_actions, text="Review files", menu=export_menu).pack(side="left", padx=8)
         actions = ttk.Frame(right)
@@ -296,6 +300,22 @@ class JobShelf(ttk.Frame):
             self.status.set("Select a saved review and save/discard edits before comparing versions.")
             return
         return ReviewHistory(self.winfo_toplevel(), self.store, self.current_id)
+
+    def open_rehearsal(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before drafting its rehearsal.")
+            return
+        return RehearsalWindow(self.winfo_toplevel(), self.store.load(self.current_id))
+
+    def open_rehearsal_file(self):
+        path = filedialog.askopenfilename(parent=self.winfo_toplevel(), filetypes=[("Private rehearsal version", "*.json")])
+        if not path:
+            return
+        try:
+            snapshot, record = read_rehearsal(path)
+            return RehearsalWindow(self.winfo_toplevel(), rehearsal_source_item(record), snapshot=snapshot)
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
 
     def open_practice_cards(self):
         if self.current_id is None or self.has_draft_changes():

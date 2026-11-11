@@ -11,7 +11,7 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Start on Windows
 
-Version0.9.0 includes reviewed cover letters, exact private application dossiers,
+Version0.10.0 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -20,10 +20,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.9.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.10.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.9.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.10.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -251,3 +251,5 @@ See [application delivery and local correspondence](docs/application-delivery.md
 [Employer watchlists](docs/employer-watchlists.md) save explicit board choices and local filters. [Selected-board collections](docs/selected-collections.md) now provide deliberate Windows preview/import, private offline archives/comparisons, shortlist CSV and failed-source-only retries.
 
 [V0.9 selected-collection workflow](docs/selected-collections.md) covers partial-source failures, retained observation ages and scoped comparisons.
+
+[V0.10 private rehearsal journals](docs/rehearsal-workflow.md) add source-bound answer/reflection drafts, explicit local time, selected evidence packs and exact-source version differences without scoring learning.
