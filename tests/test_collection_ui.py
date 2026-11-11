@@ -111,3 +111,23 @@ class CollectionUITests(unittest.TestCase):
             request.assert_not_called()
         self.assertIsNotNone(child.collection)
         child.destroy()
+
+    def test_comparison_and_filtered_shortlist_do_not_change_jobs(self):
+        from collection_archive import archive_collection
+        earlier = Path(self.temp.name) / "earlier.json"
+        archive_collection(self.collection, earlier)
+        with patch("watchlist_fetch.fetch_source", side_effect=fake_fetch):
+            later = fetch_watchlist(self.data, [0, 1])
+        self.window.received(later)
+        with patch("collection_window.filedialog.askopenfilename", return_value=str(earlier)):
+            comparison = self.window.compare_archive()
+        self.assertTrue(comparison.winfo_exists())
+        comparison.destroy()
+        self.window.include.set("AI Engineer")
+        self.window.filter_rows()
+        output = Path(self.temp.name) / "shortlist.csv"
+        with patch("collection_window.filedialog.asksaveasfilename", return_value=str(output)):
+            self.window.export_shortlist()
+        self.assertIn("Synthetic AI Co", output.read_text(encoding="utf-8-sig"))
+        self.assertNotIn("Synthetic Co,", output.read_text(encoding="utf-8-sig"))
+        self.assertEqual(self.store.list_jobs(), [])

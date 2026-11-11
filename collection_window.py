@@ -7,6 +7,7 @@ from tkinter import filedialog, ttk
 from background_task import BackgroundTask
 from collection_archive import archive_collection, read_collection_archive
 from collection_compare import compare_collections, export_comparison
+from collection_export import export_collection_csv
 from desktop_theme import polish_widgets, reserve_footer
 from discovery import discovered_snapshot
 from employer_watchlist import validate_watchlist
@@ -41,6 +42,7 @@ class CollectionWindow(tk.Toplevel):
         self.tools_menu.add_command(label="Save private collection observation", command=self.save_archive)
         self.tools_menu.add_command(label="Open saved collection observation", command=self.open_archive)
         self.tools_menu.add_command(label="Compare with earlier saved collection", command=self.compare_archive)
+        self.tools_menu.add_command(label="Export filtered observed shortlist CSV", command=self.export_shortlist)
         ttk.Menubutton(actions, text="Observation tools", menu=self.tools_menu).pack(side="left", padx=8)
         self.coverage = tk.StringVar(value=f"{len(indices)} boards selected; nothing fetched")
         ttk.Label(actions, textvariable=self.coverage).pack(side="left", padx=8)
@@ -114,6 +116,16 @@ class CollectionWindow(tk.Toplevel):
         self.visible = []
         self.set_text(self.sources, "")
         self.filter_rows()
+
+    def export_shortlist(self):
+        try:
+            snapshot = self.archive_snapshot()
+            path = filedialog.asksaveasfilename(parent=self, defaultextension=".csv", filetypes=[("Private observed-post shortlist", "*.csv")])
+            if path:
+                count = export_collection_csv(snapshot, path)
+                self.status.set(f"{count} filtered observed posts exported with source fingerprints. Full postings, notes and career facts are excluded.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
 
     def compare_archive(self):
         try:
