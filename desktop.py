@@ -34,6 +34,7 @@ from workspace_exports import review_list_csv, follow_up_list
 from review_history import ReviewHistory
 from interview_practice import InterviewPractice
 from workspace_health import inspect_database
+from visual_components import EvidenceCards, WeaveArt
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -65,38 +66,41 @@ class JobShelf(ttk.Frame):
         ttk.Button(rail, text="Career profile", style="Rail.TButton", command=self.open_profile).grid(row=5, column=0, sticky="ew", pady=3)
         ttk.Button(rail, text="Resume studio", style="Rail.TButton", command=self.open_resume).grid(row=6, column=0, sticky="ew", pady=3)
         ttk.Label(rail, text="LOCAL WORKSPACE", style="RailMuted.TLabel").grid(row=9, column=0, sticky="w", pady=(0, 8))
-        ttk.Button(rail, text="Back up workspace", style="Rail.TButton", command=self.backup_shelf).grid(row=10, column=0, sticky="ew")
+        ttk.Button(rail, text="Back up shelf", style="Rail.TButton", command=self.backup_shelf).grid(row=10, column=0, sticky="ew")
         ttk.Button(rail, text="Restore backup", style="Rail.TButton", command=self.restore_shelf).grid(row=11, column=0, sticky="ew")
         ttk.Button(rail, text="Getting started", style="Rail.TButton", command=self.open_help).grid(row=12, column=0, sticky="ew")
         ttk.Label(rail, text=f"v{APP_VERSION}\nStored locally. Sent by you.", style="RailMuted.TLabel", wraplength=135).grid(row=13, column=0, sticky="w", pady=(24, 0))
 
-        workspace = ttk.Frame(self, style="App.TFrame", padding=(22, 20, 22, 12))
+        workspace = ttk.Frame(self, style="App.TFrame", padding=(22, 14, 22, 12))
         workspace.grid(row=0, column=1, sticky="nsew")
         workspace.columnconfigure(0, weight=1)
         workspace.rowconfigure(3, weight=1)
-        heading = ttk.Frame(workspace, style="App.TFrame")
+        heading = ttk.Frame(workspace, style="Hero.TFrame", padding=(20, 10))
         heading.grid(row=0, column=0, sticky="ew")
         heading.columnconfigure(0, weight=1)
-        ttk.Label(heading, text="Your next move.", style="Title.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Button(heading, text="+  Add a job", style="Primary.TButton", command=self.new_posting).grid(row=0, column=1, sticky="e")
+        ttk.Label(heading, text="ROLEWEAVE / YOUR OPPORTUNITIES", style="HeroEyebrow.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(heading, text="Your next chapter.", style="HeroTitle.TLabel").grid(row=1, column=0, sticky="w", pady=(0, 2))
         self.profile_status = tk.StringVar()
-        ttk.Label(heading, textvariable=self.profile_status, style="AppMuted.TLabel").grid(row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
+        ttk.Label(heading, textvariable=self.profile_status, style="HeroNote.TLabel").grid(row=2, column=0, sticky="w")
+        WeaveArt(heading).grid(row=0, column=1, rowspan=3, padx=12)
+        ttk.Button(heading, text="+  Add opportunity", style="Hero.TButton", command=self.new_posting).grid(row=0, column=2, rowspan=3, sticky="e")
 
         metrics = ttk.Frame(workspace, style="App.TFrame")
-        metrics.grid(row=1, column=0, sticky="ew", pady=(14, 12))
+        metrics.grid(row=1, column=0, sticky="ew", pady=(12, 12))
         self.metric_values = {}
-        for column, (key, label, note) in enumerate((("saved", "SAVED REVIEWS", "Individual review snapshots"),
-                                                   ("due", "FOLLOW-UPS DUE", "Active reminders through today"),
-                                                   ("resumes", "RESUME VERSIONS", "Reviewed, frozen documents"))):
+        for column, (key, label, note) in enumerate((("saved", "Saved reviews", "Individual review snapshots"),
+                                                   ("due", "Follow-ups due", "Active through today"),
+                                                   ("resumes", "Resume versions", "Reviewed, frozen documents"))):
             metrics.columnconfigure(column, weight=1, uniform="metrics")
             tone = ("Violet", "Amber", "Mint")[column]
-            card = ttk.Frame(metrics, padding=(16, 12), style=tone + ".TFrame")
-            card.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 10, 0))
+            card = ttk.Frame(metrics, padding=(16, 8), style=tone + ".TFrame")
+            card.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 12, 0))
+            card.columnconfigure(0, weight=1)
             value = tk.StringVar(value="0")
             self.metric_values[key] = value
-            ttk.Label(card, text=label, style=tone + ".TLabel").pack(anchor="w")
-            ttk.Label(card, textvariable=value, style=tone + "Value.TLabel").pack(anchor="w")
-            ttk.Label(card, text=note, style=tone + "Note.TLabel").pack(anchor="w")
+            ttk.Label(card, text=label, style=tone + ".TLabel").grid(row=0, column=0, sticky="w")
+            ttk.Label(card, textvariable=value, style=tone + "Value.TLabel").grid(row=0, column=1, rowspan=2, sticky="e", padx=(8, 0))
+            ttk.Label(card, text=note, style=tone + "Note.TLabel").grid(row=1, column=0, sticky="w")
 
         content = ttk.Frame(workspace, style="App.TFrame")
         content.grid(row=3, column=0, sticky="nsew")
@@ -157,8 +161,8 @@ class JobShelf(ttk.Frame):
         self.jobs.heading("stage", text="STAGE", anchor="w")
         self.jobs.column("#0", width=165, minwidth=120, stretch=True)
         self.jobs.column("stage", width=80, minwidth=75, stretch=False)
-        self.jobs.tag_configure("due", foreground="#946019")
-        self.jobs.tag_configure("inactive", foreground="#7b8293")
+        self.jobs.tag_configure("due", foreground="#f7c268")
+        self.jobs.tag_configure("inactive", foreground="#94a0b7")
         self.jobs.grid(row=0, column=0, sticky="nsew")
         vertical = ttk.Scrollbar(listing, command=self.jobs.yview)
         vertical.grid(row=0, column=1, sticky="ns")
@@ -218,15 +222,12 @@ class JobShelf(ttk.Frame):
         evidence_tab.columnconfigure(0, weight=1)
         evidence_tab.rowconfigure(1, weight=1)
         self.evidence_summary = tk.StringVar(value="Exact quotes. Reviewed facts. Your decision.")
-        ttk.Label(evidence_tab, textvariable=self.evidence_summary, style="Eyebrow.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 10))
-        self.evidence = tk.Text(evidence_tab, wrap="word", height=8, state="disabled")
+        ttk.Label(evidence_tab, textvariable=self.evidence_summary, style="Eyebrow.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        self.evidence = EvidenceCards(evidence_tab)
         self.evidence.grid(row=1, column=0, sticky="nsew")
-        evidence_scroll = ttk.Scrollbar(evidence_tab, command=self.evidence.yview)
-        evidence_scroll.grid(row=1, column=1, sticky="ns")
-        self.evidence.configure(yscrollcommand=evidence_scroll.set)
         self.show_evidence("No saved review selected. Save a posting, then review its requirements and career evidence.")
         next_actions = ttk.Frame(evidence_tab)
-        next_actions.grid(row=2, column=0, sticky="ew", pady=10)
+        next_actions.grid(row=2, column=0, sticky="ew", pady=4)
         ttk.Button(next_actions, text="Application notes / follow-up", command=self.open_tracker).pack(side="left")
         export_menu = tk.Menu(self, tearoff=False)
         export_menu.add_command(label="Open saved employer collection...", command=self.open_collection_file)
@@ -424,7 +425,7 @@ class JobShelf(ttk.Frame):
     def profile_changed(self):
         profile = self.store.active_profile()
         name = profile["profile"]["name"] if profile else ""
-        self.profile_status.set("Profile: " + name[:70] + ("…" if len(name) > 70 else "") if profile else "Start here: create your career profile and reviewed facts.")
+        self.profile_status.set("Profile: " + name[:34] + ("…" if len(name) > 34 else "") if profile else "Start here: create your career profile and reviewed facts.")
 
     def open_collection_file(self):
         if self.has_draft_changes():
@@ -698,18 +699,8 @@ class JobShelf(ttk.Frame):
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not reload", str(exc))
 
-    def show_evidence(self, value):
-        self.evidence.configure(state="normal")
-        self.evidence.delete("1.0", "end")
-        self.evidence.insert("1.0", value)
-        self.evidence.tag_configure("linked_heading", foreground="#277450", font=("Segoe UI", 10, "bold"), spacing1=6, spacing3=8)
-        self.evidence.tag_configure("open_heading", foreground="#956219", font=("Segoe UI", 10, "bold"), spacing1=6, spacing3=8)
-        self.evidence.tag_configure("source_note", foreground="#667085", font=("Segoe UI", 9))
-        for number, line in enumerate(value.splitlines(), 1):
-            tag = "linked_heading" if line.startswith("Linked evidence  / ") else "open_heading" if line.startswith("Needs your review  / ") else "source_note" if line.startswith("    Source:") else None
-            if tag:
-                self.evidence.tag_add(tag, f"{number}.0", f"{number}.end")
-        self.evidence.configure(state="disabled")
+    def show_evidence(self, value, requirements=None):
+        self.evidence.render(value, requirements)
 
     def save(self):
         try:
@@ -773,7 +764,7 @@ class JobShelf(ttk.Frame):
             lines.append(f"{label}  /  {requirement['quote']}")
             lines.extend(f"  • {fact['claim']}\n    Source: {fact['source']}" for fact in requirement["evidence"])
             lines.append("")
-        self.show_evidence("\n".join(lines) or "No reviewed requirements in this snapshot.")
+        self.show_evidence("\n".join(lines) or "No reviewed requirements in this snapshot.", item["review"]["requirements"])
         self.current_id = identifier
         self.review_title.set(item["title"][:64] + ("…" if len(item["title"]) > 64 else ""))
         self.review_stage.set(current_application(self.store.application_history(identifier))["stage"].title())
@@ -895,6 +886,7 @@ def main():
         shelf = JobShelf(root, store)
         if identifier:
             shelf.show_saved(identifier)
+            shelf.detail_tabs.select(1)
             shelf.status.set("Synthetic practice only. Your main workspace is unchanged.")
         elif not store.list_jobs() and not store.active_profile():
             shelf.status.set("Welcome. Start with Career profile, or use Getting started to open a separate synthetic practice workspace.")

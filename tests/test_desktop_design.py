@@ -43,7 +43,7 @@ class DesktopDesignTests(unittest.TestCase):
 
     def test_tabs_preserve_posting_draft_and_resume_save_refreshes_count(self):
         self.shelf.detail_tabs.select(1)
-        self.assertIn("Needs your review", self.shelf.evidence.get("1.0", "end"))
+        self.assertIn("Needs your review", self.shelf.evidence.plain_text)
         self.shelf.posting.insert("end", " Unsaved wording.")
         self.shelf.focus_workspace()
         self.assertEqual(self.shelf.detail_tabs.index("current"), 0)
@@ -178,6 +178,52 @@ class DesktopDesignTests(unittest.TestCase):
         self.store.record_application(self.job, "interview", "Synthetic stage")
         self.shelf.refresh()
         self.assertEqual(self.shelf.review_stage.get(), "Interview")
+
+
+    def test_evidence_cards_keep_exact_text_and_bound_large_reviews_without_clipboard_side_effects(self):
+        from unittest.mock import patch
+        view = self.shelf.evidence
+        self.assertEqual(len(view.requirements), 2)
+        self.assertIn("Python required", view.plain_text)
+        rows = [{"quote": "Exact question " + str(i), "evidence": [{"claim": "Exact project claim", "source": "Synthetic source"}]} for i in range(55)]
+        with patch.object(view, "clipboard_clear") as clear, patch.object(view, "clipboard_append") as copy:
+            view.render("Complete original review text", rows)
+            self.assertEqual(len(view.content.winfo_children()), 20)
+            clear.assert_not_called(); copy.assert_not_called()
+            view.change_page(1)
+            self.assertIn("21-40 of 55", view.page_label.cget("text"))
+            view.change_page(50)
+            self.assertEqual(len(view.content.winfo_children()), 15)
+            view.copy_text()
+            copy.assert_called_once_with("Complete original review text")
+        self.root.geometry("1040x700")
+        self.shelf.detail_tabs.select(1)
+        self.root.update()
+        self.assertGreaterEqual(view.canvas.winfo_height(), 80)
+
+
+    def test_dark_text_roles_keep_readable_contrast_and_native_consent_controls(self):
+        from tkinter import ttk
+        style = ttk.Style(self.root)
+        def luminance(color):
+            channels = [int(color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            linear = [v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4 for v in channels]
+            return sum(a * b for a, b in zip(linear, (.2126, .7152, .0722)))
+        for name in ("TLabel", "Muted.TLabel", "HeroTitle.TLabel", "HeroNote.TLabel", "Quote.TLabel", "Linked.TLabel", "Open.TLabel", "VioletValue.TLabel", "MintValue.TLabel", "AmberValue.TLabel", "Primary.TButton", "Hero.TButton"):
+            foreground = style.lookup(name, "foreground")
+            background = style.lookup(name, "background")
+            light, dark = sorted((luminance(foreground), luminance(background)), reverse=True)
+            self.assertGreaterEqual((light + .05) / (dark + .05), 4.5, name)
+        import tkinter as tk
+        flag = tk.BooleanVar(self.root, value=False)
+        check = ttk.Checkbutton(self.root, variable=flag)
+        self.assertFalse(flag.get())
+        check.invoke()
+        self.assertTrue(flag.get())
+        check.state(["disabled"])
+        check.invoke()
+        self.assertTrue(flag.get())
+        check.destroy()
 
 
 

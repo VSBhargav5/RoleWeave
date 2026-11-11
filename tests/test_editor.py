@@ -83,7 +83,7 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(newest["review"]["requirements"][1]["state"], "evidence_selected")
         self.assertEqual(self.store.load(self.original)["snapshot"], self.fixture)
         self.assertEqual(self.store.load(self.original)["review"]["requirements"][1]["state"], "needs_review")
-        self.assertIn("Operated a synthetic Spark", self.shelf.evidence.get("1.0", "end-1c"))
+        self.assertIn("Operated a synthetic Spark", self.shelf.evidence.plain_text)
 
     def test_invented_quote_and_unreviewed_link_fail_without_changing_store(self):
         self.quote("Invented qualification")
