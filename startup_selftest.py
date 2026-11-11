@@ -98,7 +98,7 @@ def run_self_test(folder, shelf_type):
         from correspondence import record_correspondence
         from recipient_bundle import export_recipient_bundle
         from submission_receipt import record_submission
-        from datetime import date
+        from datetime import date, datetime, timezone
         letter = shelf.open_letter()
         letter.withdraw()
         letter.choices.selection_set(0)
@@ -164,10 +164,35 @@ def run_self_test(folder, shelf_type):
         assert board_window.provider.get() == "lever"
         assert board_window.feed is None
         board_window.destroy()
-        watchlist.destroy()
+        from collection_archive import archive_collection, read_collection_archive
+        from collection_compare import compare_collections, export_comparison
+        from collection_export import export_collection_csv
+        from watchlist_fetch import validate_collection
+        collection_started = datetime.now(timezone.utc).isoformat()
         feeds = [{"board_index": index, "feed": parse_source((RESOURCE_ROOT / "examples" / filename).read_bytes(), provider, "synthetic")}
                  for index, (provider, filename) in enumerate((("lever", "lever-synthetic.json"), ("ashby", "ashby-synthetic.json")))]
-        assert len(collection_rows({"watchlist": watchlist_data, "feeds": feeds})) == 2
+        collection = {"format": "roleweave-collection-v1", "watchlist": watchlist_data,
+                      "selected_indices": [0, 1], "feeds": feeds, "failures": [],
+                      "started_at": collection_started, "finished_at": datetime.now(timezone.utc).isoformat()}
+        validate_collection(collection)
+        assert len(collection_rows(collection)) == 2
+        archive_collection(collection, folder / "synthetic-collection.json")
+        replay = read_collection_archive(folder / "synthetic-collection.json")
+        assert replay == collection
+        assert compare_collections(collection, replay)["scope_counts"] == {"compared": 2}
+        export_comparison(collection, replay, folder / "synthetic-collection-comparison.json")
+        assert export_collection_csv(collection, folder / "synthetic-collection-shortlist.csv") == 2
+        watchlist.rows.selection_set("0", "1")
+        watchlist.load_selected()
+        collection_window = watchlist.open_collection()
+        assert collection_window is not None, watchlist.status.get()
+        collection_window.received(replay)
+        collection_window.rows.selection_set("0")
+        collection_window.preview_selected()
+        assert "Response SHA256" in collection_window.preview.get("1.0", "end")
+        collection_window.close()
+        watchlist.destroy()
+        report["checks"].append("selected-source-collection-offline-replay-comparison-and-shortlist")
         report["checks"].append("portable-watchlist-and-offline-source-reuse")
 
         report["ok"] = True

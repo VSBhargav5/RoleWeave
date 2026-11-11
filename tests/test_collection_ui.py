@@ -83,7 +83,7 @@ class CollectionUITests(unittest.TestCase):
             for child in widget.winfo_children():
                 yield child
                 yield from walk(child)
-        for button in (widget for widget in walk(self.window) if isinstance(widget, ttk.Button) and widget.winfo_ismapped()):
+        for button in (widget for widget in walk(self.window) if isinstance(widget, (ttk.Button, ttk.Menubutton)) and widget.winfo_ismapped()):
             x = button.winfo_rootx() - self.window.winfo_rootx()
             y = button.winfo_rooty() - self.window.winfo_rooty()
             self.assertGreaterEqual(button.winfo_height(), 28)
