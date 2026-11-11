@@ -84,3 +84,13 @@ class WatchlistUITests(unittest.TestCase):
                 self.assertGreaterEqual(widget.winfo_height(), 28)
                 self.assertLessEqual(x + widget.winfo_width(), self.window.winfo_width())
                 self.assertLessEqual(y + widget.winfo_height(), self.window.winfo_height())
+
+    def test_selected_boards_open_collection_without_automatic_fetch(self):
+        self.window.rows.selection_set("0", "1")
+        self.window.load_selected()
+        with patch("provider_boards.request_bytes") as request:
+            child = self.window.open_collection()
+            request.assert_not_called()
+        self.assertEqual(child.selected_indices, [0, 1])
+        self.assertIsNone(child.collection)
+        child.destroy()
