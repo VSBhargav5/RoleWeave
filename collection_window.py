@@ -6,6 +6,7 @@ from tkinter import filedialog, ttk
 
 from background_task import BackgroundTask
 from collection_archive import archive_collection, read_collection_archive
+from collection_compare import compare_collections, export_comparison
 from desktop_theme import polish_widgets, reserve_footer
 from discovery import discovered_snapshot
 from employer_watchlist import validate_watchlist
@@ -39,6 +40,7 @@ class CollectionWindow(tk.Toplevel):
         self.tools_menu = tk.Menu(self, tearoff=False)
         self.tools_menu.add_command(label="Save private collection observation", command=self.save_archive)
         self.tools_menu.add_command(label="Open saved collection observation", command=self.open_archive)
+        self.tools_menu.add_command(label="Compare with earlier saved collection", command=self.compare_archive)
         ttk.Menubutton(actions, text="Observation tools", menu=self.tools_menu).pack(side="left", padx=8)
         self.coverage = tk.StringVar(value=f"{len(indices)} boards selected; nothing fetched")
         ttk.Label(actions, textvariable=self.coverage).pack(side="left", padx=8)
@@ -112,6 +114,58 @@ class CollectionWindow(tk.Toplevel):
         self.visible = []
         self.set_text(self.sources, "")
         self.filter_rows()
+
+    def compare_archive(self):
+        try:
+            later = self.archive_snapshot()
+            path = filedialog.askopenfilename(parent=self, filetypes=[("Earlier private collection", "*.json")])
+            if not path:
+                return
+            earlier = read_collection_archive(path)
+            report = compare_collections(earlier, later)
+            window = tk.Toplevel(self)
+            window.title("RoleWeave - Observed collection changes")
+            window.geometry("1000x700")
+            body = ttk.Frame(window, padding=16)
+            body.pack(fill="both", expand=True)
+            output = tk.Text(body, wrap="word", height=10)
+            output.pack(fill="both", expand=True)
+            lines = ["All observed postings are compared, including those hidden by local filters.",
+                     "Failed or unselected sources are not comparable. Not observed does not mean closed.",
+                     "Earlier: " + report["earlier_finished_at"], "Later: " + report["later_finished_at"], ""]
+            for source in report["sources"]:
+                lines.append(source["provider"] + " / " + source["token"] + " | " + source["state"])
+                lines.append("Your earlier label: " + str(source["earlier_label"]) + "\nYour later label: " + str(source["later_label"]))
+                lines.append("Earlier response: " + str(source["earlier_sha256"]) + "\nLater response: " + str(source["later_sha256"]))
+                if source["earlier_failure"] or source["later_failure"]:
+                    lines.append("Earlier failure: " + str(source["earlier_failure"]) + "\nLater failure: " + str(source["later_failure"]))
+                counts = {}
+                for row in source["posting_changes"]:
+                    counts[row["state"]] = counts.get(row["state"], 0) + 1
+                lines.append("Observed changes: " + str(counts))
+                for row in source["posting_changes"]:
+                    if row["state"] != "unchanged":
+                        lines.append(row["state"] + " | " + row["title"] + " | " + row["url"])
+                lines.append("")
+            output.insert("1.0", "\n".join(lines))
+            output.configure(state="disabled")
+            status = tk.StringVar(value="No saved job or application stage was changed.")
+            def save():
+                destination = filedialog.asksaveasfilename(parent=window, defaultextension=".json", filetypes=[("Private comparison report", "*.json")])
+                if destination:
+                    try:
+                        export_comparison(earlier, later, destination)
+                        status.set("Comparison saved to a new private file.")
+                    except (OSError, ValueError) as exc:
+                        status.set(str(exc))
+            ttk.Button(body, text="Save comparison JSON", command=save).pack(anchor="w", pady=8)
+            ttk.Label(body, textvariable=status, wraplength=850).pack(anchor="w")
+            ttk.Button(body, text="Close", command=window.destroy).pack(anchor="e")
+            reserve_footer(body)
+            polish_widgets(window)
+            return window
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
 
     def archive_snapshot(self):
         if self.task.active is not None or self.collection is None:
