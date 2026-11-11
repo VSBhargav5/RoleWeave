@@ -157,6 +157,25 @@ class DesktopDesignTests(unittest.TestCase):
             send.assert_not_called()
         self.assertEqual(self.store.path.read_bytes(), before)
 
+    def test_rich_rows_and_hidden_filters_preserve_identity_stage_and_drafts(self):
+        self.assertEqual(self.shelf.jobs.item(self.job, "text"), self.store.load(self.job)["title"] + "\n" + self.store.load(self.job)["company"])
+        self.assertEqual(self.shelf.jobs.item(self.job, "values"), ("Saved",))
+        self.assertEqual(self.shelf.jobs.selection(), (self.job,))
+        self.assertEqual(self.shelf.filters_panel.winfo_manager(), "")
+        self.shelf.posting.insert("end", " Unsaved draft.")
+        self.shelf.toggle_filters()
+        self.assertEqual(self.shelf.filters_panel.winfo_manager(), "grid")
+        self.shelf.filter.set("International relocation")
+        self.shelf.refresh()
+        self.shelf.toggle_filters()
+        self.assertIn("International relocation", self.shelf.filter_summary.get())
+        self.assertEqual(self.shelf.current_id, self.job)
+        self.assertIn("Unsaved draft.", self.shelf.posting.get("1.0", "end"))
+        self.store.record_application(self.job, "interview", "Synthetic stage")
+        self.shelf.refresh()
+        self.assertEqual(self.shelf.review_stage.get(), "Interview")
+
+
 
 @unittest.skipUnless(os.name == "nt", "Native Windows Tk lifecycle")
 class ThemeLifecycleTests(unittest.TestCase):

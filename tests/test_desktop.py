@@ -26,7 +26,7 @@ class DesktopTests(unittest.TestCase):
                     error.assert_not_called()
                 self.assertEqual(len(shelf.rows), 1)
                 shelf.new_posting()
-                shelf.jobs.selection_set(0)
+                shelf.jobs.selection_set(shelf.rows[0]["id"])
                 shelf.open_selected()
                 self.assertEqual(shelf.posting.get("1.0", "end-1c"), posting)
                 shelf.filter.set("International relocation")
@@ -37,7 +37,7 @@ class DesktopTests(unittest.TestCase):
                 with patch("desktop.filedialog.askopenfilename", return_value=str(fixture)), patch("desktop.messagebox.showerror") as error:
                     shelf.import_review()
                     error.assert_not_called()
-                shelf.jobs.selection_set(0)
+                shelf.jobs.selection_set(shelf.rows[0]["id"])
                 shelf.open_selected()
                 self.assertIn("Needs your review", shelf.evidence.get("1.0", "end-1c"))
                 backup = Path(temp) / "shelf-backup.json"
@@ -50,7 +50,7 @@ class DesktopTests(unittest.TestCase):
                     error.assert_not_called()
                 self.assertEqual(len(shelf.rows), 2)
                 self.assertIn("Restored 2", shelf.status.get())
-                shelf.jobs.selection_set(0)
+                shelf.jobs.selection_set(shelf.rows[0]["id"])
                 pack = Path(temp) / "prep.txt"
                 with patch("desktop.filedialog.asksaveasfilename", return_value=str(pack)), patch("desktop.messagebox.showerror") as error:
                     shelf.export_pack()
