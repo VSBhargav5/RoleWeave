@@ -203,6 +203,7 @@ class JobShelf(ttk.Frame):
         next_actions.grid(row=2, column=0, sticky="ew", pady=10)
         ttk.Button(next_actions, text="Application notes / follow-up", command=self.open_tracker).pack(side="left")
         export_menu = tk.Menu(self, tearoff=False)
+        export_menu.add_command(label="Open saved employer collection...", command=self.open_collection_file)
         export_menu.add_command(label="Employer watchlists...", command=self.open_watchlist)
         export_menu.add_command(label="Review local email correspondence...", command=self.open_correspondence)
         export_menu.add_command(label="Record my manual submission...", command=self.open_submission)
@@ -361,6 +362,25 @@ class JobShelf(ttk.Frame):
         profile = self.store.active_profile()
         name = profile["profile"]["name"] if profile else ""
         self.profile_status.set("Profile: " + name[:70] + ("…" if len(name) > 70 else "") if profile else "Start here: create your career profile and reviewed facts.")
+
+    def open_collection_file(self):
+        if self.has_draft_changes():
+            self.status.set("Save/discard posting edits before opening an importable collection.")
+            return
+        path = filedialog.askopenfilename(parent=self.winfo_toplevel(), filetypes=[("Private collection archive", "*.json")])
+        if not path:
+            return
+        try:
+            from collection_archive import read_collection_archive
+            from collection_window import CollectionWindow
+            collection = read_collection_archive(path)
+            child = CollectionWindow(self.winfo_toplevel(), self.store, collection["watchlist"],
+                                     collection["selected_indices"], MARKET_LABELS, self.show_saved)
+            child.received(collection)
+            child.status.set("Offline replay of saved source observations; current availability is unverified.")
+            return child
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
 
     def open_watchlist(self):
         if self.has_draft_changes():

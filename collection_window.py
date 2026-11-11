@@ -2,9 +2,10 @@
 import copy
 import sqlite3
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, ttk
 
 from background_task import BackgroundTask
+from collection_archive import archive_collection, read_collection_archive
 from desktop_theme import polish_widgets, reserve_footer
 from discovery import discovered_snapshot
 from employer_watchlist import validate_watchlist
@@ -35,6 +36,10 @@ class CollectionWindow(tk.Toplevel):
         self.fetch_button = ttk.Button(actions, text="Fetch selected boards", command=self.fetch, style="Primary.TButton")
         self.fetch_button.pack(side="left")
         ttk.Button(actions, text="Cancel fetch", command=self.cancel).pack(side="left", padx=8)
+        self.tools_menu = tk.Menu(self, tearoff=False)
+        self.tools_menu.add_command(label="Save private collection observation", command=self.save_archive)
+        self.tools_menu.add_command(label="Open saved collection observation", command=self.open_archive)
+        ttk.Menubutton(actions, text="Observation tools", menu=self.tools_menu).pack(side="left", padx=8)
         self.coverage = tk.StringVar(value=f"{len(indices)} boards selected; nothing fetched")
         ttk.Label(actions, textvariable=self.coverage).pack(side="left", padx=8)
         filters = ttk.Frame(body)
@@ -107,6 +112,43 @@ class CollectionWindow(tk.Toplevel):
         self.visible = []
         self.set_text(self.sources, "")
         self.filter_rows()
+
+    def archive_snapshot(self):
+        if self.task.active is not None or self.collection is None:
+            raise ValueError("Finish/cancel fetching and choose a current observation first")
+        snapshot = copy.deepcopy(self.collection)
+        snapshot["watchlist"]["filters"] = {"include": self.include.get(), "exclude": self.exclude.get(),
+                                               "search_description": self.search_description.get()}
+        return validate_collection(snapshot)
+
+    def save_archive(self):
+        try:
+            snapshot = self.archive_snapshot()
+            path = filedialog.asksaveasfilename(parent=self, defaultextension=".json", filetypes=[("Private collection archive", "*.json")])
+            if path:
+                archive_collection(snapshot, path)
+                self.status.set("All original source observations and current local view filters saved privately. No file was overwritten.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def open_archive(self):
+        try:
+            if self.task.active is not None:
+                raise ValueError("Wait for or cancel fetching before opening another observation")
+            path = filedialog.askopenfilename(parent=self, filetypes=[("Private collection archive", "*.json")])
+            if not path:
+                return
+            collection = read_collection_archive(path)
+            self.watchlist_data = copy.deepcopy(collection["watchlist"])
+            self.selected_indices = list(collection["selected_indices"])
+            self.heading.set(self.watchlist_data["name"] + " - saved observation")
+            self.include.set(self.watchlist_data["filters"]["include"])
+            self.exclude.set(self.watchlist_data["filters"]["exclude"])
+            self.search_description.set(self.watchlist_data["filters"]["search_description"])
+            self.received(collection)
+            self.status.set("Offline replay. Original source times are preserved; current availability remains unverified.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
 
     def fetch(self):
         if self.task.active is not None:

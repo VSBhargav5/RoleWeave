@@ -89,3 +89,25 @@ class CollectionUITests(unittest.TestCase):
             self.assertGreaterEqual(button.winfo_height(), 28)
             self.assertLessEqual(x + button.winfo_width(), self.window.winfo_width())
             self.assertLessEqual(y + button.winfo_height(), self.window.winfo_height())
+
+    def test_private_archive_keeps_filters_and_reopens_without_network(self):
+        from collection_archive import read_collection_archive
+        path = Path(self.temp.name) / "observation.json"
+        self.window.received(self.collection)
+        self.window.include.set("SQL")
+        self.window.search_description.set(True)
+        with patch("collection_window.filedialog.asksaveasfilename", return_value=str(path)):
+            self.window.save_archive()
+        self.assertEqual(read_collection_archive(path)["watchlist"]["filters"]["include"], "SQL")
+        self.window.clear_observation()
+        with patch("collection_window.filedialog.askopenfilename", return_value=str(path)), patch("provider_boards.request_bytes") as request:
+            self.window.open_archive()
+            request.assert_not_called()
+        self.assertEqual(self.window.include.get(), "SQL")
+        self.assertEqual(len(self.window.visible), 2)
+        self.assertIn("Offline replay", self.window.status.get())
+        with patch("desktop.filedialog.askopenfilename", return_value=str(path)), patch("provider_boards.request_bytes") as request:
+            child = self.shelf.open_collection_file()
+            request.assert_not_called()
+        self.assertIsNotNone(child.collection)
+        child.destroy()
