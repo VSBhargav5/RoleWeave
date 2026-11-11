@@ -31,7 +31,7 @@ class DraftTests(unittest.TestCase):
             self.shelf.open_selected()
         self.assertEqual(self.shelf.current_id, self.first)
         self.assertIn("UNSAVED", self.shelf.posting.get("1.0", "end-1c"))
-        self.assertEqual(self.shelf.rows[self.shelf.jobs.curselection()[0]]["id"], self.first)
+        self.assertEqual(self.shelf.jobs.selection()[0], self.first)
         self.shelf.select_job(self.second)
         with patch("desktop.messagebox.askyesno", return_value=True):
             self.shelf.open_selected()

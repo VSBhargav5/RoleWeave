@@ -27,6 +27,14 @@ def run_self_test(folder, shelf_type):
         root.withdraw()
         shelf = shelf_type(root, store)
         shelf.show_saved(job)
+        assert shelf.jobs.selection() == (job,)
+        assert "\n" in shelf.jobs.item(job, "text")
+        shelf.toggle_filters()
+        assert shelf.filters_panel.winfo_manager() == "grid"
+        shelf.toggle_filters()
+        assert shelf.filters_panel.winfo_manager() == ""
+        assert shelf.review_stage.get() == "Saved"
+        report["checks"].append("rich-opportunity-identity-and-filter-drawer")
         guide = shelf.open_help()
         guide.withdraw()
         assert "8/8" in guide.help_pages["Readiness and remaining work"].get("1.0", "end")

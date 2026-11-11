@@ -21,7 +21,7 @@ class EditorTests(unittest.TestCase):
         self.fixture = (Path(__file__).parents[1] / "examples/synthetic.json").read_bytes()
         self.original = self.store.save(self.fixture, "Synthetic role", "Synthetic company")
         self.shelf = JobShelf(self.root, self.store)
-        self.shelf.jobs.selection_set(0)
+        self.shelf.jobs.selection_set(self.shelf.rows[0]["id"])
         self.shelf.open_selected()
         self.editor = self.shelf.edit_evidence()
         self.editor.withdraw()
