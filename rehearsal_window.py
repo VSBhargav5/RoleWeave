@@ -124,9 +124,12 @@ class RehearsalWindow(tk.Toplevel):
             removed = [entry for key, entry in self.answers.items() if key not in selected and (entry["answer"].strip() or entry["reflection"].strip())]
             if removed and not messagebox.askyesno("Remove draft answers?", "The new selection removes questions with draft text. Discard those draft answers?", parent=self):
                 return
+            if selected == self.selected_ids:
+                self.tabs.select(1)
+                self.status.set("Question selection is unchanged; existing drafts and saved identity retained.")
+                return
             self.selected_ids, self.answers, self.position = selected, {entry["requirement_id"]: entry for entry in entries}, 0
             self.confirmed.set(False)
-            self.last_snapshot = None
             self.render()
             self.tabs.select(1)
             self.status.set("Source questions selected. Draft in your own words; reveal linked evidence when ready.")

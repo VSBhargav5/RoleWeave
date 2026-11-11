@@ -121,3 +121,21 @@ class RehearsalUITests(unittest.TestCase):
             self.window.export_pack()
             save.assert_not_called()
         self.assertIn("Save a new", self.window.status.get())
+
+    def test_reselecting_or_restoring_saved_selection_does_not_create_timestamp_only_versions(self):
+        self.select_questions()
+        self.window.confirmed.set(True)
+        with patch("rehearsal_window.filedialog.asksaveasfilename", return_value=str(self.path)):
+            self.window.save()
+        original = self.window.last_snapshot
+        self.window.start_selected()
+        self.assertEqual(self.window.last_snapshot, original)
+        self.window.choices.selection_clear(1)
+        self.window.start_selected()
+        self.window.choices.selection_set(1)
+        self.window.start_selected()
+        self.assertEqual(self.window.state(), self.window.baseline)
+        with patch("rehearsal_window.filedialog.asksaveasfilename") as save:
+            self.window.save()
+            save.assert_not_called()
+        self.assertIn("No changed", self.window.status.get())
