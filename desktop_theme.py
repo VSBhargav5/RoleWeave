@@ -64,6 +64,8 @@ def apply_theme(window):
     style.map("TCombobox", fieldbackground=[("readonly", "#fafbfe")], foreground=[("readonly", INK)],
               selectbackground=[("readonly", "#fafbfe")], selectforeground=[("readonly", INK)], bordercolor=[("focus", ACCENT)])
     style.configure("TCheckbutton", padding=(0, 4), background=PAPER)
+    style.configure("Filter.TCombobox", padding=(6, 3), font=("Segoe UI", 9))
+    style.configure("Filter.TCheckbutton", padding=0, font=("Segoe UI", 9))
     style.map("TCheckbutton", background=[("active", PAPER)])
     style.configure("TNotebook", background=PAPER, borderwidth=0, bordercolor=LINE, lightcolor=PAPER, darkcolor=PAPER, tabmargins=(0, 8, 0, 0))
     style.configure("TNotebook.Tab", padding=(15, 9), background="#f0f1f7", foreground=MUTED, bordercolor=LINE, lightcolor="#f0f1f7", darkcolor="#f0f1f7", font=("Segoe UI", 10, "bold"))
