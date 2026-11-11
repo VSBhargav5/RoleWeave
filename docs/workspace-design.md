@@ -1,6 +1,31 @@
-# The Windows workspace
+# Dark workspace design — v0.13
 
-Version0.12 refreshes the existing Tkinter/SQLite interface with an indigo accent,
+Version 0.13 replaces the light workspace with near-black surfaces, violet and
+cyan accents, rounded native controls and original gradient weave artwork.
+Segoe UI Variable Text is preferred when installed, with system font fallbacks.
+The gradient is decorative branding; it never represents an application score.
+
+The evidence tab presents exact requirement quotes, linked claims and their
+sources as structured cards. Amber open questions stay distinct from cyan linked
+evidence. Links do not establish qualification. Reviews larger than 20 requirements
+use bounded pages; Copy review text retains the complete original review across
+all pages. Clipboard access occurs only on that explicit action.
+
+The existing Tk/SQLite workflows, immutable review IDs, draft guards and consent
+controls remain. Pillow was already a dependency; no new theme framework or
+network-loaded assets were added. Owned nine-slice images keep ordinary ttk
+buttons, tabs and checkbox behavior, including keyboard focus and disabled states.
+
+Regression coverage checks readable text contrast, native consent variables,
+exact review content, pagination, explicit copying, and 1040×700 minimum layout.
+Synthetic visual inspection covers the main Windows workspace. Unusual display
+scaling and every system-native file dialog remain user acceptance checks.
+
+## Earlier workspace behavior
+
+### The Windows workspace
+
+Version0.12 refreshed the existing Tkinter/SQLite interface with an indigo accent,
 midnight navigation rail, pastel metric cards, white bordered work surfaces and
 stronger Segoe UI typography. Primary review actions, secondary buttons, active
 tabs, stage badges and evidence/source text have distinct treatment. No web

@@ -14,7 +14,7 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 [What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
 
 
-Version0.12.0 includes reviewed cover letters, exact private application dossiers,
+Version0.13.0 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -23,10 +23,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.12.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.13.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.12.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.13.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -262,3 +262,10 @@ See [application delivery and local correspondence](docs/application-delivery.md
 [Google Calendar follow-up sync](docs/google-calendar.md) is an optional, explicitly reviewed one-way integration with app-created-calendar scope and session-only browser consent. It is offline tested; your Desktop OAuth setup and synthetic live acceptance are still required.
 
 [V0.12 workspace design](docs/workspace-design.md): richer role/company rows, manual-stage badges, collapsible filters, stronger review/evidence hierarchy and a shared indigo visual theme. Existing workflows, draft guards and private data contracts remain supported.
+
+### Dark workspace in v0.13
+
+Near-black surfaces, violet/cyan accents, rounded controls, gradient weave artwork
+and structured evidence cards replace the previous light presentation. Large
+reviews use 20-card pages and explicitly copy the complete review text. See
+[workspace design](docs/workspace-design.md) for behavior and verification.

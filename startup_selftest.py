@@ -35,6 +35,10 @@ def run_self_test(folder, shelf_type):
         assert shelf.filters_panel.winfo_manager() == ""
         assert shelf.review_stage.get() == "Saved"
         report["checks"].append("rich-opportunity-identity-and-filter-drawer")
+        assert len(shelf.evidence.requirements) == 2
+        assert "Python required" in shelf.evidence.plain_text
+        assert len(shelf.evidence.content.winfo_children()) == 2
+        report["checks"].append("dark-rounded-controls-and-exact-evidence-cards")
         guide = shelf.open_help()
         guide.withdraw()
         assert "8/8" in guide.help_pages["Readiness and remaining work"].get("1.0", "end")
