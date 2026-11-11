@@ -12,10 +12,81 @@ from provider_boards import fetch_source
 MAX_COLLECTION_SOURCE_BYTES = 16 * 1024 * 1024
 
 
-def fetch_watchlist(watchlist, indices, cancel=None):
-    data = copy.deepcopy(validate_watchlist(watchlist))
+def validate_selection(data, indices):
     if not isinstance(indices, list) or not 1 <= len(indices) <= 5 or any(type(i) is not int or not 0 <= i < len(data["boards"]) for i in indices) or len(set(indices)) != len(indices):
         raise ValueError("Explicitly select 1-5 distinct board indices")
+    return list(indices)
+
+
+def observation_time(value, label):
+    if not isinstance(value, str) or len(value) > 100:
+        raise ValueError(label + " must be a timezone-aware timestamp")
+    try:
+        result = datetime.fromisoformat(value)
+        if result.utcoffset() is None:
+            raise ValueError()
+    except ValueError:
+        raise ValueError(label + " must be a timezone-aware timestamp") from None
+    return result
+
+
+def validate_collection(collection):
+    from provider_boards import parse_source
+    from roleweave import text
+    keys = {"format", "watchlist", "selected_indices", "feeds", "failures", "started_at", "finished_at"}
+    if not isinstance(collection, dict) or set(collection) != keys or collection["format"] != "roleweave-collection-v1":
+        raise ValueError("Unsupported employer collection")
+    data = validate_watchlist(collection["watchlist"])
+    selected = validate_selection(data, collection["selected_indices"])
+    started = observation_time(collection["started_at"], "Collection start")
+    finished = observation_time(collection["finished_at"], "Collection finish")
+    if finished < started:
+        raise ValueError("Collection finish precedes its start")
+    if not isinstance(collection["feeds"], list) or not isinstance(collection["failures"], list) or len(collection["feeds"]) + len(collection["failures"]) != len(selected):
+        raise ValueError("Every selected board needs one success or failure observation")
+    seen, total = set(), 0
+    for entry in collection["feeds"]:
+        if not isinstance(entry, dict) or set(entry) != {"board_index", "feed"}:
+            raise ValueError("Unsupported collection source entry")
+        index = entry["board_index"]
+        if type(index) is not int or index not in selected or index in seen:
+            raise ValueError("Duplicate or out-of-scope collection board")
+        seen.add(index)
+        board, feed = data["boards"][index], entry["feed"]
+        if not isinstance(feed, dict) or set(feed) != {"jobs", "token", "fetched_at", "response_sha256", "provider", "source_snapshot"}:
+            raise ValueError("Unsupported collection feed evidence")
+        if feed["provider"] != board["provider"] or feed["token"] != board["token"]:
+            raise ValueError("Collection feed belongs to another board")
+        raw = feed["source_snapshot"]
+        if not isinstance(raw, bytes):
+            raise ValueError("Collection needs original response bytes")
+        total += len(raw)
+        if total > MAX_COLLECTION_SOURCE_BYTES:
+            raise ValueError("Collection source bytes exceed 16 MiB")
+        observed = observation_time(feed["fetched_at"], "Source observation")
+        if not started <= observed <= finished:
+            raise ValueError("Source observation lies outside the declared collection interval")
+        replay = parse_source(raw, board["provider"], board["token"])
+        if replay["jobs"] != feed["jobs"] or replay["response_sha256"] != feed["response_sha256"]:
+            raise ValueError("Collection rows or fingerprint differ from original response bytes")
+    for entry in collection["failures"]:
+        if not isinstance(entry, dict) or set(entry) != {"board_index", "error"}:
+            raise ValueError("Unsupported collection failure")
+        index = entry["board_index"]
+        if type(index) is not int or index not in selected or index in seen:
+            raise ValueError("Duplicate or out-of-scope collection outcome")
+        seen.add(index)
+        text(entry["error"], "Source failure")
+        if len(entry["error"]) > 2000:
+            raise ValueError("Source failure exceeds its text limit")
+    if seen != set(selected):
+        raise ValueError("Selected board observations are incomplete")
+    return collection
+
+
+def fetch_watchlist(watchlist, indices, cancel=None):
+    data = copy.deepcopy(validate_watchlist(watchlist))
+    indices = validate_selection(data, indices)
     started = datetime.now(timezone.utc).isoformat()
     deadline = time.monotonic() + 60
     feeds, failures, total = [], [], 0
@@ -32,6 +103,7 @@ def fetch_watchlist(watchlist, indices, cancel=None):
         except Cancelled:
             raise
         except ValueError as exc:
+            check()
             failures.append({"board_index": index, "error": str(exc)})
             continue
         check()
@@ -41,9 +113,26 @@ def fetch_watchlist(watchlist, indices, cancel=None):
         if total > MAX_COLLECTION_SOURCE_BYTES:
             raise ValueError("Collection source bytes exceed 16 MiB")
         feeds.append({"board_index": index, "feed": feed})
-    return {"format": "roleweave-collection-v1", "watchlist": data, "selected_indices": list(indices),
+    result = {"format": "roleweave-collection-v1", "watchlist": data, "selected_indices": list(indices),
             "feeds": feeds, "failures": failures, "started_at": started,
             "finished_at": datetime.now(timezone.utc).isoformat()}
+    return validate_collection(result)
+
+
+def retry_failed_sources(collection, cancel=None):
+    original = copy.deepcopy(validate_collection(collection))
+    failed = {entry["board_index"] for entry in original["failures"]}
+    indices = [index for index in original["selected_indices"] if index in failed]
+    if not indices:
+        raise ValueError("No failed source observations to retry")
+    retried = fetch_watchlist(original["watchlist"], indices, cancel)
+    feeds = {entry["board_index"]: entry for entry in original["feeds"]}
+    feeds.update({entry["board_index"]: entry for entry in retried["feeds"]})
+    updated = dict(original)
+    updated["feeds"] = [feeds[index] for index in original["selected_indices"] if index in feeds]
+    updated["failures"] = retried["failures"]
+    updated["finished_at"] = retried["finished_at"]
+    return validate_collection(updated)
 
 
 def collection_rows(collection, filters=None):

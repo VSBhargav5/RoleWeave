@@ -72,7 +72,7 @@ class WatchlistWindow(tk.Toplevel):
         footer = ttk.Frame(body)
         footer.pack(fill="x", pady=8)
         for label, command in (("Open watchlist JSON", self.open_file), ("Save as new JSON", self.save_file),
-                               ("Open selected board", self.open_board)):
+                               ("Open selected board", self.open_board), ("Review selected boards", self.open_collection)):
             ttk.Button(footer, text=label, command=command).pack(side="left", padx=(0, 8))
         ttk.Button(footer, text="Close", command=self.close).pack(side="right")
         self.status = tk.StringVar(value="Add explicit employer boards and save a new portable file.")
@@ -229,6 +229,18 @@ class WatchlistWindow(tk.Toplevel):
             child.exclude.set(filters["exclude"])
             child.search_description.set(filters["search_description"])
             child.status.set("Saved board choices loaded. Review market/employer and explicitly Fetch.")
+            child.bind("<Destroy>", lambda event: self.grab_set() if event.widget is child and self.winfo_viewable() else None, add="+")
+            return child
+        except ValueError as exc:
+            self.status.set(str(exc))
+
+    def open_collection(self):
+        try:
+            self.guard_editor()
+            from collection_window import CollectionWindow
+            data = validate_watchlist(self.data())
+            indices = [int(value) for value in self.rows.selection()]
+            child = CollectionWindow(self, self.store, data, indices, self.markets, self.on_import)
             child.bind("<Destroy>", lambda event: self.grab_set() if event.widget is child and self.winfo_viewable() else None, add="+")
             return child
         except ValueError as exc:
