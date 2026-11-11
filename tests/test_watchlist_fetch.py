@@ -56,3 +56,32 @@ class WatchlistFetchTests(unittest.TestCase):
         with patch("watchlist_fetch.fetch_source", side_effect=fake_fetch), patch("watchlist_fetch.MAX_COLLECTION_SOURCE_BYTES", 1):
             with self.assertRaisesRegex(ValueError, "16 MiB"):
                 fetch_watchlist(synthetic_watchlist(), [0])
+
+    def test_collection_contract_replays_source_identity_rows_and_outcomes(self):
+        import copy
+        from watchlist_fetch import validate_collection
+        with patch("watchlist_fetch.fetch_source", side_effect=fake_fetch):
+            original = fetch_watchlist(synthetic_watchlist(), [0, 1])
+        for mutate in (
+            lambda c: c["feeds"].pop(),
+            lambda c: c["feeds"][0]["feed"].update(provider="ashby"),
+            lambda c: c["feeds"][0]["feed"].update(response_sha256="0" * 64),
+            lambda c: c["feeds"][0]["feed"].update(jobs=[]),
+            lambda c: c.update(finished_at="2000-01-01T00:00:00+00:00"),
+            lambda c: c["feeds"][0]["feed"].update(fetched_at="2026-11-11"),
+            lambda c: c["feeds"].append(c["feeds"][0])):
+            changed = copy.deepcopy(original)
+            mutate(changed)
+            with self.assertRaises(ValueError):
+                validate_collection(changed)
+        self.assertEqual(validate_collection(original), original)
+
+    def test_selected_source_failure_cannot_be_relabelled_as_another_board(self):
+        import copy
+        from watchlist_fetch import validate_collection
+        with patch("watchlist_fetch.fetch_source", side_effect=ValueError("Synthetic unavailable")):
+            original = fetch_watchlist(synthetic_watchlist(), [0, 1])
+        changed = copy.deepcopy(original)
+        changed["failures"][1]["board_index"] = 0
+        with self.assertRaises(ValueError):
+            validate_collection(changed)
