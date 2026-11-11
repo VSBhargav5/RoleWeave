@@ -103,6 +103,7 @@ def fetch_watchlist(watchlist, indices, cancel=None):
         except Cancelled:
             raise
         except ValueError as exc:
+            check()
             failures.append({"board_index": index, "error": str(exc)})
             continue
         check()
@@ -116,6 +117,22 @@ def fetch_watchlist(watchlist, indices, cancel=None):
             "feeds": feeds, "failures": failures, "started_at": started,
             "finished_at": datetime.now(timezone.utc).isoformat()}
     return validate_collection(result)
+
+
+def retry_failed_sources(collection, cancel=None):
+    original = copy.deepcopy(validate_collection(collection))
+    failed = {entry["board_index"] for entry in original["failures"]}
+    indices = [index for index in original["selected_indices"] if index in failed]
+    if not indices:
+        raise ValueError("No failed source observations to retry")
+    retried = fetch_watchlist(original["watchlist"], indices, cancel)
+    feeds = {entry["board_index"]: entry for entry in original["feeds"]}
+    feeds.update({entry["board_index"]: entry for entry in retried["feeds"]})
+    updated = dict(original)
+    updated["feeds"] = [feeds[index] for index in original["selected_indices"] if index in feeds]
+    updated["failures"] = retried["failures"]
+    updated["finished_at"] = retried["finished_at"]
+    return validate_collection(updated)
 
 
 def collection_rows(collection, filters=None):

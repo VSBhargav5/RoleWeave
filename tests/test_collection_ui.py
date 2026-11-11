@@ -131,3 +131,20 @@ class CollectionUITests(unittest.TestCase):
         self.assertIn("Synthetic AI Co", output.read_text(encoding="utf-8-sig"))
         self.assertNotIn("Synthetic Co,", output.read_text(encoding="utf-8-sig"))
         self.assertEqual(self.store.list_jobs(), [])
+
+    def test_failed_retry_keeps_prior_observations_and_does_not_dispatch_successful_sources(self):
+        partial = copy.deepcopy(self.collection)
+        partial["feeds"].pop()
+        partial["failures"] = [{"board_index": 1, "error": "Synthetic failure"}]
+        self.window.received(partial)
+        with patch.object(self.window.task, "start") as start, patch("watchlist_fetch.fetch_source", side_effect=fake_fetch) as request:
+            self.window.retry_failed()
+            result = start.call_args.args[0](None)
+            start.call_args.args[1](result)
+        self.assertEqual(request.call_count, 1)
+        self.assertEqual(request.call_args.args[0], "ashby")
+        self.assertEqual(len(self.window.visible), 2)
+        previous = copy.deepcopy(self.window.collection)
+        self.window.retry_failed_error("Synthetic timeout")
+        self.assertEqual(self.window.collection, previous)
+        self.assertEqual(self.store.list_jobs(), [])

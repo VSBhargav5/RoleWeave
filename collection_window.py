@@ -11,7 +11,7 @@ from collection_export import export_collection_csv
 from desktop_theme import polish_widgets, reserve_footer
 from discovery import discovered_snapshot
 from employer_watchlist import validate_watchlist
-from watchlist_fetch import collection_rows, fetch_watchlist, validate_collection, validate_selection
+from watchlist_fetch import collection_rows, fetch_watchlist, retry_failed_sources, validate_collection, validate_selection
 
 
 class CollectionWindow(tk.Toplevel):
@@ -39,6 +39,7 @@ class CollectionWindow(tk.Toplevel):
         self.fetch_button.pack(side="left")
         ttk.Button(actions, text="Cancel fetch", command=self.cancel).pack(side="left", padx=8)
         self.tools_menu = tk.Menu(self, tearoff=False)
+        self.tools_menu.add_command(label="Retry failed sources only", command=self.retry_failed)
         self.tools_menu.add_command(label="Save private collection observation", command=self.save_archive)
         self.tools_menu.add_command(label="Open saved collection observation", command=self.open_archive)
         self.tools_menu.add_command(label="Compare with earlier saved collection", command=self.compare_archive)
@@ -178,6 +179,27 @@ class CollectionWindow(tk.Toplevel):
             return window
         except (OSError, ValueError) as exc:
             self.status.set(str(exc))
+
+    def retry_failed(self):
+        try:
+            if self.task.active is not None or self.collection is None:
+                raise ValueError("Finish/cancel fetching and choose a current observation first")
+            if not self.collection["failures"]:
+                raise ValueError("No failed source observations to retry")
+            snapshot = copy.deepcopy(validate_collection(self.collection))
+            self.fetch_button.configure(state="disabled")
+            self.status.set("Retrying failed sources only. Earlier successful source observations remain retained.")
+            def done(result):
+                self.received(result)
+                if self.collection is not None:
+                    self.status.set("Failed-source retry completed. Inspect individual source times; retained observations were not fetched again.")
+            self.task.start(lambda event: retry_failed_sources(snapshot, event), done, self.retry_failed_error)
+        except ValueError as exc:
+            self.status.set(str(exc))
+
+    def retry_failed_error(self, message):
+        self.fetch_button.configure(state="normal")
+        self.status.set(message + ". Prior collection observations were retained; no jobs or stages changed.")
 
     def archive_snapshot(self):
         if self.task.active is not None or self.collection is None:
