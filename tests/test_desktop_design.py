@@ -121,3 +121,22 @@ class DesktopDesignTests(unittest.TestCase):
         assert_fits(assistant)
         assistant.close()
         editor.destroy()
+
+
+@unittest.skipUnless(os.name == "nt", "Native Windows Tk lifecycle")
+class ThemeLifecycleTests(unittest.TestCase):
+    def test_immediate_close_has_no_queued_theme_error_and_does_not_run_timers(self):
+        import tkinter as tk
+        from desktop_theme import apply_theme
+        for _attempt in range(2):
+            root = tk.Tk()
+            root.withdraw()
+            root.tk.eval('set ::theme_errors {}; proc bgerror {message} {lappend ::theme_errors $message}')
+            timer_called = []
+            timer = root.after(0, lambda: timer_called.append(True))
+            apply_theme(root)
+            self.assertEqual(timer_called, [], "Theme setup must not process timer/network polling callbacks")
+            root.after_cancel(timer)
+            root.destroy()
+            root.tk.call("update")
+            self.assertEqual(root.tk.call("set", "::theme_errors"), "")
