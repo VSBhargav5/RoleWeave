@@ -223,6 +223,7 @@ class JobShelf(ttk.Frame):
         export_menu.add_command(label="Compare related saved versions", command=self.open_versions)
         export_menu.add_command(label="Practise linked interview evidence", command=self.open_practice_cards)
         export_menu.add_command(label="Write/save rehearsal answers...", command=self.open_rehearsal)
+        export_menu.add_command(label="Google Calendar follow-up sync...", command=self.open_google_calendar)
         export_menu.add_command(label="Open private rehearsal version...", command=self.open_rehearsal_file)
         export_menu.add_command(label="Check local database storage", command=self.check_database)
         export_menu.add_command(label="Audit saved sources and references (read-only)", command=self.audit_shelf)
@@ -473,6 +474,13 @@ class JobShelf(ttk.Frame):
             return shelf
         except (OSError, ValueError, sqlite3.Error) as exc:
             messagebox.showerror("Could not open practice", str(exc))
+
+    def open_google_calendar(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Select a saved review and save/discard edits before Calendar sync.")
+            return
+        from google_calendar_window import GoogleCalendarWindow
+        return GoogleCalendarWindow(self.winfo_toplevel(), self.store, self.current_id)
 
     def open_help(self):
         window = tk.Toplevel(self.winfo_toplevel())

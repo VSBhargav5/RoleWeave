@@ -7,6 +7,13 @@ from google_calendar_sync import SCOPE, api_request
 from network_io import Cancelled
 
 
+class BoundedInstalledAppFlow(InstalledAppFlow):
+    """The library's loopback timeout does not bound its token HTTPS exchange."""
+    def fetch_token(self, **kwargs):
+        kwargs["timeout"] = 5
+        return super().fetch_token(**kwargs)
+
+
 def connect_session(client_id, client_secret, *, confirmed=False, cancel=None):
     if confirmed is not True:
         raise ValueError("Review the app-created Calendar scope and consent before connecting")
@@ -20,7 +27,7 @@ def connect_session(client_id, client_secret, *, confirmed=False, cancel=None):
                             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                             "token_uri": "https://oauth2.googleapis.com/token"}}
     try:
-        flow = InstalledAppFlow.from_client_config(config, [SCOPE], autogenerate_code_verifier=True)
+        flow = BoundedInstalledAppFlow.from_client_config(config, [SCOPE], autogenerate_code_verifier=True)
         flow.oauth2session.trust_env = False
         credentials = flow.run_local_server(host="127.0.0.1", bind_addr="127.0.0.1", port=0,
                                             open_browser=True, timeout_seconds=45,

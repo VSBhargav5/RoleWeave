@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 
 from job_store import JobStore
 from google_calendar_sync import SCOPE, desired_event, prepare_sync, apply_sync, api_request, read_remote, calendar_path
-from google_calendar_auth import connect_session, create_calendar
+from google_calendar_auth import connect_session, create_calendar, BoundedInstalledAppFlow
 
 
 class GoogleCalendarTests(unittest.TestCase):
@@ -116,3 +116,12 @@ class GoogleCalendarTests(unittest.TestCase):
             with self.assertRaises(ValueError): create_calendar(self.credentials)
             send.assert_not_called()
             self.assertIn("@", create_calendar(self.credentials, confirmed=True))
+
+    def test_oauth_token_exchange_has_timeout_and_network_errors_do_not_expose_tokens(self):
+        with patch("google_calendar_auth.InstalledAppFlow.fetch_token", return_value={}) as fetch:
+            BoundedInstalledAppFlow.fetch_token(object.__new__(BoundedInstalledAppFlow), code="SYNTHETIC_CODE")
+            self.assertEqual(fetch.call_args.kwargs["timeout"], 5)
+        with patch("google_calendar_auth.BoundedInstalledAppFlow.from_client_config", side_effect=RuntimeError("SECRET_MUST_NOT_APPEAR")):
+            with self.assertRaises(ValueError) as error:
+                connect_session("synthetic-client.apps.googleusercontent.com", "CLIENT_SECRET", confirmed=True)
+        self.assertNotIn("SECRET_MUST_NOT_APPEAR", str(error.exception))
