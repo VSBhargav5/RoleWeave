@@ -8,6 +8,7 @@ from desktop_theme import polish_widgets, reserve_footer
 from rehearsal_cards import practice_cards
 from rehearsal_journal import export_rehearsal, make_rehearsal, rehearsal_snapshot
 from resume_versions import job_context
+from rehearsal_pack import export_pack
 
 
 class RehearsalWindow(tk.Toplevel):
@@ -27,6 +28,13 @@ class RehearsalWindow(tk.Toplevel):
         self.minsize(900, 700)
         self.transient(parent)
         self.grab_set()
+        menu = tk.Menu(self)
+        tools = tk.Menu(menu, tearoff=False)
+        tools.add_command(label="Export private questions/evidence TXT...", command=lambda: self.export_pack(False))
+        tools.add_command(label="Export private pack WITH answer drafts...", command=lambda: self.export_pack(True))
+        menu.add_cascade(label="Private tools", menu=tools)
+        self.configure(menu=menu)
+        self.tools_menu = tools
         body = ttk.Frame(self, padding=16)
         body.pack(fill="both", expand=True)
         role = item["company"] + " - " + item["title"]
@@ -159,6 +167,25 @@ class RehearsalWindow(tk.Toplevel):
                 self.last_snapshot = snapshot
                 self.baseline = self.state()
                 self.status.set("Private source-bound version saved. This does not verify learning or change application history.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def saved_version(self):
+        if self.last_snapshot is None or self.state() != self.baseline:
+            raise ValueError("Save a new private journal version before using this tool")
+        return self.last_snapshot
+
+    def export_pack(self, include_answers=False):
+        try:
+            snapshot = self.saved_version()
+            if not messagebox.askyesno("Private rehearsal export", "Export selected question quotes and linked evidence" +
+                                      (" WITH your answer drafts/reflections" if include_answers else " without answer drafts") +
+                                      "? This file is unencrypted and intended for private practice.", parent=self):
+                return
+            path = filedialog.asksaveasfilename(parent=self, defaultextension=".txt", filetypes=[("Private rehearsal pack", "*.txt")])
+            if path:
+                export_pack(snapshot, path, include_answers=include_answers, confirmed=True)
+                self.status.set("Private pack saved from the exact journal version. No learning or application claim was recorded.")
         except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 
