@@ -122,6 +122,41 @@ class DesktopDesignTests(unittest.TestCase):
         assistant.close()
         editor.destroy()
 
+    def test_getting_started_explains_current_workflow_and_limits_without_network(self):
+        from tkinter import ttk
+        from unittest.mock import patch
+        before = self.store.path.read_bytes()
+        with patch("network_io.request_bytes") as send:
+            guide = self.shelf.open_help()
+            guide.geometry("700x500")
+            for index, title in enumerate(guide.help_pages):
+                guide.help_tabs.select(index)
+                guide.update()
+                page = guide.help_pages[title]
+                self.assertEqual(page.cget("state"), "disabled")
+                self.assertGreaterEqual(page.winfo_height(), 100)
+            text = guide.help_pages["Readiness and remaining work"].get("1.0", "end")
+            self.assertIn("8/8", text)
+            self.assertIn("NOT IMPLEMENTED", text)
+            self.assertIn("Ashby", text)
+            self.assertIn("LIVE TRIAL NEEDED", text)
+            data = guide.help_pages["Your data and boundaries"].get("1.0", "end")
+            self.assertIn(str(self.store.path.resolve()), data)
+            self.assertIn("different shelves", data)
+            def walk(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from walk(child)
+            for button in walk(guide):
+                if isinstance(button, ttk.Button):
+                    self.assertTrue(button.winfo_ismapped())
+                    self.assertGreaterEqual(button.winfo_height(), 28)
+                    bottom = button.winfo_rooty() - guide.winfo_rooty() + button.winfo_height()
+                    self.assertLessEqual(bottom, guide.winfo_height())
+            guide.destroy()
+            send.assert_not_called()
+        self.assertEqual(self.store.path.read_bytes(), before)
+
 
 @unittest.skipUnless(os.name == "nt", "Native Windows Tk lifecycle")
 class ThemeLifecycleTests(unittest.TestCase):
