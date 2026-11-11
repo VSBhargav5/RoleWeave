@@ -103,3 +103,21 @@ class RehearsalUITests(unittest.TestCase):
             self.window.reset_timer()
         self.assertEqual(self.window.timer.seconds(), 0)
         self.assertNotEqual(self.window.state(), self.window.baseline)
+
+    def test_private_tools_require_saved_inputs_and_comparison_rejects_unsaved_changes(self):
+        self.select_questions()
+        with patch("rehearsal_window.filedialog.askopenfilename") as choose:
+            self.window.compare_version()
+            choose.assert_not_called()
+        self.window.confirmed.set(True)
+        with patch("rehearsal_window.filedialog.asksaveasfilename", return_value=str(self.path)):
+            self.window.save()
+        with patch("rehearsal_window.filedialog.askopenfilename", return_value=str(self.path)):
+            dialog = self.window.compare_version()
+        self.assertIsNotNone(dialog)
+        dialog.destroy()
+        self.window.answer.insert("1.0", "Unsaved")
+        with patch("rehearsal_window.filedialog.asksaveasfilename") as save:
+            self.window.export_pack()
+            save.assert_not_called()
+        self.assertIn("Save a new", self.window.status.get())

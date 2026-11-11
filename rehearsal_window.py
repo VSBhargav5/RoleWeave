@@ -10,6 +10,8 @@ from rehearsal_journal import export_rehearsal, make_rehearsal, rehearsal_snapsh
 from resume_versions import job_context
 from rehearsal_pack import export_pack
 from practice_timer import PracticeTimer
+from rehearsal_journal import read_rehearsal
+from rehearsal_compare import comparison_bytes, export_comparison
 
 
 class RehearsalWindow(tk.Toplevel):
@@ -35,6 +37,7 @@ class RehearsalWindow(tk.Toplevel):
         tools = tk.Menu(menu, tearoff=False)
         tools.add_command(label="Export private questions/evidence TXT...", command=lambda: self.export_pack(False))
         tools.add_command(label="Export private pack WITH answer drafts...", command=lambda: self.export_pack(True))
+        tools.add_command(label="Compare an earlier private version...", command=self.compare_version)
         tools.add_separator()
         tools.add_command(label="Start/pause local elapsed timer", command=self.toggle_timer)
         tools.add_command(label="Reset local elapsed timer...", command=self.reset_timer)
@@ -224,6 +227,46 @@ class RehearsalWindow(tk.Toplevel):
             if path:
                 export_pack(snapshot, path, include_answers=include_answers, confirmed=True)
                 self.status.set("Private pack saved from the exact journal version. No learning or application claim was recorded.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def compare_version(self):
+        try:
+            later = self.saved_version()
+            path = filedialog.askopenfilename(parent=self, filetypes=[("Private rehearsal version", "*.json")])
+            if not path:
+                return
+            earlier = read_rehearsal(path)[0]
+            payload = comparison_bytes(earlier, later)
+            dialog = tk.Toplevel(self)
+            dialog.title("Private rehearsal differences - not a learning score")
+            dialog.geometry("900x650")
+            dialog.minsize(700, 500)
+            dialog.transient(self)
+            body = ttk.Frame(dialog, padding=16)
+            body.pack(fill="both", expand=True)
+            ttk.Label(body, text="Private answer/reflection differences for one exact source. Changes and elapsed time do not prove improvement.", wraplength=650).pack(anchor="w")
+            output = tk.Text(body, wrap="word")
+            output.pack(fill="both", expand=True, pady=8)
+            output.insert("1.0", payload.decode())
+            output.configure(state="disabled")
+            def save():
+                if not messagebox.askyesno("Private comparison export", "Save unencrypted private answer/reflection differences?", parent=dialog):
+                    return
+                target = filedialog.asksaveasfilename(parent=dialog, defaultextension=".json", filetypes=[("Private comparison", "*.json")])
+                if target:
+                    try:
+                        export_comparison(earlier, later, target, confirmed=True)
+                        self.status.set("Private exact-source comparison exported. No improvement was asserted.")
+                    except (OSError, ValueError) as exc:
+                        messagebox.showerror("Comparison export", str(exc), parent=dialog)
+            actions = ttk.Frame(body)
+            actions.pack(fill="x")
+            ttk.Button(actions, text="Export private comparison JSON...", command=save).pack(side="left")
+            ttk.Button(actions, text="Close", command=dialog.destroy).pack(side="right")
+            reserve_footer(body)
+            polish_widgets(dialog)
+            return dialog
         except (OSError, ValueError) as exc:
             self.status.set(str(exc))
 
