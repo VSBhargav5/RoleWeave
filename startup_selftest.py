@@ -195,6 +195,32 @@ def run_self_test(folder, shelf_type):
         report["checks"].append("selected-source-collection-offline-replay-comparison-and-shortlist")
         report["checks"].append("portable-watchlist-and-offline-source-reuse")
 
+        from rehearsal_journal import read_rehearsal, rehearsal_snapshot
+        from rehearsal_pack import export_pack
+        from rehearsal_compare import compare_rehearsals, export_comparison as export_rehearsal_comparison
+        rehearsal = shelf.open_rehearsal()
+        rehearsal.withdraw()
+        rehearsal.choices.selection_set(0)
+        rehearsal.start_selected()
+        rehearsal.answer.insert("1.0", "Synthetic practice answer, not employment experience.")
+        rehearsal.confirmed.set(True)
+        from unittest.mock import patch
+        with patch("rehearsal_window.filedialog.asksaveasfilename", return_value=str(folder / "synthetic-rehearsal.json")):
+            rehearsal.save()
+        first = read_rehearsal(folder / "synthetic-rehearsal.json")[0]
+        assert rehearsal_snapshot(first)[0]["learning_verified"] is False
+        rehearsal.answer.insert("end", " Explain validation boundaries.")
+        rehearsal.confirmed.set(True)
+        with patch("rehearsal_window.filedialog.asksaveasfilename", return_value=str(folder / "synthetic-rehearsal-revised.json")):
+            rehearsal.save()
+        second = read_rehearsal(folder / "synthetic-rehearsal-revised.json")[0]
+        assert compare_rehearsals(first, second)["questions"][0]["state"] == "draft_changed"
+        export_pack(second, folder / "synthetic-private-questions.txt", confirmed=True)
+        export_pack(second, folder / "synthetic-private-answers.txt", include_answers=True, confirmed=True)
+        export_rehearsal_comparison(first, second, folder / "synthetic-rehearsal-comparison.json", confirmed=True)
+        rehearsal.destroy()
+        report["checks"].append("native-source-bound-rehearsal-drafts-private-packs-and-comparison")
+
         report["ok"] = True
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"[:4000]
