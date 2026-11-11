@@ -6,7 +6,7 @@ from pathlib import Path
 from career_profile import profile_snapshot, unique_json
 from resume_render import selected_facts
 from resume_versions import decoded, encoded, job_context, validate_job_context as checked_context
-from roleweave import MAX_BYTES, review_snapshot, text
+from roleweave import MAX_BYTES, text
 from safe_export import publish_bytes
 
 MAX_LETTER_BYTES = 4 * 1024 * 1024

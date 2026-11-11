@@ -76,6 +76,12 @@ def make_rehearsal(item, answers, *, elapsed_seconds=0, confirmed=False):
     return snapshot
 
 
+def rehearsal_source_item(record):
+    context = validate_job_context(record["job_context"])
+    return {**{key: value for key, value in context.items() if key != "snapshot_base64"},
+            "snapshot": decoded(context["snapshot_base64"], MAX_BYTES)}
+
+
 def read_rehearsal(path):
     with Path(path).open("rb") as handle:
         snapshot = handle.read(MAX_REHEARSAL_BYTES + 1)
