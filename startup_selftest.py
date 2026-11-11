@@ -221,6 +221,11 @@ def run_self_test(folder, shelf_type):
         rehearsal.destroy()
         report["checks"].append("native-source-bound-rehearsal-drafts-private-packs-and-comparison")
 
+        from shelf_audit import audit_database, export_audit
+        audit = audit_database(store.path)
+        assert audit["ok"], audit["issues"]
+        export_audit(audit, folder / "synthetic-shelf-audit.json", confirmed=True)
+        report["checks"].append("read-only-shelf-source-and-reference-audit")
         report["ok"] = True
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"[:4000]
