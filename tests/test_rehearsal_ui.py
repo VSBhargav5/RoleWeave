@@ -82,3 +82,24 @@ class RehearsalUITests(unittest.TestCase):
                 self.assertGreaterEqual(widget.winfo_height(), 28)
                 y = widget.winfo_rooty() - self.window.winfo_rooty()
                 self.assertLessEqual(y + widget.winfo_height(), self.window.winfo_height())
+
+    def test_timer_requires_explicit_start_and_saved_version_captures_paused_time(self):
+        self.window.toggle_timer()
+        self.assertFalse(self.window.timer.running)
+        self.select_questions()
+        now = [10.0]
+        self.window.timer.clock = lambda: now[0]
+        self.window.toggle_timer()
+        now[0] += 42.0
+        self.window.confirmed.set(True)
+        with patch("rehearsal_window.filedialog.asksaveasfilename", return_value=str(self.path)):
+            self.window.save()
+        self.assertEqual(read_rehearsal(self.path)[1]["elapsed_seconds"], 42)
+        self.assertFalse(self.window.timer.running)
+        with patch("rehearsal_window.messagebox.askyesno", return_value=False):
+            self.window.reset_timer()
+        self.assertEqual(self.window.timer.seconds(), 42)
+        with patch("rehearsal_window.messagebox.askyesno", return_value=True):
+            self.window.reset_timer()
+        self.assertEqual(self.window.timer.seconds(), 0)
+        self.assertNotEqual(self.window.state(), self.window.baseline)

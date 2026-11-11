@@ -9,6 +9,7 @@ from rehearsal_cards import practice_cards
 from rehearsal_journal import export_rehearsal, make_rehearsal, rehearsal_snapshot
 from resume_versions import job_context
 from rehearsal_pack import export_pack
+from practice_timer import PracticeTimer
 
 
 class RehearsalWindow(tk.Toplevel):
@@ -22,6 +23,8 @@ class RehearsalWindow(tk.Toplevel):
         self.card_by_id = {card["requirement_id"]: card for card in cards}
         self.selected_ids, self.answers, self.position = [], {}, 0
         self.elapsed_seconds = loaded["elapsed_seconds"] if loaded else 0
+        self.timer = PracticeTimer(self.elapsed_seconds)
+        self.timer_job = None
         self.last_snapshot = snapshot
         self.title("RoleWeave - Private rehearsal journal")
         self.geometry("1050x800")
@@ -32,6 +35,9 @@ class RehearsalWindow(tk.Toplevel):
         tools = tk.Menu(menu, tearoff=False)
         tools.add_command(label="Export private questions/evidence TXT...", command=lambda: self.export_pack(False))
         tools.add_command(label="Export private pack WITH answer drafts...", command=lambda: self.export_pack(True))
+        tools.add_separator()
+        tools.add_command(label="Start/pause local elapsed timer", command=self.toggle_timer)
+        tools.add_command(label="Reset local elapsed timer...", command=self.reset_timer)
         menu.add_cascade(label="Private tools", menu=tools)
         self.configure(menu=menu)
         self.tools_menu = tools
@@ -92,6 +98,7 @@ class RehearsalWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.close)
         reserve_footer(body)
         polish_widgets(self)
+        self.update_timer()
 
     def capture_current(self):
         if self.selected_ids:
@@ -101,6 +108,7 @@ class RehearsalWindow(tk.Toplevel):
 
     def state(self):
         self.capture_current()
+        self.elapsed_seconds = self.timer.seconds()
         return json.dumps({"selected": self.selected_ids, "answers": [self.answers[key] for key in self.selected_ids],
                            "elapsed_seconds": self.elapsed_seconds}, sort_keys=True)
 
@@ -132,6 +140,7 @@ class RehearsalWindow(tk.Toplevel):
             entry = {"answer": "", "reflection": ""}
             content = "Choose exact requirement questions before drafting. Open requirements remain review questions."
             self.counter.set("No source questions selected")
+        self.update_counter()
         self.source.configure(state="normal")
         self.source.delete("1.0", "end")
         self.source.insert("1.0", content)
@@ -152,8 +161,37 @@ class RehearsalWindow(tk.Toplevel):
         self.capture_current()
         self.render(reveal=True)
 
+    def update_counter(self):
+        question = f"Question {self.position + 1} of {len(self.selected_ids)}" if self.selected_ids else "No source questions selected"
+        self.counter.set(question + f" | Local time: {self.timer.seconds()}s ({'running' if self.timer.running else 'paused'}, unverified)")
+
+    def update_timer(self):
+        self.update_counter()
+        self.timer_job = self.after(250, self.update_timer)
+
+    def toggle_timer(self):
+        if not self.selected_ids:
+            self.status.set("Select source questions before starting a local timer.")
+            return
+        if self.timer.running:
+            self.timer.pause()
+        else:
+            self.timer.start()
+        self.confirmed.set(False)
+        self.update_counter()
+
+    def reset_timer(self):
+        if not messagebox.askyesno("Reset local timer?", "Reset the recorded elapsed seconds for this new draft? Saved journal files remain unchanged.", parent=self):
+            return
+        self.timer.reset()
+        self.elapsed_seconds = 0
+        self.confirmed.set(False)
+        self.update_counter()
+
     def save(self):
         try:
+            self.timer.pause()
+            self.update_counter()
             current = self.state()
             if current == self.baseline and self.last_snapshot is not None:
                 raise ValueError("No changed rehearsal inputs to save; retain the existing version")
@@ -171,7 +209,7 @@ class RehearsalWindow(tk.Toplevel):
             self.status.set(str(exc))
 
     def saved_version(self):
-        if self.last_snapshot is None or self.state() != self.baseline:
+        if self.timer.running or self.last_snapshot is None or self.state() != self.baseline:
             raise ValueError("Save a new private journal version before using this tool")
         return self.last_snapshot
 
@@ -190,6 +228,13 @@ class RehearsalWindow(tk.Toplevel):
             self.status.set(str(exc))
 
     def close(self):
-        if self.state() != self.baseline and not messagebox.askyesno("Discard unsaved rehearsal?", "Close without saving these answer/reflection changes?", parent=self):
+        if (self.timer.running or self.state() != self.baseline) and not messagebox.askyesno("Discard unsaved rehearsal?", "Close without saving these answer/reflection changes?", parent=self):
             return
         self.destroy()
+
+    def destroy(self):
+        self.timer.pause()
+        if self.timer_job is not None:
+            self.after_cancel(self.timer_job)
+            self.timer_job = None
+        super().destroy()
