@@ -1,4 +1,4 @@
-# Personal-use readiness - v0.10.2
+# Personal-use readiness - v0.11.0
 
 **The local MVP has 8/8 core workflow groups implemented and offline tested.**
 That is implementation/verification scope, not an overall project percentage or
@@ -23,8 +23,8 @@ integrations have separate gates below. More commits cannot complete those gates
 | --- | --- | --- |
 | Public job discovery | Four provider subsets; live example results below | Board-dependent compatibility, unusual records and coverage |
 | Optional AI quote proposals | Implemented; offline contract, consent/cancellation tests | One explicitly authorized synthetic live request using a key entered only in the app, then human quality review; API charges may apply |
-| Calendar integration | Local `.ics` generation tested | Import one synthetic file into your calendar client and inspect date/time/content |
-| Connected accounts | Not implemented | Deliberate scope and authorization for mailbox/calendar/account sync; outside this local MVP |
+| Calendar integration | Local `.ics` export plus explicit Google one-way follow-up sync implemented/offline tested | Desktop OAuth setup, scope consent and a synthetic live trial; see [Google Calendar guide](google-calendar.md) |
+| Other connected accounts | Mailbox/general two-way account synchronization not implemented | Optional Google follow-up sync is the chosen narrow integration; no live account has been linked |
 
 Global cross-site job search, automatic applications, employer outreach and
 background account synchronization are not implemented. Manual source selection,
@@ -54,7 +54,7 @@ Existing source integrity and absence-is-not-closure limitations still apply.
 
 ## Start with the refreshed app
 
-Extract the complete `RoleWeave-0.10.2-windows-x64.zip` and open
+Extract the complete `RoleWeave-0.11.0-windows-x64.zip` and open
 `RoleWeave/RoleWeave.exe`, keeping `_internal` beside it. The build is unsigned.
 Choose **Getting started**, which now has scrollable First use, Readiness and
 Data tabs. Opening it sends nothing and changes no shelf records. Its footer

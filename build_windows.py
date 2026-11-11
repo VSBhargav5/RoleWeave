@@ -11,6 +11,10 @@ from uuid import uuid4
 
 from runtime_paths import APP_VERSION, RESOURCE_ROOT
 
+BUNDLED_DISTRIBUTIONS = ("reportlab", "Pillow", "charset-normalizer", "google-auth-oauthlib", "google-auth",
+                         "requests-oauthlib", "oauthlib", "requests", "urllib3", "certifi", "idna",
+                         "cryptography", "cffi", "pycparser", "pyasn1", "pyasn1-modules")
+
 
 def promote_package(staged, live):
     """Retain the previous complete app; roll back a failed promotion."""
@@ -44,16 +48,17 @@ def main():
     command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--onedir", "--windowed", "--noupx",
                "--name", "RoleWeave", "--distpath", str(staging), "--workpath", str(output / "pyinstaller-work"),
                "--specpath", str(output / "pyinstaller-spec"), "--collect-data", "reportlab",
-               "--collect-submodules", "reportlab.pdfbase", "--copy-metadata", "reportlab",
-               "--copy-metadata", "Pillow", "--copy-metadata", "charset-normalizer",
+               "--collect-submodules", "reportlab.pdfbase", "--collect-data", "certifi",
                "--add-data", str(root / "examples") + os.pathsep + "examples", str(root / "desktop.py")]
+    for distribution in BUNDLED_DISTRIBUTIONS:
+        command.extend(["--copy-metadata", distribution])
     subprocess.run(command, cwd=root, env=environment, check=True)
     package = staging / "RoleWeave"
     for name in ("README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(root / name, package / name)
     licenses = package / "licenses"
     licenses.mkdir(exist_ok=True)
-    for name in ("reportlab", "Pillow", "charset-normalizer"):
+    for name in BUNDLED_DISTRIBUTIONS:
         distribution = importlib.metadata.distribution(name)
         for item in distribution.files or []:
             if "license" in str(item).lower() or "copying" in str(item).lower():

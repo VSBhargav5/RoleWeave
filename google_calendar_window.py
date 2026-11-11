@@ -1,6 +1,7 @@
 """Reviewed, explicit, single-follow-up Calendar operations. No startup network."""
 import copy
 import json
+import sqlite3
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -147,7 +148,7 @@ class GoogleCalendarWindow(tk.Toplevel):
             item, events = self.inputs()
             self.show({"local_only": True, "event": desired_event(item, events, include_details=self.include_details.get())})
             self.status.set("Local preview only. Connect/select a calendar and read remote state before sending.")
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(str(exc))
 
     def prepare(self):
@@ -165,7 +166,7 @@ class GoogleCalendarWindow(tk.Toplevel):
             self.write_consent.set(False)
             self.task.start(work, self.prepared, self.failed)
             self.status.set("Reading one matching remote event. No calendar write is performed by preview.")
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, sqlite3.Error) as exc:
             self.status.set(str(exc))
 
     def prepared(self, result):
@@ -199,7 +200,10 @@ class GoogleCalendarWindow(tk.Toplevel):
         self.status.set("Cancelled locally. A sent request or browser consent may still complete; inspect remote state before retrying.")
 
     def close(self):
+        self.destroy()
+
+    def destroy(self):
         self.task.cancel()
         self.credentials = None
         self.client_secret.set("")
-        self.destroy()
+        super().destroy()

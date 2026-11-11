@@ -17,3 +17,13 @@ license. See https://pyinstaller.org/en/stable/license.html . Its build tools an
 pypdf are development dependencies rather than features of the application.
 
 No upstream Dossier, Jobleft, Cue or StudyFrame code/assets are imported.
+
+
+Optional Google Calendar browser consent uses Google's maintained
+`google-auth-oauthlib` and `google-auth` (Apache2.0), with requests-oauthlib
+(ISC), OAuthlib (BSD), Requests (Apache2.0), urllib3 (MIT), certifi (MPL2.0),
+idna (BSD), cryptography (Apache2.0/BSD), cffi (MIT), pycparser (BSD), pyasn1
+(BSD) and pyasn1-modules (BSD). Distribution license texts and package metadata
+are included in the portable build. See each pinned distribution's metadata
+and license under `licenses/` for the authoritative terms and attributions.
+These are dependencies; no Google Calendar API server code is imported.
