@@ -1,5 +1,6 @@
 """Export reviewed application documents, excluding the private dossier evidence."""
 import argparse
+import hashlib
 from io import BytesIO
 from pathlib import Path
 import zipfile
@@ -31,6 +32,26 @@ def export_recipient_bundle(dossier, destination, formats, *, confirmed=False):
     payload = recipient_bytes(dossier, formats)
     publish_bytes(destination, payload)
 
+
+
+def export_upload_folder(dossier, destination, formats, *, confirmed=False):
+    """Reserve a new folder; publish its completion note only after all documents."""
+    if confirmed is not True:
+        raise ValueError("Review the selected employer documents and confirm export")
+    payload = recipient_bytes(dossier, formats)
+    with zipfile.ZipFile(BytesIO(payload)) as archive:
+        documents = {name: archive.read(name) for name in archive.namelist()}
+    destination = Path(destination)
+    destination.mkdir()  # Exclusive reservation: never reuse an existing folder.
+    lines = ["ROLEWEAVE UPLOAD FILES — EXPORT COMPLETE",
+             "Upload only the listed resume/letter documents, not this information file.",
+             "Private dossier, profile sources and tracking history are excluded.",
+             "No application was submitted. Proofread documents before uploading.", ""]
+    for name, content in documents.items():
+        publish_bytes(destination / name, content)
+        lines.append(name + "  SHA256 " + hashlib.sha256(content).hexdigest())
+    publish_bytes(destination / "EXPORT-INFO.txt", ("\n".join(lines) + "\n").encode("utf-8"))
+    return destination
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
