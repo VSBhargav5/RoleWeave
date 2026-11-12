@@ -5,6 +5,7 @@ from tkinter import ttk, messagebox, filedialog
 from desktop_theme import polish_widgets
 
 from applications import STAGES, current_application
+from submission_window import SubmissionWindow
 
 
 class ApplicationTracker(tk.Toplevel):
@@ -41,13 +42,25 @@ class ApplicationTracker(tk.Toplevel):
         self.history.grid(row=6, column=0, columnspan=2, sticky="nsew")
         self.status = tk.StringVar(value="Follow-up dates are local calendar dates. No background notifications.")
         ttk.Label(body, textvariable=self.status, wraplength=740).grid(row=7, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Button(body, text="Record observation", style="Primary.TButton", command=self.record).grid(row=8, column=0, sticky="w")
-        ttk.Button(body, text="Close", command=self.close).grid(row=8, column=1, sticky="e")
+        actions = ttk.Frame(body)
+        actions.grid(row=8, column=0, columnspan=2, sticky="ew")
+        ttk.Button(actions, text="Record observation", style="Primary.TButton", command=self.record).pack(side="left")
+        ttk.Button(actions, text="Record submitted application…", command=self.open_submission).pack(side="left", padx=8)
+        ttk.Button(actions, text="Close", command=self.close).pack(side="right")
         ttk.Button(body, text="Export follow-up calendar (.ics)", command=self.export_calendar).grid(row=9, column=0, sticky="w", pady=8)
         ttk.Button(body, text="Reload saved tracking", command=self.reload_current).grid(row=9, column=1, sticky="e", pady=8)
         polish_widgets(self)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.refresh()
+
+    def open_submission(self):
+        if self.note.get("1.0", "end-1c").strip() or self.stage.get() != self.current["stage"] or self.follow_up.get() != self.current["follow_up"]:
+            self.status.set("Record or discard your tracking edits before opening the submission form.")
+            return
+        def changed(identifier):
+            self.refresh()
+            self.on_change(identifier)
+        return SubmissionWindow(self, self.store, self.identifier, changed)
 
     def refresh(self):
         events = self.store.application_history(self.identifier)

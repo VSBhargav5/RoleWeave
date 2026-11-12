@@ -2,7 +2,7 @@ from datetime import date, timedelta
 import unittest
 
 from application_dossier import build_dossier
-from submission_receipt import record_submission
+from submission_receipt import record_submission, record_basic_submission
 import test_application_dossier as dossier_tests
 
 
@@ -35,3 +35,31 @@ class SubmissionReceiptTests(unittest.TestCase):
                 self.record(**options)
         self.assertEqual(self.store.application_history(self.job), [])
         self.assertEqual(self.store.application_history(other), [])
+
+    def test_basic_record_needs_no_dossier_and_preserves_later_stage(self):
+        self.store.record_application(self.job, "interview", "Later stage", "2026-12-03")
+        event = record_basic_submission(self.store, self.job, date.today().isoformat(), "Employer portal", "REF-123", "Observed manually", confirmed=True)
+        self.assertEqual(event["stage"], "interview")
+        self.assertEqual(event["follow_up"], "2026-12-03")
+        self.assertIn("Prepared documents: not linked", event["note"])
+        self.assertIn("REF-123", event["note"])
+        with self.assertRaisesRegex(ValueError, "already recorded"):
+            record_basic_submission(self.store, self.job, date.today().isoformat(), "Employer portal", "REF-123", "Observed manually", confirmed=True)
+
+    def test_basic_record_validates_consent_date_channel_and_new_followup(self):
+        args = (self.store, self.job, date.today().isoformat(), "Employer portal", "", "")
+        with self.assertRaises(ValueError):
+            record_basic_submission(*args)
+        with self.assertRaises(ValueError):
+            record_basic_submission(*args, confirmed=True, follow_up="tomorrow")
+        self.assertEqual(self.store.application_history(self.job), [])
+        event = record_basic_submission(*args, confirmed=True, follow_up="2026-12-01")
+        self.assertEqual(event["stage"], "applied")
+        self.assertEqual(event["follow_up"], "2026-12-01")
+
+    def test_stale_submission_revision_cannot_overwrite_newer_followup(self):
+        self.store.record_application(self.job, "shortlisted", "Other window", "2026-12-03")
+        with self.assertRaisesRegex(ValueError, "history changed"):
+            record_basic_submission(self.store, self.job, date.today().isoformat(), "Email", "", "", confirmed=True, follow_up="", expected_revision=0)
+        self.assertEqual(len(self.store.application_history(self.job)), 1)
+        self.assertEqual(self.store.application_history(self.job)[-1]["follow_up"], "2026-12-03")

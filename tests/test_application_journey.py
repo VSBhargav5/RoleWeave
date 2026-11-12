@@ -3,7 +3,6 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-import zipfile
 
 from applications import current_application
 from job_store import JobStore
@@ -78,21 +77,28 @@ class ApplicationJourneyTests(unittest.TestCase):
         files.choices.selection_set(0)
         files.preview()
         files.confirmed.set(True)
-        bundle = self.folder / "recipient.zip"
-        with patch("dossier_window.simpledialog.askstring", return_value="pdf,txt"), patch("dossier_window.messagebox.askyesno", return_value=True), patch("dossier_window.filedialog.asksaveasfilename", return_value=str(bundle)):
-            files.export_resume_files()
-        with zipfile.ZipFile(bundle) as archive:
-            self.assertEqual(set(archive.namelist()), {"resume.pdf", "resume.txt"})
+        upload = files.open_upload_folder()
+        upload.formats["txt"].set(True)
+        with patch("upload_window.messagebox.askyesno", return_value=True), patch("upload_window.filedialog.askdirectory", return_value=str(self.folder)):
+            upload.export()
+        self.assertEqual({p.name for p in upload.last_folder.iterdir()}, {"resume.pdf", "resume.txt", "EXPORT-INFO.txt"})
+        self.assertEqual((upload.last_folder / "resume.pdf").read_bytes(), resume.read_bytes())
+        upload.destroy()
         files.destroy()
         with patch("desktop.webbrowser.open", return_value=True) as browser:
             self.shelf.open_application().launch("source")
         browser.assert_called_once_with("https://example.invalid/apply")
         self.assertEqual(self.store.application_history(exact_job), [])
         tracker = self.shelf.open_application().launch("track")
-        tracker.stage.set("applied")
-        tracker.note.insert("1.0", "Synthetic test only: user-reported submission; no real application sent.")
-        tracker.follow_up.set("2026-12-01")
-        tracker.record()
+        receipt = tracker.open_submission()
+        receipt.channel.set("Employer portal")
+        receipt.reference.set("SYNTHETIC-CONFIRMATION")
+        receipt.note.insert("1.0", "Synthetic test only; no real application sent.")
+        receipt.follow_up.set("2026-12-01")
+        receipt.confirmed.set(True)
+        receipt.record()
+        self.assertEqual(tracker.stage.get(), "applied")
+        receipt.destroy()
         tracker.destroy()
         self.assertEqual(current_application(self.store.application_history(exact_job))["stage"], "applied")
         backup = self.folder / "backup.json"
@@ -102,7 +108,7 @@ class ApplicationJourneyTests(unittest.TestCase):
         self.assertEqual(restored.application_history(exact_job), self.store.application_history(exact_job))
         self.assertEqual(restored.load(exact_job)["snapshot"], self.store.load(exact_job)["snapshot"])
         self.assertEqual(len(restored.list_resumes(exact_job)), 1)
-        self.assertEqual(len(list(self.folder.glob("*.zip"))), 1, "No private dossier was required or written")
+        self.assertEqual(list(self.folder.glob("*.zip")), [], "Neither ZIP nor private dossier is required for the complete handoff")
 
     def test_draft_or_changed_job_blocks_workspace_actions(self):
         journey = self.shelf.open_application()

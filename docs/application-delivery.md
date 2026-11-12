@@ -50,10 +50,12 @@ identity fail closed.
 
 ## Record a submission you made yourself
 
-Choose Record my manual submission, load the matching private dossier, enter your
-observed date/channel/reference/note, and explicitly confirm. This appends a
-user-reported applied revision, preserving the current follow-up and earlier
-history. The dossier fingerprint links prepared evidence; it does not prove
+Choose Record submitted application in tracking (or Record my manual submission
+under Review files). Enter your observed date/channel/reference/note and follow-up,
+then explicitly confirm. A dossier is optional; attach a matching private dossier
+only if you want to link a prepared evidence version. This appends a user-reported submission revision, preserving later interview/
+offer/closed stages and earlier history. An omitted API follow-up keeps the saved
+date; the UI explicitly sets or clears the reviewed reminder. The dossier fingerprint links prepared evidence; it does not prove
 which files were actually sent. Identical observations are refused. No email,
 form filling or account service is invoked.
 
@@ -96,3 +98,19 @@ Open two tracker windows and predict the stale-write rejection. Explain why sour
 integrity and manual observations do not prove a real application was sent.
 User practice, live provider quality, manual dialogs/scaling, calendar-client use,
 connected accounts and real hiring outcomes remain unverified.
+
+
+## Upload-ready folders (v0.16)
+
+After choosing the exact resume and previewing/approving its documents, choose
+Save upload-ready folder. Select PDF/TXT/HTML and/or an available matching letter
+using checkboxes. Pick a parent directory; a new uniquely named folder is created.
+No ZIP extraction or format-name typing is needed. Open the saved folder and
+proofread the actual documents before manually uploading them to the employer.
+
+Only selected recipient documents are written. EXPORT-INFO.txt lists names and
+hashes and is written last; it is for local reference, not an employer attachment.
+The folder must be new: existing empty/populated folders are never reused. A failed
+write can leave an incomplete folder without that completion note. Do not upload
+from it; retry a new export. No cleanup deletes user files. Hashes are integrity
+checks, not authenticity or evidence that you uploaded any document.

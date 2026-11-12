@@ -40,9 +40,9 @@ class ApplicationJourney(tk.Toplevel):
             ("evidence", "2. Review this job", "Read its requirements and link relevant evidence; gaps remain visible.", "Review evidence", True),
             ("resume", "3. Prepare your resume", f"{len(resumes)} saved resume version(s) for this exact job. Preview, approve, save and export." if profile else "Create an active profile first. You choose which reviewed claims to include.", "Build / export resume", profile is not None),
             ("letter", "4. Optional cover letter", "Write and review a letter using your sourced claims; skip if unnecessary.", "Prepare letter", profile is not None),
-            ("files", "5. Optional document bundle", "Export recipient files and extract the chosen documents before upload. Never upload a private dossier." if resumes else "Save a resume for this exact job first; general resumes are not substituted.", "Prepare files", bool(resumes)),
+            ("files", "5. Optional document bundle", "Save an upload-ready folder of selected resume/letter files. No ZIP extraction; private dossiers stay private." if resumes else "Save a resume for this exact job first; general resumes are not substituted.", "Prepare files", bool(resumes)),
             ("source", "6. Apply on the job site", "Open the saved HTTPS posting and follow the employer's application process." if source_available else "Add a valid HTTPS source URL in Job details, then save the posting; or apply independently.", "Open saved job page", source_available),
-            ("track", "7. Record what happened", "After you submit, record Applied and a follow-up. No private dossier is required for basic tracking.", "Record / follow up", True),
+            ("track", "7. Record what happened", "After you submit, record the date/channel/reference and a follow-up in tracking. A private dossier is optional.", "Record / follow up", True),
         )
         self.buttons = {}
         for key, title, hint, action, enabled in steps:

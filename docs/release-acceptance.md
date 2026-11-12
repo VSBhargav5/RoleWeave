@@ -1,4 +1,4 @@
-# Release acceptance — v0.15 controlled beta
+# Release acceptance — v0.16 controlled beta
 
 RoleWeave is a local Windows x64 application. Its implemented workflows are not
 proof of production reliability, personal usefulness, hiring outcomes or live
@@ -105,7 +105,7 @@ Download the portable/setup artifact and release-evidence artifact from the
 same successful CI run. Compare the relevant file hash with SHA256SUMS.txt:
 
 ```powershell
-Get-FileHash -LiteralPath .\RoleWeave-0.15.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash -LiteralPath .\RoleWeave-0.16.0-windows-x64.zip -Algorithm SHA256
 ```
 
 A matching hash detects a changed download relative to that run. It does not

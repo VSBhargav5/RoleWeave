@@ -54,6 +54,11 @@ def run_self_test(folder, shelf_type):
         assert not journey.buttons["track"].instate(["disabled"])
         journey.destroy()
         report["checks"].append("visible-application-journey-without-private-dossier-requirement")
+        submission = shelf.open_submission()
+        assert submission.dossier is None
+        assert submission.follow_up.get() == ""
+        submission.destroy()
+        report["checks"].append("basic-submission-form-without-dossier-or-send")
         guide = shelf.open_help()
         guide.withdraw()
         assert "8/8" in guide.help_pages["Readiness and remaining work"].get("1.0", "end")
@@ -128,7 +133,7 @@ def run_self_test(folder, shelf_type):
         from application_dossier import verify_dossier_bytes
         from cover_letter import export_letter
         from correspondence import record_correspondence
-        from recipient_bundle import export_recipient_bundle
+        from recipient_bundle import export_recipient_bundle, export_upload_folder
         from submission_receipt import record_submission
         from datetime import date, datetime, timezone
         letter = shelf.open_letter()
@@ -152,6 +157,13 @@ def run_self_test(folder, shelf_type):
         publish_bytes(folder / "synthetic-private-dossier.zip", dossier_bytes)
         assert verify_dossier_bytes(dossier_bytes)["job"]["id"] == job
         export_recipient_bundle(dossier_bytes, folder / "synthetic-recipient-files.zip", ["pdf", "letter"], confirmed=True)
+        export_upload_folder(dossier_bytes, folder / "synthetic-upload", ["pdf", "letter"], confirmed=True)
+        assert {path.name for path in (folder / "synthetic-upload").iterdir()} == {"resume.pdf", "cover-letter.txt", "EXPORT-INFO.txt"}
+        dossier.confirmed.set(True)
+        upload = dossier.open_upload_folder()
+        assert upload.formats["pdf"].get()
+        upload.destroy()
+        report["checks"].append("recipient-upload-folder-and-native-format-picker")
         dossier.destroy()
         record_submission(store, job, dossier_bytes, date.today().isoformat(), "Employer portal",
                           "Synthetic reference", "Offline synthetic observation only.", confirmed=True)

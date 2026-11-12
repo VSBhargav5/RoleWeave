@@ -8,7 +8,7 @@ from roleweave import text
 CHANNELS = ("Employer portal", "Email", "Referral", "Other")
 
 
-def record_submission(store, job_id, dossier, submitted_on, channel, reference, note, *, confirmed=False):
+def _validate_submission(submitted_on, channel, reference, note, confirmed):
     if confirmed is not True:
         raise ValueError("Explicitly confirm your own submission observation")
     follow_up_date(submitted_on)
@@ -21,6 +21,23 @@ def record_submission(store, job_id, dossier, submitted_on, channel, reference, 
             raise ValueError(label + " exceeds its text limit")
         if value:
             text(value, label)
+
+
+def _append_submission(store, job_id, message, follow_up, expected_revision):
+    history = store.application_history(job_id)
+    if expected_revision is not None and len(history) != expected_revision:
+        raise ValueError("Application history changed. Reload saved tracking and review it before confirming again; your draft is retained.")
+    if any(event["note"] == message for event in history):
+        raise ValueError("This exact submission observation is already recorded")
+    current = current_application(history)
+    selected_date = current["follow_up"] if follow_up is None else follow_up_date(follow_up)
+    # A historical receipt must not reset a later interview/offer/closed state.
+    stage = current["stage"] if current["stage"] in ("interview", "offer", "closed", "withdrawn") else "applied"
+    return store.record_application(job_id, stage, message, selected_date, expected_revision=len(history))
+
+
+def record_submission(store, job_id, dossier, submitted_on, channel, reference, note, *, confirmed=False, follow_up=None, expected_revision=None):
+    _validate_submission(submitted_on, channel, reference, note, confirmed)
     report = verify_dossier_bytes(dossier)
     item = store.load(job_id)
     if report["job"] != {key: item[key] for key in JOB_FIELDS}:
@@ -32,9 +49,15 @@ def record_submission(store, job_id, dossier, submitted_on, channel, reference, 
                f"Frozen resume version: {report['resume_id']}\n"
                "Dossier reference does not prove which files were sent.\n"
                f"Your observation: {note or 'No additional note'}")
-    # Preserve the current follow-up explicitly; history is append-only.
-    history = store.application_history(job_id)
-    if any(event["stage"] == "applied" and event["note"] == message for event in history):
-        raise ValueError("This exact submission observation is already recorded")
-    current = current_application(history)
-    return store.record_application(job_id, "applied", message, current["follow_up"], expected_revision=len(history))
+    return _append_submission(store, job_id, message, follow_up, expected_revision)
+
+
+def record_basic_submission(store, job_id, submitted_on, channel, reference, note, *, confirmed=False, follow_up=None, expected_revision=None):
+    _validate_submission(submitted_on, channel, reference, note, confirmed)
+    store.load(job_id)
+    message = ("USER-REPORTED SUBMISSION (not independently verified)\n"
+               f"Observed submission date: {submitted_on}\nChannel: {channel}\n"
+               f"Your reference: {reference or 'Not recorded'}\n"
+               "Prepared documents: not linked; no file transmission is verified.\n"
+               f"Your observation: {note or 'No additional note'}")
+    return _append_submission(store, job_id, message, follow_up, expected_revision)

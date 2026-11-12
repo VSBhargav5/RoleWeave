@@ -23,8 +23,12 @@ the selected job. Google/AI are not required.
    HTML/TXT if requested. Open/proofread the actual file; check contact details,
    claims, spelling and layout. Exported documents omit private source notes.
 6. **Optional letter/bundle.** Prepare a letter if needed. The document-bundle
-   window previews a resume frozen for this exact job and exports selected
-   recipient files. Extract a recipient ZIP before uploading the chosen PDF/TXT.
+   window previews a resume frozen for this exact job. After preview/approval,
+   choose Save upload-ready folder, tick the requested documents and choose a
+   parent folder. RoleWeave creates a new folder with actual resume/letter files.
+   Upload those documents, not EXPORT-INFO.txt. The info file appears only after
+   every selected document was saved. If an export fails, do not use a partial
+   folder; retry into a new folder. Legacy ZIP export remains available.
    Never upload a private dossier ZIP: it includes source/history information.
    A dossier export is not required to prepare files or track an application.
 7. **Open saved job page.** Finish the employer's application steps in your
@@ -32,8 +36,10 @@ the selected job. Google/AI are not required.
    your confirmation/reference if provided. RoleWeave cannot verify a successful
    submission, current vacancy, applicant eligibility or which files were sent.
 8. **Record/follow up.** Return to Apply workspace and choose Record / follow up.
-   Select Applied only after you submitted. Record your note/reference and a
-   follow-up date; save. Later record replies/interviews/closure as observations.
+   Choose Record submitted application after you submitted. Enter your observed
+   date, channel, reference and follow-up, then explicitly confirm your own
+   submission. A dossier is optional. Earlier interview/offer/closed states are
+   retained instead of being reset by an older submission note. Later record replies/interviews/closure as observations.
    A basic record requires no dossier. Optional evidence-linked submission receipts
    remain available under Review files if you want that extra provenance.
 9. **Back up.** Back up the shelf and test restore into a separate shelf. Preserve
@@ -50,8 +56,8 @@ that failure instead of saying the page opened.
 
 A fresh synthetic native Windows UI journey starts with an empty shelf, saves a
 posting, creates a reviewed profile, links exact evidence, freezes/exports a PDF,
-exports a letter and recipient-only ZIP, exercises a mocked browser handoff,
-records an explicit Applied observation/follow-up and restores the full records
+exports a letter and an upload-ready PDF/TXT folder, exercises a mocked browser handoff,
+records an explicit dated/channel/reference submission and follow-up, then restores the full records
 into a separate shelf. It checks that source notes stay out of employer-facing
 files, that no private dossier was written, and that page opening alone creates
 no application history. The PDF text is parsed back for inspection. This proves
@@ -66,3 +72,18 @@ Use synthetic practice before personal data. The browser handoff is mocked in
 tests; no employer receives data. Native minimum-size actions, unsaved drafts,
 missing URLs and failed browser launches have regression coverage. Unusual
 scaling, actual portal behavior and your own document layout need your review.
+
+
+## Submission conflicts and corrections
+
+If another window changed tracking while the submission form was open, your
+write is refused and the draft stays. Reload latest tracking/follow-up, review
+it and confirm again; the submission date/channel/reference/note are retained.
+Canceling reload changes nothing. Exact duplicate observations are refused.
+Changing a reminder without adding another submission belongs in tracking.
+A saved observation followed by a view-refresh error is reported as saved,
+so repeating the action does not silently create another history entry.
+
+An optional matching dossier links prepared versions, not proof of uploaded
+files or a successful application. Basic receipts explicitly say that documents
+are not linked. Both modes remain user-reported, not employer verification.

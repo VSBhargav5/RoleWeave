@@ -91,3 +91,9 @@ class TrackerTests(unittest.TestCase):
             self.tracker.reload_current()
         self.assertEqual(self.tracker.stage.get(), "interview")
         self.assertEqual(self.tracker.follow_up.get(), "2026-12-03")
+
+    def test_submission_form_does_not_discard_pending_tracking_edits(self):
+        self.tracker.note.insert("1.0", "Pending decision")
+        self.assertIsNone(self.tracker.open_submission())
+        self.assertIn("tracking edits", self.tracker.status.get())
+        self.assertIn("Pending decision", self.tracker.note.get("1.0", "end"))

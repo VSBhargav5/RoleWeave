@@ -10,6 +10,7 @@ from application_dossier import build_dossier
 from desktop_theme import polish_widgets, reserve_footer
 from safe_export import publish_bytes
 from recipient_bundle import recipient_bytes
+from upload_window import UploadWindow
 from cover_letter import read_letter
 from letter_window import LetterWindow
 from career_profile import profile_snapshot
@@ -50,10 +51,11 @@ class DossierWindow(tk.Toplevel):
         tabs.add(self.letter_text, text="Frozen letter text")
         self.confirmed = tk.BooleanVar(value=False)
         ttk.Checkbutton(body, text="I reviewed this private archive and confirm local export.", variable=self.confirmed).pack(anchor="w")
+        ttk.Button(body, text="Save upload-ready folder…", style="Primary.TButton", command=self.open_upload_folder).pack(anchor="w", pady=(6, 0))
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
         ttk.Button(actions, text="Export private dossier ZIP", command=self.export).pack(side="left")
-        ttk.Button(actions, text="Export recipient files", style="Primary.TButton", command=self.export_resume_files).pack(side="left", padx=8)
+        ttk.Button(actions, text="Export recipient ZIP", command=self.export_resume_files).pack(side="left", padx=8)
         letter_menu = tk.Menu(self, tearoff=False)
         letter_menu.add_command(label="Prepare letter from matching profile", command=self.prepare_matching_letter)
         letter_menu.add_command(label="Attach saved matching letter", command=self.attach_letter)
@@ -129,6 +131,13 @@ class DossierWindow(tk.Toplevel):
         self.invalidate()
         self.letter_snapshot = None
         self.status.set("Letter removed from this draft dossier.")
+
+    def open_upload_folder(self):
+        selection = self.choices.curselection()
+        if self.prepared is None or not self.confirmed.get() or not selection or self.versions[selection[0]]["id"] != self.prepared[0]:
+            self.status.set("Preview the selected resume and confirm review before choosing upload files.")
+            return
+        return UploadWindow(self, self.prepared[1])
 
     def export_resume_files(self):
         try:
