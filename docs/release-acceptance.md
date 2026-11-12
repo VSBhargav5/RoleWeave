@@ -5,6 +5,19 @@ proof of production reliability, personal usefulness, hiring outcomes or live
 integration compatibility. This release is unsigned and suitable for a controlled
 trial with synthetic data before private use. No automatic update service exists.
 
+## Agreed v1 scope
+
+On 12 November the owner chose **local Windows v1 first**. V1 covers the eight
+local workflow groups in personal-readiness.md. Google Calendar and AI remain
+optional preview integrations; their live trials are not local-v1 blockers and
+they must not be advertised as production-validated. Global discovery, automatic
+applications and general account synchronization are outside this release scope.
+
+Local v1 acceptance focuses on first launch, reviewed local records/documents,
+manual tracking, explicit exports and recovery. Signing/distribution and
+interrupted-upgrade confidence are tracked separately below. The beta label
+remains until the agreed local acceptance evidence exists.
+
 ## Verified release gates
 
 - Offline tests cover exact evidence, documents, tracking, guarded exports,
@@ -32,8 +45,8 @@ trial with synthetic data before private use. No automatic update service exists
 | Private workflow | Use a permitted profile/posting, proofread exact resume/letter, review recipient-only files and manual tracking | Pending human trial |
 | Recovery drill | Back up; restore into a separate shelf; compare profiles, resumes and history; separately preserve journals/archives/exports | Automated synthetic checks; human drill pending |
 | Signing and distribution | Choose signing identity, verify signed installer/package on clean Windows, publish a deliberate versioned release | Unsigned; no signing identity configured |
-| Google follow-ups | User-owned Desktop OAuth setup, consent and synthetic create/read/update/ETag conflict trial | Implemented/offline tested; no live account linked |
-| Optional AI | One explicitly consented synthetic request, human quote-quality review and error/cancel observation | Implemented/offline tested; paid trial not authorized |
+| Google follow-ups | User-owned Desktop OAuth setup, consent and synthetic create/read/update/ETag conflict trial | Optional preview, excluded from local v1; no live account linked |
+| Optional AI | One explicitly consented synthetic request, human quote-quality review and error/cancel observation | Optional preview, excluded from local v1; paid trial not authorized |
 | Wider provider compatibility | Test permitted boards and large/unusual records without silent partial import | Limited historical samples only |
 | Interrupted upgrade | Terminate/restart installer in an isolated Windows test environment and verify old data/build recovery | Pending; ordinary lifecycle CI is not this test |
 

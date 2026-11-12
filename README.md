@@ -14,7 +14,8 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 V0.14 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
-behavior remain gates. See [release acceptance](docs/release-acceptance.md) for
+behavior are recorded separately. The agreed v1 scope is the local Windows
+workflows; Google/AI remain optional previews outside local-v1 acceptance. See [release acceptance](docs/release-acceptance.md) for
 what must be verified before recommending general use.
 
 ## Start on Windows
