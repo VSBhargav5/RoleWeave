@@ -48,6 +48,12 @@ def run_self_test(folder, shelf_type):
         assert "Python required" in shelf.evidence.plain_text
         assert len(shelf.evidence.content.winfo_children()) == 2
         report["checks"].append("dark-rounded-controls-and-exact-evidence-cards")
+        journey = shelf.open_application()
+        assert journey.job_id == job
+        assert journey.buttons["files"].instate(["disabled"])
+        assert not journey.buttons["track"].instate(["disabled"])
+        journey.destroy()
+        report["checks"].append("visible-application-journey-without-private-dossier-requirement")
         guide = shelf.open_help()
         guide.withdraw()
         assert "8/8" in guide.help_pages["Readiness and remaining work"].get("1.0", "end")
