@@ -35,6 +35,7 @@ from review_history import ReviewHistory
 from interview_practice import InterviewPractice
 from workspace_health import inspect_database
 from visual_components import EvidenceCards, WeaveArt
+from desktop_errors import install_error_handler
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -871,6 +872,7 @@ def main():
     if args.self_test:
         raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
     root = tk.Tk()
+    install_error_handler(root)
     root.title(f"RoleWeave {APP_VERSION} - {'Synthetic practice' if args.demo else 'Job workspace'}")
     # Leave room for window chrome/taskbar in Tk's DPI-scaled screen coordinates.
     initial_width = max(1040, min(1360, root.winfo_screenwidth() - 80))
@@ -891,12 +893,13 @@ def main():
         elif not store.list_jobs() and not store.active_profile():
             shelf.status.set("Welcome. Start with Career profile, or use Getting started to open a separate synthetic practice workspace.")
         root.protocol("WM_DELETE_WINDOW", shelf.close)
-    except (OSError, sqlite3.Error, ValueError) as exc:
-        messagebox.showerror("Could not open local database", str(exc))
+    except (OSError, sqlite3.Error, ValueError, RuntimeError, tk.TclError) as exc:
+        messagebox.showerror("Could not open RoleWeave", str(exc), parent=root)
         root.destroy()
-        return
+        return 1
     root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
