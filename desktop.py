@@ -36,6 +36,7 @@ from interview_practice import InterviewPractice
 from workspace_health import inspect_database
 from visual_components import EvidenceCards, WeaveArt
 from desktop_errors import install_error_handler
+from application_journey import ApplicationJourney
 
 MARKET_LABELS = {"India / remote from India": "india_remote", "International relocation": "relocation"}
 
@@ -257,7 +258,7 @@ class JobShelf(ttk.Frame):
         actions = ttk.Frame(right)
         actions.grid(row=3, column=0, sticky="ew", pady=(14, 0))
         ttk.Button(actions, text="Save posting only", command=self.save).pack(side="left")
-        ttk.Button(actions, text="Review evidence", style="Primary.TButton", command=self.edit_evidence).pack(side="left", padx=8)
+        ttk.Button(actions, text="Apply workspace", style="Primary.TButton", command=self.open_application).pack(side="left", padx=8)
         ttk.Button(actions, text="Reload saved", command=self.reload_saved).pack(side="right")
         self.status = tk.StringVar(value="Your shelf stays local. Discovery and AI requests happen only when you choose them.")
         status_label = ttk.Label(workspace, textvariable=self.status, style="AppMuted.TLabel", wraplength=900)
@@ -274,6 +275,15 @@ class JobShelf(ttk.Frame):
     def focus_workspace(self):
         self.detail_tabs.select(0)
         self.posting.focus_set()
+
+    def open_application(self):
+        if self.current_id is None or self.has_draft_changes():
+            self.status.set("Save a job and save/discard edits before opening its Apply workspace.")
+            return
+        try:
+            return ApplicationJourney(self)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set(str(exc))
 
     def open_correspondence(self):
         if self.current_id is None or self.has_draft_changes():
@@ -391,9 +401,11 @@ class JobShelf(ttk.Frame):
             return
         try:
             url = source_link(self.store.load(self.current_id)["source_url"])
-            webbrowser.open(url)
+            if not webbrowser.open(url):
+                self.status.set("Your browser did not open the saved job page. Check your default browser, or copy the HTTPS URL from Job details.")
+                return
             self.status.set("Opened the saved posting URL in your browser. This does not submit an application.")
-        except (ValueError, OSError, sqlite3.Error) as exc:
+        except (ValueError, OSError, sqlite3.Error, webbrowser.Error) as exc:
             self.status.set(str(exc))
 
     def inspect_backup(self):

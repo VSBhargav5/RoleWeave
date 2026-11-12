@@ -23,7 +23,7 @@ class DossierWindow(tk.Toplevel):
         super().__init__(parent)
         self.store, self.prepared = store, None
         self.letter_snapshot = None
-        self.title("RoleWeave - Private application dossier")
+        self.title("RoleWeave - Application files")
         self.geometry("1000x760")
         self.minsize(850, 650)
         self.transient(parent)
@@ -53,7 +53,7 @@ class DossierWindow(tk.Toplevel):
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=8)
         ttk.Button(actions, text="Export private dossier ZIP", command=self.export).pack(side="left")
-        ttk.Button(actions, text="Export recipient files", command=self.export_resume_files).pack(side="left", padx=8)
+        ttk.Button(actions, text="Export recipient files", style="Primary.TButton", command=self.export_resume_files).pack(side="left", padx=8)
         letter_menu = tk.Menu(self, tearoff=False)
         letter_menu.add_command(label="Prepare letter from matching profile", command=self.prepare_matching_letter)
         letter_menu.add_command(label="Attach saved matching letter", command=self.attach_letter)
