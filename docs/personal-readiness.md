@@ -1,4 +1,4 @@
-# Personal-use readiness - v0.15.0
+# Personal-use readiness - v0.16.0
 
 **The local MVP has 8/8 core workflow groups implemented and offline tested.**
 That is implementation/verification scope, not an overall project percentage or
@@ -54,7 +54,7 @@ Existing source integrity and absence-is-not-closure limitations still apply.
 
 ## Start with the refreshed app
 
-Extract the complete `RoleWeave-0.15.0-windows-x64.zip` and open
+Extract the complete `RoleWeave-0.16.0-windows-x64.zip` and open
 `RoleWeave/RoleWeave.exe`, keeping `_internal` beside it. The build is unsigned.
 Choose **Getting started**, which now has scrollable First use, Readiness and
 Data tabs. Opening it sends nothing and changes no shelf records. Its footer
