@@ -66,6 +66,61 @@ def backup_record(record):
             record["market"], record["captured_at"], record["input_sha256"], snapshot)
 
 
+SCHEMA_APPLICATION_ID = 0x52575645  # RWVE; local file-format identity, not authentication.
+SCHEMA_VERSION = 1
+SCHEMA = (
+    """CREATE TABLE IF NOT EXISTS jobs (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL, company TEXT NOT NULL,
+                source_url TEXT NOT NULL, market TEXT NOT NULL,
+                captured_at TEXT NOT NULL, input_sha256 TEXT NOT NULL,
+                snapshot BLOB NOT NULL,
+                UNIQUE(title, company, source_url, input_sha256))""",
+    """CREATE TABLE IF NOT EXISTS application_events (
+                id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id),
+                revision INTEGER NOT NULL, stage TEXT NOT NULL, note TEXT NOT NULL,
+                follow_up TEXT NOT NULL, recorded_at TEXT NOT NULL,
+                UNIQUE(job_id, revision))""",
+    """CREATE TABLE IF NOT EXISTS career_profiles (
+                id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
+                snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""",
+    "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    """CREATE TABLE IF NOT EXISTS resume_versions (
+                id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
+                snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""",
+)
+
+
+def initialize_schema(db):
+    """Refuse unsupported files before writes; adopt known legacy shelves atomically."""
+    db.execute("BEGIN IMMEDIATE")
+    identity = db.execute("PRAGMA application_id").fetchone()[0]
+    version = db.execute("PRAGMA user_version").fetchone()[0]
+    if (identity, version) not in ((0, 0), (SCHEMA_APPLICATION_ID, SCHEMA_VERSION)):
+        raise ValueError("Unsupported database identity or newer schema. Use the matching RoleWeave version; do not overwrite this file.")
+    objects = db.execute("SELECT type, name, sql FROM sqlite_master WHERE name NOT GLOB 'sqlite_*'").fetchall()
+    with closing(sqlite3.connect(":memory:")) as reference:
+        for statement in SCHEMA:
+            reference.execute(statement)
+        expected = dict(reference.execute("SELECT name, sql FROM sqlite_master WHERE type='table'"))
+    existing = {}
+    def normalized(sql):
+        return " ".join(sql.casefold().split()).replace("if not exists ", "")
+    for kind, name, sql in objects:
+        if kind != "table" or name not in expected or normalized(sql) != normalized(expected[name]):
+            raise ValueError("Unsupported database structure. Keep the original file and restore a verified backup into a separate shelf.")
+        existing[name] = sql
+    if existing and "jobs" not in existing:
+        raise ValueError("Database is not a recognized RoleWeave shelf; original file preserved.")
+    if identity == SCHEMA_APPLICATION_ID and set(existing) != set(expected):
+        raise ValueError("RoleWeave schema is incomplete. Keep the original file and restore a verified backup into a separate shelf.")
+    if identity == SCHEMA_APPLICATION_ID:
+        return
+    for statement in SCHEMA:
+        db.execute(statement)
+    db.execute(f"PRAGMA application_id={SCHEMA_APPLICATION_ID}")
+    db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+
+
 class JobStore:
     @staticmethod
     def inspect_backup(source):
@@ -82,24 +137,7 @@ class JobStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(self.path)) as db, db:
-            db.execute("""CREATE TABLE IF NOT EXISTS jobs (
-                id TEXT PRIMARY KEY, title TEXT NOT NULL, company TEXT NOT NULL,
-                source_url TEXT NOT NULL, market TEXT NOT NULL,
-                captured_at TEXT NOT NULL, input_sha256 TEXT NOT NULL,
-                snapshot BLOB NOT NULL,
-                UNIQUE(title, company, source_url, input_sha256))""")
-            db.execute("""CREATE TABLE IF NOT EXISTS application_events (
-                id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id),
-                revision INTEGER NOT NULL, stage TEXT NOT NULL, note TEXT NOT NULL,
-                follow_up TEXT NOT NULL, recorded_at TEXT NOT NULL,
-                UNIQUE(job_id, revision))""")
-            db.execute("""CREATE TABLE IF NOT EXISTS career_profiles (
-                id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
-                snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""")
-            db.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
-            db.execute("""CREATE TABLE IF NOT EXISTS resume_versions (
-                id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
-                snapshot_sha256 TEXT NOT NULL, snapshot BLOB NOT NULL)""")
+            initialize_schema(db)
 
     def create_resume(self, profile_id, identifiers, label, job_id=None, include_pdf=True, confirmed=False):
         if confirmed is not True:

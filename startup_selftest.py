@@ -1,12 +1,15 @@
 """Packaged-runtime smoke using a fresh, explicit synthetic output directory."""
 import json
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 import platform
 import sys
 import tkinter as tk
 
 from demo_data import seed_practice
-from job_store import JobStore
+from job_store import JobStore, SCHEMA_APPLICATION_ID, SCHEMA_VERSION
+from desktop_errors import install_error_handler
 from runtime_paths import APP_VERSION, RESOURCE_ROOT
 from discovery import parse_board
 from workspace_exports import review_list_csv, follow_up_list
@@ -25,6 +28,12 @@ def run_self_test(folder, shelf_type):
         report["checks"].append("sqlite-and-bundled-examples")
         root = tk.Tk()
         root.withdraw()
+        install_error_handler(root)
+        assert callable(root.report_callback_exception)
+        with closing(sqlite3.connect(store.path)) as schema:
+            assert schema.execute("PRAGMA application_id").fetchone()[0] == SCHEMA_APPLICATION_ID
+            assert schema.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        report["checks"].append("recognized-schema-and-private-ui-error-handler")
         shelf = shelf_type(root, store)
         shelf.show_saved(job)
         assert shelf.jobs.selection() == (job,)
