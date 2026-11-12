@@ -9,12 +9,20 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## Release status
+
+V0.14 is an unsigned Windows x64 **controlled beta**, not a verified production
+release. The local workflows are implemented and offline tested; personal
+acceptance, unusual display scaling, signing and optional live account/model
+behavior remain gates. See [release acceptance](docs/release-acceptance.md) for
+what must be verified before recommending general use.
+
 ## Start on Windows
 
 [What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
 
 
-Version0.13.0 includes reviewed cover letters, exact private application dossiers,
+Version0.14.0 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -23,10 +31,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.13.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.14.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.13.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.14.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
@@ -269,3 +277,12 @@ Near-black surfaces, violet/cyan accents, rounded controls, gradient weave artwo
 and structured evidence cards replace the previous light presentation. Large
 reviews use 20-card pages and explicitly copy the complete review text. See
 [workspace design](docs/workspace-design.md) for behavior and verification.
+
+### Safer startup in v0.14
+
+Startup recognizes the supported shelf format before initializing tables. Known
+legacy shelves are adopted in one transaction; foreign, altered or newer schemas
+are refused. Existing compatible shelves are reopened without header rewrites.
+Do not edit schema markers to bypass refusal or replace the original database.
+Unexpected UI callback failures display a private, non-persistent error code;
+review saved state before repeating an interrupted action.
