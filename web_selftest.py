@@ -36,6 +36,14 @@ def run_web_self_test(destination):
             if not get(asset): raise ValueError('Bundled asset missing')
         data = json.loads(get('/api/bootstrap'))
         resume = data['resumes'][0]
+        record = server.service.store.load_resume(resume['id'])['resume']
+        letter = server.service.letter({'job_id': record['job_context']['id'], 'resume_id': resume['id'],
+                                        'fact_ids': record['selected_fact_ids'], 'motivation': 'Synthetic runtime check.',
+                                        'closing': 'Thank you.', 'confirmed': True})
+        if json.loads(get('/api/letter?id='+letter['id']))['text'] != letter['text']:
+            raise ValueError('Saved letter unavailable')
+        if not json.loads(get('/api/bootstrap'))['letters']['items']:
+            raise ValueError('Saved letter catalog unavailable')
         # Demo freezes HTML; the core test suite separately covers PDF creation.
         if not get('/api/download?kind=resume&id='+resume['id']+'&format=html'):
             raise ValueError('Frozen resume unavailable')

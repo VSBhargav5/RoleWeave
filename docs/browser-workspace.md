@@ -22,8 +22,8 @@ Open advanced tools, or `python desktop.py --legacy`.
 5. Build resume: select reviewed facts, preview the exact text, confirm, then save
    and download the PDF. A frozen version retains its original profile and job.
    Cover letters use the frozen resume's profile; preview your own introduction,
-   selected facts and closing before downloading TXT. Recipient ZIPs contain only
-   the explicitly chosen resume PDF, excluding private evidence/history.
+   selected facts and closing before downloading TXT. v0.18 reopens saved letters and allows a compatible optional letter TXT alongside
+   the chosen resume PDF in a recipient ZIP, excluding private evidence/history.
 6. Browser helper: download and extract the helper ZIP. In Chrome or Edge's
    extensions page, enable Developer mode, choose Load unpacked and select
    `RoleWeave-helper`. This manual local installation is not store publication.
@@ -50,8 +50,8 @@ Real employer compatibility and human acceptance have not yet been established.
   [FreeHire API](https://freehire.me/docs/api). Its unauthenticated access is for
   personal/non-commercial use; a commercial deployment needs a separate plan.
   This is one source, not exhaustive coverage, sponsorship or eligibility proof.
-  Twenty records are fetched per search. No automatic pagination or background
-  polling is enabled. Unsupported records have an explicit excluded count.
+  Twenty records are fetched per explicitly requested page. v0.18 adds Previous/Next
+  controls; there is no automatic pagination or background polling. Unsupported records have an explicit excluded count.
 - One bounded public check on 13 November 2026 returned 20 accepted records and
   zero excluded records for `data engineer`, country `IN`. Provider-reported
   total46815 is an observation, not a verified relevant-job count. Response hash:

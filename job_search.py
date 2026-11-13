@@ -32,13 +32,18 @@ def search_path(query, location="", country="", remote=False, offset=0):
     return "/api/v1/agent/jobs/search?" + urlencode(params)
 
 
-def parse_search(snapshot):
+def parse_search(snapshot, offset=0):
+    if type(offset) is not int or offset < 0 or offset > 9980 or offset % 20:
+        raise ValueError("Unsupported search offset")
     data = json_object(snapshot)
     if not isinstance(data, dict) or not isinstance(data.get("data"), list) or len(data["data"]) > 20:
         raise ValueError("The search provider returned an unsupported response")
     meta = data.get("meta", {})
     if not isinstance(meta, dict) or meta.get("ignored_params"):
         raise ValueError("The provider ignored a requested filter; narrow your search before continuing")
+    for key, expected in (("offset", offset), ("limit", 20)):
+        if key in meta and (type(meta[key]) is not int or meta[key] != expected):
+            raise ValueError("Provider pagination differs from the requested page")
     jobs, excluded, seen = [], [], set()
     observed = datetime.now(timezone.utc).isoformat()
     digest = hashlib.sha256(snapshot).hexdigest()
@@ -70,6 +75,8 @@ def parse_search(snapshot):
     if total is not None and (type(total) is not int or total < 0):
         raise ValueError("Unsupported source result count")
     return {"jobs": jobs, "excluded": excluded, "total": total, "observed_at": observed,
+            "page": {"offset": offset, "returned": len(data["data"]),
+                     "has_next": offset < 9980 and len(data["data"]) == 20 and (total is None or offset + 20 < total)},
             "source": SOURCE, "source_url": SOURCE_URL, "source_sha256": digest,
             "notice": "Source observations, not eligibility or sponsorship checks. FreeHire personal/non-commercial API."}
 
@@ -87,7 +94,7 @@ class JobSearch:
             if cached and time.monotonic() - cached[0] < 600:
                 return cached[1]
             snapshot = request_bytes("freehire.me", path, limit=4 * 1024 * 1024)
-            result = parse_search(snapshot)
+            result = parse_search(snapshot, offset)
             if len(self.cache) >= 50:
                 self.cache.clear()
                 self.snapshots.clear()

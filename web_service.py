@@ -12,7 +12,7 @@ from application_dossier import build_dossier
 from career_profile import imported_career_facts, profile_snapshot
 from cover_letter import make_letter, letter_snapshot
 from demo_data import seed_practice
-from job_search import JobSearch
+from job_search import JobSearch, search_path
 from job_store import JobStore
 from recipient_bundle import recipient_bytes
 from resume_render import resume_text
@@ -67,7 +67,7 @@ class WebService:
         jobs = self.store.list_jobs()
         today = date.today().isoformat()
         return {"version": APP_VERSION, "demo": self.demo, "profile": self.profile(), "jobs": jobs,
-                "resumes": self.store.list_resumes(), "stats": {
+                "resumes": self.store.list_resumes(), "letters": self.letters(), "stats": {
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
@@ -77,7 +77,8 @@ class WebService:
         data = json.loads(item["snapshot"])
         return {key: item[key] for key in ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")} | {
             "posting": data["posting"], "review_data": data, "review": item["review"],
-            "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier)}
+            "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier),
+            "letters": self.letters(identifier)}
 
     def save_job(self, data):
         require(data, ("title", "company", "source_url", "market", "posting"), ("title", "company", "market", "posting"))
@@ -113,6 +114,7 @@ class WebService:
 
     def search(self, data):
         require(data, ("query", "location", "country", "remote", "offset"), ("query",))
+        search_path(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
         if self.demo:
             rows = []
             for row in self.store.list_jobs():
@@ -120,7 +122,10 @@ class WebService:
                 if all(word.casefold() in (row["title"] + " " + item["posting"]).casefold() for word in data["query"].split()):
                     rows.append({"id": row["id"], "title": row["title"], "company": row["company"], "posting": item["posting"],
                                  "url": row["source_url"], "location": "India / remote · synthetic", "work_mode": "remote", "posted_at": "Synthetic fixture", "source": "Synthetic preview"})
-            result = {"jobs": rows, "excluded": [], "total": len(rows), "source": "Synthetic preview", "source_url": "", "notice": "Synthetic preview. No provider contacted."}
+            offset, total = data.get("offset", 0), len(rows)
+            result = {"jobs": rows[offset:offset+20], "excluded": [], "total": total,
+                      "page": {"offset": offset, "returned": len(rows[offset:offset+20]), "has_next": offset+20 < total},
+                      "source": "Synthetic preview", "source_url": "", "notice": "Synthetic preview. No provider contacted."}
         else:
             result = self.searcher.search(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
         identifier = uuid4().hex
@@ -175,7 +180,8 @@ class WebService:
     def get_resume(self, identifier):
         record = self.store.load_resume(identifier)["resume"]
         profile, _ = profile_snapshot(decoded(record["profile_snapshot_base64"], MAX_BYTES))
-        return {"profile": profile, "selected_fact_ids": record["selected_fact_ids"]}
+        return {"profile": profile, "profile_id": record["profile_id"], "profile_sha256": record["profile_sha256"],
+                "selected_fact_ids": record["selected_fact_ids"]}
 
     def review_from_profile(self, data):
         require(data, ("job_id", "profile_id", "profile_sha256", "quote", "fact_ids", "confirmed"),
@@ -207,6 +213,41 @@ class WebService:
             payload = source.read(4 * 1024 * 1024 + 1)
         letter_snapshot(payload)
         return payload
+
+    def letters(self, job_id=None):
+        """Discover saved versions after restart; never treat an invalid file as a document."""
+        if job_id is not None:
+            self.store.load(job_id)
+        directory = self.artifacts / "letters"
+        if not directory.exists():
+            return {"items": [], "issues": []}
+        if directory.is_symlink():
+            raise ValueError("Linked letter directories are unsupported")
+        items, issues, total = [], [], 0
+        for index, path in enumerate(directory.iterdir()):
+            if index >= 1000:
+                issues.append("Letter catalog exceeds 1000 entries; not all files were inspected.")
+                break
+            if not re.fullmatch(r"[a-f0-9]{32}\.json", path.name):
+                continue
+            try:
+                total += path.stat().st_size
+                if total > 64 * 1024 * 1024:
+                    issues.append("Letter catalog exceeds 64 MiB; not all files were inspected.")
+                    break
+                record, _ = letter_snapshot(self._letter_bytes(path.stem))
+                context = record["job_context"]
+                if job_id is None or context["id"] == job_id:
+                    items.append({"id": path.stem, "job_id": context["id"], "title": context["title"],
+                                  "company": context["company"], "profile_id": record["profile_id"],
+                                  "profile_sha256": record["profile_sha256"], "text_sha256": record["text_sha256"]})
+            except (OSError, ValueError):
+                issues.append("A saved letter failed verification; its original file was preserved.")
+        return {"items": sorted(items, key=lambda item: (item["company"], item["title"], item["id"])), "issues": issues}
+
+    def get_letter(self, identifier):
+        record, _ = letter_snapshot(self._letter_bytes(identifier))
+        return {"text": record["text"], "job_id": record["job_context"]["id"], "text_sha256": record["text_sha256"]}
 
     def letter(self, data, freeze=True):
         require(data, ("job_id", "resume_id", "fact_ids", "motivation", "closing", "confirmed"), ("job_id", "resume_id", "fact_ids", "motivation", "closing", "confirmed"))

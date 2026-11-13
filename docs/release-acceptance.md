@@ -1,6 +1,9 @@
-# Release acceptance — v0.17 controlled beta
+# Release acceptance — v0.18 controlled beta
 
-Current default: [v0.17 browser workspace and reviewed filling](browser-workspace.md).
+Current incremental workflow: [saved documents, search pages and safe follow-ups](continuing-applications.md).
+
+
+Current default: [v0.18 browser workspace and reviewed filling](browser-workspace.md).
 The older native workflows below remain under Settings → Open advanced tools.
 Browser UI, role/location discovery and contact filling are implemented and
 synthetically tested. Real helper installation, employer-form compatibility and
@@ -112,7 +115,7 @@ Download the portable/setup artifact and release-evidence artifact from the
 same successful CI run. Compare the relevant file hash with SHA256SUMS.txt:
 
 ```powershell
-Get-FileHash -LiteralPath .\RoleWeave-0.17.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash -LiteralPath .\RoleWeave-0.18.0-windows-x64.zip -Algorithm SHA256
 ```
 
 A matching hash detects a changed download relative to that run. It does not
