@@ -193,5 +193,37 @@ class RoleSearchTests(unittest.TestCase):
             self.assertEqual(len(result['excluded']),1)
         with self.assertRaises(ValueError):parse_search(b'{"data":[],"meta":{"ignored_params":["countries"]}}')
 
+    def test_page_boundary_uses_observed_rows_including_exclusions(self):
+        row=json.loads(self.fixture())['data'][0]
+        rows=[row | {'public_slug':str(i)} for i in range(20)]
+        rows[0]['description']=''  # Rejected record still consumed one source position.
+        raw=json.dumps({'data':rows,'meta':{'total':41,'limit':20,'offset':20}}).encode()
+        page=parse_search(raw,20)
+        self.assertEqual(len(page['jobs']),19)
+        self.assertEqual(page['page'],{'offset':20,'returned':20,'has_next':True})
+        last=parse_search(json.dumps({'data':[row],'meta':{'total':41,'limit':20,'offset':40}}).encode(),40)
+        self.assertFalse(last['page']['has_next'])
+        capped=parse_search(json.dumps({'data':rows,'meta':{'total':20000}}).encode(),9980)
+        self.assertFalse(capped['page']['has_next'])
+
+    def test_wrong_provider_page_and_invalid_offsets_are_refused(self):
+        for meta in ({'offset':0}, {'offset':True}, {'limit':100}, {'limit':False}):
+            with self.assertRaises(ValueError):parse_search(json.dumps({'data':[],'meta':meta}).encode(),20)
+        for offset in (-20,1,10000,False):
+            with self.assertRaises(ValueError):parse_search(self.fixture(),offset)
+
+    def test_search_cache_preserves_page_scope_and_source_bytes(self):
+        from job_search import JobSearch
+        first=self.fixture()
+        second=json.dumps({'data':json.loads(first)['data'],'meta':{'offset':20,'limit':20,'total':21}}).encode()
+        searcher=JobSearch()
+        with patch('job_search.request_bytes',side_effect=[first,second]) as request:
+            one=searcher.search('Python',country='IN')
+            two=searcher.search('Python',country='IN',offset=20)
+            self.assertEqual(searcher.search('Python',country='IN'),one)
+        self.assertEqual(request.call_count,2)
+        self.assertEqual(two['page']['offset'],20)
+        self.assertEqual(searcher.snapshots[two['source_sha256']],second)
+
 
 if __name__=='__main__': unittest.main()

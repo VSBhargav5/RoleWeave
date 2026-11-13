@@ -12,7 +12,7 @@ from application_dossier import build_dossier
 from career_profile import imported_career_facts, profile_snapshot
 from cover_letter import make_letter, letter_snapshot
 from demo_data import seed_practice
-from job_search import JobSearch
+from job_search import JobSearch, search_path
 from job_store import JobStore
 from recipient_bundle import recipient_bytes
 from resume_render import resume_text
@@ -114,6 +114,7 @@ class WebService:
 
     def search(self, data):
         require(data, ("query", "location", "country", "remote", "offset"), ("query",))
+        search_path(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
         if self.demo:
             rows = []
             for row in self.store.list_jobs():
@@ -121,7 +122,10 @@ class WebService:
                 if all(word.casefold() in (row["title"] + " " + item["posting"]).casefold() for word in data["query"].split()):
                     rows.append({"id": row["id"], "title": row["title"], "company": row["company"], "posting": item["posting"],
                                  "url": row["source_url"], "location": "India / remote · synthetic", "work_mode": "remote", "posted_at": "Synthetic fixture", "source": "Synthetic preview"})
-            result = {"jobs": rows, "excluded": [], "total": len(rows), "source": "Synthetic preview", "source_url": "", "notice": "Synthetic preview. No provider contacted."}
+            offset, total = data.get("offset", 0), len(rows)
+            result = {"jobs": rows[offset:offset+20], "excluded": [], "total": total,
+                      "page": {"offset": offset, "returned": len(rows[offset:offset+20]), "has_next": offset+20 < total},
+                      "source": "Synthetic preview", "source_url": "", "notice": "Synthetic preview. No provider contacted."}
         else:
             result = self.searcher.search(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
         identifier = uuid4().hex
