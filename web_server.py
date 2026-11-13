@@ -162,6 +162,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/resume":
             require(params, ("id",), ("id",))
             self.reply(200, service.get_resume(params["id"]))
+        elif path == "/api/letter":
+            require(params, ("id",), ("id",))
+            self.reply(200, service.get_letter(params["id"]))
         elif path == "/api/autofill-profile":
             profile = service.profile()
             if profile is None:

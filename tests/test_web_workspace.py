@@ -81,6 +81,63 @@ class WebWorkspaceTests(unittest.TestCase):
         self.service.searches.clear()
         with self.assertRaises(ValueError): self.service.save_search_job(args)
 
+    def saved_letter(self):
+        job = self.service.store.list_jobs()[0]
+        profile = self.service.profile()
+        resume = self.service.resume({'job_id':job['id'], 'profile_id':profile['id'],
+                                     'profile_sha256':profile['snapshot_sha256'], 'fact_ids':['project-python'],
+                                     'confirmed':True}, freeze=True)
+        letter = self.service.letter({'job_id':job['id'], 'resume_id':resume['id'], 'fact_ids':['project-python'],
+                                     'motivation':'Synthetic introduction.', 'closing':'Thank you.', 'confirmed':True})
+        return job, resume, letter
+
+    def test_saved_letter_reopens_after_restart_and_in_recipient_bundle(self):
+        job, resume, letter = self.saved_letter()
+        restarted = WebService(self.path)
+        listing = restarted.letters(job['id'])
+        self.assertEqual(listing['issues'], [])
+        self.assertEqual(listing['items'][0]['id'], letter['id'])
+        self.assertEqual(restarted.get_letter(letter['id'])['text'], letter['text'])
+        packet = restarted.packet({'job_id':job['id'], 'resume_id':resume['id'], 'letter_id':letter['id'],
+                                   'formats':['pdf','letter'], 'confirmed':True})
+        from io import BytesIO
+        import zipfile
+        with zipfile.ZipFile(BytesIO(restarted.download('packet',packet['id'])[0])) as archive:
+            self.assertEqual(set(archive.namelist()), {'resume.pdf','cover-letter.txt'})
+            self.assertEqual(archive.read('cover-letter.txt').decode(), letter['text'])
+
+    def test_letter_catalog_reports_corruption_without_hiding_the_workspace(self):
+        job, resume, letter = self.saved_letter()
+        path = self.service._artifact('letters',letter['id'])
+        data = json.loads(path.read_bytes())
+        data['text'] += 'tampered'
+        path.write_text(json.dumps(data),encoding='utf-8')
+        catalog = self.service.bootstrap()['letters']
+        self.assertFalse(catalog['items'])
+        self.assertEqual(len(catalog['issues']),1)
+        self.assertTrue(path.exists())
+        with self.assertRaises(ValueError):self.service.get_letter(letter['id'])
+        with self.assertRaises(ValueError):self.service.get_letter('../outside')
+
+    def test_letter_from_another_job_or_profile_is_refused_in_a_packet(self):
+        job, resume, letter = self.saved_letter()
+        other = next(item for item in self.service.store.list_jobs() if item['id'] != job['id'])
+        profile = self.service.profile()
+        other_resume = self.service.resume({'job_id':other['id'], 'profile_id':profile['id'],
+                                            'profile_sha256':profile['snapshot_sha256'], 'fact_ids':['project-python'],
+                                            'confirmed':True}, freeze=True)
+        with self.assertRaises(ValueError):
+            self.service.packet({'job_id':other['id'],'resume_id':other_resume['id'],'letter_id':letter['id'],
+                                 'formats':['pdf','letter'],'confirmed':True})
+        corrected = dict(profile['profile'], headline='Corrected synthetic headline')
+        self.service.save_profile({'profile':corrected,'confirmed':True})
+        newer = self.service.profile()
+        newer_resume = self.service.resume({'job_id':job['id'], 'profile_id':newer['id'],
+                                            'profile_sha256':newer['snapshot_sha256'], 'fact_ids':['project-python'],
+                                            'confirmed':True}, freeze=True)
+        with self.assertRaises(ValueError):
+            self.service.packet({'job_id':job['id'],'resume_id':newer_resume['id'],'letter_id':letter['id'],
+                                 'formats':['pdf','letter'],'confirmed':True})
     def test_loopback_authorization_assets_and_cross_site_rejection(self):
         server = LocalServer(('127.0.0.1',0),self.service)
         thread = threading.Thread(target=server.serve_forever,daemon=True)
