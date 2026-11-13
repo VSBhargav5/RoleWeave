@@ -4,6 +4,7 @@ from datetime import date
 import json
 from pathlib import Path
 import sqlite3
+import sys
 import tkinter as tk
 import webbrowser
 from tkinter import filedialog, messagebox, ttk
@@ -876,13 +877,30 @@ class JobShelf(ttk.Frame):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=f"RoleWeave {APP_VERSION}")
+    parser.add_argument("--legacy", action="store_true", help="Open advanced native tools")
+    parser.add_argument("--port", type=int, default=8765, help="Loopback browser workspace port; 0 chooses a free port")
+    parser.add_argument("--no-browser", action="store_true", help="Print local workspace URL without opening a browser")
     paths = parser.add_mutually_exclusive_group()
     paths.add_argument("--db", type=Path)
     paths.add_argument("--demo", action="store_true", help="Open a fresh separate synthetic practice shelf")
     paths.add_argument("--self-test", type=Path, help="Verify this runtime using a new synthetic output folder")
+    paths.add_argument("--web-self-test", type=Path, help="Verify bundled browser assets and local API in a new synthetic folder")
     args = parser.parse_args()
     if args.self_test:
         raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
+    if args.web_self_test:
+        from web_selftest import run_web_self_test
+        return 0 if run_web_self_test(args.web_self_test) else 2
+    if not args.legacy:
+        from web_server import run_application
+        try:
+            return run_application(args.db, args.demo, args.port, not args.no_browser)
+        except (OSError, ValueError, sqlite3.Error):
+            if args.no_browser:
+                print("Could not open the local workspace. Check storage and the chosen port.", file=sys.stderr)
+            else:
+                messagebox.showerror("Could not open RoleWeave", "The local workspace could not start. Close an older RoleWeave instance, then retry. Use --port 0 if the default port is occupied. Your data was not reset.")
+            return 1
     root = tk.Tk()
     install_error_handler(root)
     root.title(f"RoleWeave {APP_VERSION} - {'Synthetic practice' if args.demo else 'Job workspace'}")

@@ -1,5 +1,9 @@
 # Your first application with RoleWeave
 
+For the default v0.17 browser interface, follow the [browser application walkthrough](browser-workspace.md).
+The native Apply workspace below remains available in Settings → Open advanced tools.
+
+
 RoleWeave helps prepare and track manual applications. It does not submit forms,
 auto-fill an employer portal, upload files, read a mailbox or infer that you are
 qualified. The complete local path is available through **Apply workspace** on

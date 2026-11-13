@@ -43,7 +43,7 @@ class DesktopErrorTests(unittest.TestCase):
         root = MagicMock()
         root.winfo_screenwidth.return_value = 1600
         root.winfo_screenheight.return_value = 1000
-        with patch("sys.argv", ["desktop.py", "--db", "synthetic-do-not-create.db"]), \
+        with patch("sys.argv", ["desktop.py", "--legacy", "--db", "synthetic-do-not-create.db"]), \
              patch("desktop.tk.Tk", return_value=root), \
              patch("desktop.JobStore", side_effect=sqlite3.OperationalError("synthetic locked database")), \
              patch("desktop.messagebox.showerror") as dialog:

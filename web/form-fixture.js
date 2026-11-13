@@ -1,0 +1,1 @@
+document.getElementById('practice-form').addEventListener('submit',e=>{e.preventDefault();const n=document.getElementById('submission-count');n.textContent=(Number(n.textContent.split(' ')[0])+1)+' submissions';});

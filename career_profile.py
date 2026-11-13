@@ -6,13 +6,14 @@ from roleweave import MAX_BYTES, text
 
 SECTIONS = ("Experience", "Projects", "Education", "Skills", "Additional")
 PROFILE_FIELDS = ("name", "headline", "email", "phone", "location", "links", "summary")
+OPTIONAL_PROFILE_FIELDS = ("first_name", "last_name", "linkedin", "website")
 
 
 def validate_profile(data):
-    if not isinstance(data, dict) or set(data) != {*PROFILE_FIELDS, "facts"}:
+    if not isinstance(data, dict) or not {*PROFILE_FIELDS, "facts"} <= set(data) or set(data) - {*PROFILE_FIELDS, "facts", *OPTIONAL_PROFILE_FIELDS}:
         raise ValueError("Invalid career profile fields")
     text(data["name"], "Name")
-    for key in PROFILE_FIELDS:
+    for key in (*PROFILE_FIELDS, *(key for key in OPTIONAL_PROFILE_FIELDS if key in data)):
         value = data[key]
         if not isinstance(value, str) or len(value) > (6000 if key == "summary" else 2000):
             raise ValueError(f"{key} must be text within its length limit")
