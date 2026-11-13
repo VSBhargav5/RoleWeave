@@ -1,5 +1,6 @@
 """Loopback-only desktop web host with session authorization and origin checks."""
 import hashlib
+import errno
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import http.client
@@ -241,6 +242,32 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.reply(500, {"error": "RW-WEB-001: action interrupted. Refresh saved state before repeating it. No diagnostic contents were logged."})
 
 
+def find_workspace_host(path, preferred):
+    """Reuse only the exact workspace/version; never stop another local server."""
+    expected = hashlib.sha256(str(Path(path).resolve()).encode()).hexdigest()
+    candidates = range(8765, 8773) if preferred == 8765 else [preferred] if preferred else []
+    fallback_ports = []
+    for candidate in candidates:
+        connection = http.client.HTTPConnection("127.0.0.1", candidate, timeout=.25)
+        try:
+            connection.request("GET", "/health")
+            response = connection.getresponse()
+            answer = json.loads(response.read(4096))
+            if (response.status == 200 and isinstance(answer, dict)
+                    and answer.get("app") == "roleweave-local-v1"
+                    and answer.get("workspace") == expected and answer.get("version") == APP_VERSION):
+                return candidate, fallback_ports
+        except (ConnectionRefusedError, TimeoutError):
+            # Windows can time out before reporting a refused loopback connect.
+            # Binding is authoritative; an occupied port still fails without replacement.
+            fallback_ports.append(candidate)
+        except (OSError, ValueError, http.client.HTTPException):
+            pass  # Occupied, unresponsive or unrelated: leave it untouched.
+        finally:
+            connection.close()
+    return None, fallback_ports
+
+
 def run_application(path=None, demo=False, port=8765, open_browser=True):
     path = new_practice_path(default_database_path().parent) if demo else Path(path) if path else default_database_path()
     if demo:
@@ -249,23 +276,23 @@ def run_application(path=None, demo=False, port=8765, open_browser=True):
             port = 0
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError("Choose a valid local port")
-    if port:
-        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
+    running, fallback_ports = find_workspace_host(path, port)
+    if running is not None:
+        origin = "http://127.0.0.1:" + str(running)
+        if open_browser:
+            webbrowser.open(origin)
+        else:
+            print(origin, flush=True)
+        return 0
+    service = WebService(path, demo=demo)
+    for candidate in [*fallback_ports, 0]:
         try:
-            connection.request("GET", "/health")
-            response = connection.getresponse()
-            answer = json.loads(response.read(4096))
-            expected = hashlib.sha256(str(Path(path).resolve()).encode()).hexdigest()
-            if response.status == 200 and answer.get("app") == "roleweave-local-v1" and answer.get("workspace") == expected and answer.get("version") == APP_VERSION:
-                if open_browser:
-                    webbrowser.open("http://127.0.0.1:" + str(port))
-                return 0
-            raise ValueError("That port belongs to another workspace. Close it or launch with --port 0.")
-        except (ConnectionError, TimeoutError, OSError):
-            pass
-        finally:
-            connection.close()
-    server = LocalServer(("127.0.0.1", port), WebService(path, demo=demo))
+            server = LocalServer(("127.0.0.1", candidate), service)
+            break
+        except OSError as exc:
+            if candidate and (exc.errno == errno.EADDRINUSE or getattr(exc, "winerror", None) == 10048):
+                continue  # Another launch won the bind race; choose a free port.
+            raise
     try:
         if open_browser:
             webbrowser.open(server.origin)

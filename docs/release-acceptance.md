@@ -1,5 +1,18 @@
 # Release acceptance — v0.18 controlled beta
 
+v0.18.2 removes the hidden-old-host startup blocker. Normal launch checks the
+bounded loopback range8765–8772 for the exact current version/workspace, reopens
+it when found, or binds an available port. An occupied port falls back safely;
+older/unrelated servers are never stopped. Port0 stays explicitly ephemeral.
+A repeated launch reuses a current matching host even when an older server owns
+8765. Saved data paths, API authorization and TLS checks are unchanged.
+
+Optional live packaged startup/search verification, with an isolated empty DB:
+`node tests/packaged-search.cjs PATH_TO_EXE --default-port`.
+This includes repeated-launch reuse and a public data-engineer/London search;
+it is not an automatic external-network CI dependency.
+
+
 v0.18.1 fixes the locally built Windows runtime's missing SSL policy asset.
 Source-only public-search checks did not establish packaged search functionality.
 The offline frozen web smoke now creates a hostname-verified, certificate-required
@@ -122,7 +135,7 @@ Download the portable/setup artifact and release-evidence artifact from the
 same successful CI run. Compare the relevant file hash with SHA256SUMS.txt:
 
 ```powershell
-Get-FileHash -LiteralPath .\RoleWeave-0.18.1-windows-x64.zip -Algorithm SHA256
+Get-FileHash -LiteralPath .\RoleWeave-0.18.2-windows-x64.zip -Algorithm SHA256
 ```
 
 A matching hash detects a changed download relative to that run. It does not
