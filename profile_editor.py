@@ -118,7 +118,8 @@ class CareerProfileEditor(tk.Toplevel):
         self.refresh_facts()
 
     def content(self):
-        return {**{key: field.get() for key, field in self.fields.items()},
+        return {**{key: self.data[key] for key in ("first_name", "last_name", "linkedin", "website") if key in self.data},
+                **{key: field.get() for key, field in self.fields.items()},
                 "summary": self.summary.get("1.0", "end-1c"), "facts": copy.deepcopy(self.data["facts"])}
 
     def import_profile(self):

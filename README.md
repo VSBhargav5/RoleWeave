@@ -11,7 +11,7 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Release status
 
-V0.16 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.17 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
@@ -20,29 +20,30 @@ what must be verified before recommending general use.
 
 ## Apply for a job with RoleWeave
 
-Save a job from a supported employer board or paste a posting with its HTTPS
-source URL. Select it and choose the visible **Apply workspace** action.
-It brings profile/evidence review, resume export, optional letter, employer-facing
-files, browser handoff and manual tracking into one ordered path.
+Open the browser workspace, create a reviewed career profile, then **Discover
+jobs** by role/location. Save to India/remote or relocation, review the job, build
+and download a PDF resume, and optionally prepare a reviewed cover letter.
 
-You can export a PDF resume directly and upload it to the employer's site.
-Choose Save upload-ready folder to get actual PDF/TXT/HTML/letter files with
-checkbox selection; no ZIP extraction is needed. Legacy recipient ZIP export
-remains available. A private
-dossier is for your records and is not required for basic application tracking.
-You submit on the employer website yourself, then use Record submitted
-application in tracking to record its date, channel, reference and follow-up.
-Later interview/offer/closed stages are retained when logging an older receipt.
-Opening the page or exporting files never marks a job applied automatically.
+Install the small Chrome/Edge **Browser helper** once. Prepare a contact sheet in
+RoleWeave, load it with the toolbar icon, then review and fill supported empty
+contact fields on the employer's form. Upload your documents, answer screening
+questions and submit yourself. Record your observed submission and follow-up.
+No company-board URL is required for this discovery path.
 
-[Complete first-application walkthrough](docs/first-application.md).
+[Browser workspace, helper setup and complete walkthrough](docs/browser-workspace.md).
+
+The new default uses browser-rendered CSS/SVG and the existing Python/SQLite core.
+Settings → Open advanced tools retains the native workflows and optional
+integrations. Original shelf paths and immutable document/history contracts remain.
+The helper does not submit, upload, overwrite existing values or answer sensitive
+questions. Custom widgets and iframes remain manual; real ATS acceptance is pending.
 
 ## Start on Windows
 
 [What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
 
 
-Version0.16.0 includes reviewed cover letters, exact private application dossiers,
+Version0.17.0 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -51,10 +52,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.16.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.17.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.16.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.17.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open

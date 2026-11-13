@@ -21,6 +21,26 @@ jobs:
       - run: python -m pip install -r requirements-test.txt
       - run: python -m unittest discover -s tests -v
       - run: python roleweave.py examples/synthetic.json
+      - run: python desktop.py --web-self-test out/source-web-smoke
+  browser-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m pip install -r requirements-test.txt
+      - run: npm install --no-save --ignore-scripts playwright@1.62.1
+      - run: npx playwright install --with-deps chromium --only-shell
+      - run: node tests/browser-workflow.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-browser-screenshots
+          path: out/web-qa/
   windows-portable:
     runs-on: windows-latest
     steps:
@@ -43,10 +63,14 @@ jobs:
           if ($roleTest.ExitCode -ne 0) { exit 1 }
           $roleReport = Get-Content out/package-smoke/report.json -Raw | ConvertFrom-Json
           if (-not $roleReport.ok -or -not $roleReport.frozen) { exit 1 }
+          $webTest = Start-Process -FilePath './out/portable/RoleWeave/RoleWeave.exe' -ArgumentList '--web-self-test','out/package-web-smoke' -Wait -PassThru -WindowStyle Hidden
+          if ($webTest.ExitCode -ne 0) { exit 1 }
+          $webReport = Get-Content out/package-web-smoke/report.json -Raw | ConvertFrom-Json
+          if (-not $webReport.ok -or -not $webReport.frozen) { exit 1 }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.16.0-windows-x64
-          path: out/RoleWeave-0.16.0-windows-x64.zip
+          name: RoleWeave-0.17.0-windows-x64
+          path: out/RoleWeave-0.17.0-windows-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
@@ -65,7 +89,7 @@ jobs:
           if (Test-Path $dataRoot) { throw 'Synthetic data path must be absent' }
           New-Item -ItemType Directory -Path $dataRoot | Out-Null
           Set-Content (Join-Path $dataRoot 'preserve-me.txt') 'synthetic-preservation-marker'
-          $setup = Resolve-Path out/RoleWeave-0.16.0-windows-x64-setup.exe
+          $setup = Resolve-Path out/RoleWeave-0.17.0-windows-x64-setup.exe
           $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $installRoot + '"'))
           1..2 | ForEach-Object {
             $process = Start-Process $setup -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
@@ -81,14 +105,14 @@ jobs:
           if ((Get-Content (Join-Path $dataRoot 'preserve-me.txt')) -ne 'synthetic-preservation-marker') { throw 'User data changed' }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.16.0-windows-x64-setup
-          path: out/RoleWeave-0.16.0-windows-x64-setup.exe
+          name: RoleWeave-0.17.0-windows-x64-setup
+          path: out/RoleWeave-0.17.0-windows-x64-setup.exe
           if-no-files-found: error
 
       - name: Hash the closed release artifacts
         shell: pwsh
         run: |
-          $files = @('out/RoleWeave-0.16.0-windows-x64.zip', 'out/RoleWeave-0.16.0-windows-x64-setup.exe')
+          $files = @('out/RoleWeave-0.17.0-windows-x64.zip', 'out/RoleWeave-0.17.0-windows-x64-setup.exe')
           $lines = foreach ($file in $files) {
             $item = Get-FileHash -LiteralPath $file -Algorithm SHA256
             $item.Hash.ToLowerInvariant() + '  ' + (Split-Path $file -Leaf)
@@ -96,7 +120,7 @@ jobs:
           $lines | Set-Content -LiteralPath out/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.16.0-release-evidence
+          name: RoleWeave-0.17.0-release-evidence
           path: |
             out/SHA256SUMS.txt
             out/package-smoke/report.json

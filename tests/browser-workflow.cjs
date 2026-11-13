@@ -1,0 +1,47 @@
+/* Reproducible isolated synthetic UI + actual native-input fill verification. */
+const {chromium}=require(process.env.ROLEWEAVE_PLAYWRIGHT||'playwright');
+const {spawn}=require('node:child_process');
+const {once}=require('node:events');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+(async()=>{
+ const python=process.env.ROLEWEAVE_PYTHON||'python';
+ const child=spawn(python,['desktop.py','--demo','--port','0','--no-browser'],{cwd:root,stdio:['ignore','pipe','pipe']});
+ let browser,origin,output='';const errors=[];
+ try{
+  origin=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Local host startup timed out')),20000);child.stdout.on('data',b=>{output+=b;const found=output.match(/http:\/\/127\.0\.0\.1:\d+/);if(found){clearTimeout(timer);resolve(found[0])}});child.once('exit',code=>{clearTimeout(timer);reject(Error('Local host exited '+code))});child.stderr.on('data',b=>errors.push(String(b)))});
+  browser=await chromium.launch({headless:true});
+  const context=await browser.newContext({viewport:{width:1440,height:1000},deviceScaleFactor:1});
+  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(origin);await page.getByRole('heading',{name:'Make your next move.'}).waitFor();
+  await fs.promises.mkdir(path.join(root,'out','web-qa'),{recursive:true});
+  await page.screenshot({path:path.join(root,'out','web-qa','overview.png'),fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No desktop horizontal overflow');
+  await page.locator('nav [data-action=discover]').click();await page.locator('[name=query]').fill('Python');await page.getByRole('button',{name:'Search jobs',exact:true}).click();await page.getByRole('button',{name:'Review & save',exact:true}).first().waitFor();
+  await page.screenshot({path:path.join(root,'out','web-qa','discovery.png'),fullPage:true});
+  await page.getByRole('button',{name:'Review & save',exact:true}).first().click();await page.getByRole('heading',{name:'Application workspace'}).waitFor();
+  await page.getByRole('button',{name:'Build resume',exact:true}).click();await page.locator('#resume-form [name=fact_ids]').first().check();await page.getByRole('button',{name:'Preview resume',exact:true}).click();await page.locator('#freeze-controls').waitFor({state:'visible'});await page.locator('#resume-form [name=confirmed]').check();
+  const [resumeDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Save & download PDF',exact:true}).click()]);assert.equal(resumeDownload.suggestedFilename(),'resume.pdf');
+  const pdf=await fs.promises.readFile(await resumeDownload.path());assert.equal(pdf.subarray(0,4).toString(),'%PDF');
+  await page.getByRole('button',{name:'Cover letter',exact:true}).first().click();await page.locator('#letter-form [name=motivation]').fill('I enjoy careful data engineering.');await page.locator('#letter-form [name=fact_ids]').first().check();await page.getByRole('button',{name:'Preview letter',exact:true}).click();await page.locator('#freeze-controls').waitFor({state:'visible'});await page.locator('#letter-form [name=confirmed]').check();
+  const [letterDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Save & download TXT',exact:true}).click()]);assert.equal(letterDownload.suggestedFilename(),'cover-letter.txt');
+  await page.getByRole('button',{name:'Export application ZIP',exact:true}).click();await page.locator('#packet-form [name=confirmed]').check();const [packetDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download ZIP',exact:true}).click()]);assert.equal(packetDownload.suggestedFilename(),'application-documents.zip');
+  await page.getByRole('button',{name:'Record my submission',exact:true}).click();await page.locator('#submission-form [name=confirmed]').check();await page.getByRole('button',{name:'Record submission',exact:true}).click();await page.locator('#modal').waitFor({state:'hidden'});await page.getByText('USER-REPORTED SUBMISSION',{exact:false}).waitFor();
+  await page.screenshot({path:path.join(root,'out','web-qa','application.png'),fullPage:true});
+  await page.locator('nav [data-action=profile]').click();await page.locator('[name=headline]').fill('Synthetic data engineer — reviewed browser draft');page.once('dialog',d=>d.dismiss());await page.locator('nav [data-action=discover]').click();assert.equal(await page.locator('[name=headline]').inputValue(),'Synthetic data engineer — reviewed browser draft');await page.locator('#profile-form [name=confirmed]').check();await page.getByRole('button',{name:'Save profile version',exact:true}).click();await page.getByText('Profile version saved.',{exact:true}).waitFor();
+  await page.locator('nav [data-action=helper]').click();await page.locator('#contact-form [name=confirmed]').check();await page.getByRole('button',{name:'Prepare contact sheet',exact:true}).click();await page.locator('#roleweave-fill-profile').waitFor({state:'attached'});
+  await page.evaluate(fs.readFileSync(path.join(root,'browser-helper','page.js'),'utf8'));const contact=await page.evaluate(()=>RoleWeavePage('load'));
+  assert.equal(contact.fields.email,'candidate@example.invalid');assert.equal(Object.keys(contact.fields).includes('facts'),false);
+  await page.goto(origin+'/form-fixture.html');await page.evaluate(fs.readFileSync(path.join(root,'browser-helper','page.js'),'utf8'));
+  let preview=await page.evaluate(c=>RoleWeavePage('scan',c),contact);assert.equal(preview.fields.length,7);
+  const result=await page.evaluate(p=>RoleWeavePage('fill',{nonce:p.nonce,ids:p.fields.map(f=>f.id),confirmed:true}),preview);assert.equal(result.filled,7);
+  assert.equal(await page.locator('[autocomplete=given-name]').inputValue(),'Synthetic');assert.equal(await page.locator('[autocomplete=name]').inputValue(),'Keep this value');assert.equal(await page.locator('[type=password]').inputValue(),'');assert.equal(await page.locator('#submission-count').textContent(),'0 submissions');
+  // Actual input/change events fire; no-overwrite and stale preview are enforced.
+  await page.reload();await page.evaluate(fs.readFileSync(path.join(root,'browser-helper','page.js'),'utf8'));preview=await page.evaluate(c=>RoleWeavePage('scan',c),contact);await page.locator('[autocomplete=email]').fill('user-edited@example.invalid');const stale=await page.evaluate(p=>{try{RoleWeavePage('fill',{nonce:p.nonce,ids:p.fields.map(f=>f.id),confirmed:true});return false}catch{return true}},preview);assert.equal(stale,true);assert.equal(await page.locator('[autocomplete=given-name]').inputValue(),'');
+  await page.goto(origin);await page.getByRole('heading',{name:'Make your next move.'}).waitFor();await page.setViewportSize({width:900,height:800});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No narrow workspace overflow');
+  await page.screenshot({path:path.join(root,'out','web-qa','narrow.png'),fullPage:true});
+  assert.deepEqual(errors,[]);console.log('PASS: synthetic discovery → saved job → reviewed PDF → manual submission record; contact handoff; 7 real native inputs filled; existing/sensitive preserved; stale preview blocked; no submit; responsive layout.');
+ }finally{if(browser)await browser.close();if(origin){try{const html=await(await fetch(origin)).text();const token=html.match(/name="roleweave-session" content="([^"]+)"/)[1];await fetch(origin+'/api/quit',{method:'POST',headers:{'Content-Type':'application/json','X-RoleWeave-Token':token},body:'{"confirmed":true}'})}catch{}}if(child.exitCode===null)child.kill();}
+})().catch(e=>{console.error(e);process.exitCode=1});

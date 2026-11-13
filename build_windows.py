@@ -49,7 +49,9 @@ def main():
                "--name", "RoleWeave", "--distpath", str(staging), "--workpath", str(output / "pyinstaller-work"),
                "--specpath", str(output / "pyinstaller-spec"), "--collect-data", "reportlab",
                "--collect-submodules", "reportlab.pdfbase", "--collect-data", "certifi",
-               "--add-data", str(root / "examples") + os.pathsep + "examples", str(root / "desktop.py")]
+               "--add-data", str(root / "examples") + os.pathsep + "examples",
+               "--add-data", str(root / "web") + os.pathsep + "web",
+               "--add-data", str(root / "browser-helper") + os.pathsep + "browser-helper", str(root / "desktop.py")]
     for distribution in BUNDLED_DISTRIBUTIONS:
         command.extend(["--copy-metadata", distribution])
     subprocess.run(command, cwd=root, env=environment, check=True)
