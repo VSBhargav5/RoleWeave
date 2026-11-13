@@ -9,6 +9,19 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## v0.18.1 packaged-search fix
+
+The original local Windows build omitted a required SSL policy sidecar from its
+Python runtime, so source searches passed while packaged first searches failed.
+The patch bundles that runtime asset without disabling certificate verification.
+The web runtime smoke now constructs a verified HTTPS context offline, and an
+explicit `--search-check out/search-check` can verify the generic public
+`data engineer` / `london` query from the actual packaged runtime. It reads no
+saved jobs or credentials. Search errors remain visible below the search box.
+
+Close the older host with Settings → Quit, then open the complete updated package.
+Closing only the browser tab leaves the old server running.
+
 ## Release status
 
 V0.18 is an unsigned Windows x64 **controlled beta**, not a verified production
@@ -56,7 +69,7 @@ questions. Custom widgets and iframes remain manual; real ATS acceptance is pend
 [What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
 
 
-Version0.18.0 includes reviewed cover letters, exact private application dossiers,
+Version0.18.1 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -65,10 +78,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.18.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.18.1-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.18.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.18.1-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open

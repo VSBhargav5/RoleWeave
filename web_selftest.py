@@ -3,6 +3,7 @@ import http.client
 import json
 from pathlib import Path
 import sys
+import ssl
 import threading
 from runtime_paths import APP_VERSION
 from web_server import LocalServer
@@ -15,6 +16,10 @@ def run_web_self_test(destination):
     report = {"version": APP_VERSION, "frozen": bool(getattr(sys, "frozen", False)), "ok": False}
     server = None
     try:
+        context = ssl.create_default_context()
+        if not context.check_hostname or context.verify_mode != ssl.CERT_REQUIRED:
+            raise ValueError("Verified HTTPS context unavailable")
+        report['verified_https_context'] = True
         path = destination / "synthetic.db"
         seed_web_demo(path)
         server = LocalServer(("127.0.0.1", 0), WebService(path, demo=True))

@@ -885,12 +885,16 @@ def main():
     paths.add_argument("--demo", action="store_true", help="Open a fresh separate synthetic practice shelf")
     paths.add_argument("--self-test", type=Path, help="Verify this runtime using a new synthetic output folder")
     paths.add_argument("--web-self-test", type=Path, help="Verify bundled browser assets and local API in a new synthetic folder")
+    paths.add_argument("--search-check", type=Path, help="Explicit live public data-engineer/London search; writes metadata only")
     args = parser.parse_args()
     if args.self_test:
         raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
     if args.web_self_test:
         from web_selftest import run_web_self_test
         return 0 if run_web_self_test(args.web_self_test) else 2
+    if args.search_check:
+        from search_selftest import run_search_check
+        return 0 if run_search_check(args.search_check) else 2
     if not args.legacy:
         from web_server import run_application
         try:

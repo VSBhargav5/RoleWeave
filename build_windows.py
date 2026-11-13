@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,12 @@ from runtime_paths import APP_VERSION, RESOURCE_ROOT
 BUNDLED_DISTRIBUTIONS = ("reportlab", "Pillow", "charset-normalizer", "google-auth-oauthlib", "google-auth",
                          "requests-oauthlib", "oauthlib", "requests", "urllib3", "certifi", "idna",
                          "cryptography", "cffi", "pycparser", "pyasn1", "pyasn1-modules")
+
+
+def ssl_runtime_assets():
+    """Retain the build runtime's optional SSL policy data beside frozen ssl.py."""
+    policy = Path(ssl.__file__).with_name("codex-rejected-cas.pem")
+    return [policy] if policy.is_file() else []
 
 
 def promote_package(staged, live):
@@ -54,6 +61,8 @@ def main():
                "--add-data", str(root / "browser-helper") + os.pathsep + "browser-helper", str(root / "desktop.py")]
     for distribution in BUNDLED_DISTRIBUTIONS:
         command.extend(["--copy-metadata", distribution])
+    for asset in ssl_runtime_assets():
+        command.extend(["--add-data", str(asset) + os.pathsep + "."])
     subprocess.run(command, cwd=root, env=environment, check=True)
     package = staging / "RoleWeave"
     for name in ("README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"):
