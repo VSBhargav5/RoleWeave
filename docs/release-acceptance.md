@@ -1,5 +1,12 @@
 # Release acceptance — v0.18 controlled beta
 
+v0.18.1 fixes the locally built Windows runtime's missing SSL policy asset.
+Source-only public-search checks did not establish packaged search functionality.
+The offline frozen web smoke now creates a hostname-verified, certificate-required
+HTTPS context; explicit live packaged search is separately available with
+`--search-check NEW_OUTPUT_FOLDER`. No TLS validation is disabled.
+
+
 Current incremental workflow: [saved documents, search pages and safe follow-ups](continuing-applications.md).
 
 
@@ -115,7 +122,7 @@ Download the portable/setup artifact and release-evidence artifact from the
 same successful CI run. Compare the relevant file hash with SHA256SUMS.txt:
 
 ```powershell
-Get-FileHash -LiteralPath .\RoleWeave-0.18.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash -LiteralPath .\RoleWeave-0.18.1-windows-x64.zip -Algorithm SHA256
 ```
 
 A matching hash detects a changed download relative to that run. It does not

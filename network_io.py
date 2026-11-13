@@ -27,9 +27,13 @@ def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 
         headers["Authorization"] = "Bearer " + key
     if body is not None:
         headers["Content-Type"] = "application/json"
-    connection = http.client.HTTPSConnection(host, timeout=5)
+    connection = None
     deadline = time.monotonic() + 60
     try:
+        try:
+            connection = http.client.HTTPSConnection(host, timeout=5)
+        except OSError:
+            raise ValueError("Secure connection initialization failed. The app runtime may be incomplete; use the complete updated Windows package.") from None
         if cancel is not None and cancel.is_set():
             raise Cancelled("Cancelled locally")
         connection.request("POST" if body is not None else "GET", path, body=body, headers=headers)
@@ -57,7 +61,8 @@ def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 
         # Never propagate provider response bodies, keys or arbitrary error text.
         raise ValueError("Provider connection failed or timed out; no automatic retry") from None
     finally:
-        connection.close()
+        if connection is not None:
+            connection.close()
 
 
 def json_object(snapshot):

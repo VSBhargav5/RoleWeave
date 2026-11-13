@@ -60,6 +60,13 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class NetworkTests(unittest.TestCase):
+    def test_missing_ssl_runtime_asset_is_actionable_without_private_paths_or_retry(self):
+        with patch('network_io.http.client.HTTPSConnection', side_effect=FileNotFoundError('PRIVATE PATH')) as factory:
+            with self.assertRaisesRegex(ValueError, 'Secure connection initialization failed') as caught:
+                request_bytes('freehire.me','/api/v1/agent/jobs/search?q=engineer')
+        self.assertNotIn('PRIVATE', str(caught.exception))
+        self.assertEqual(factory.call_count, 1)
+
     def test_public_boards_never_receive_credentials_or_post_bodies(self):
         for options in ({"key": "synthetic-key"}, {"body": b"private"}):
             with patch("network_io.http.client.HTTPSConnection") as connection:
