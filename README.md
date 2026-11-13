@@ -11,12 +11,25 @@ ordering, private exports, evidence rehearsal and safer build/export publication
 
 ## Release status
 
-V0.17 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.18 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
 workflows; Google/AI remain optional previews outside local-v1 acceptance. See [release acceptance](docs/release-acceptance.md) for
 what must be verified before recommending general use.
+
+## Continue an application in v0.18
+
+Saved cover letters now reopen under Documents and the exact job's application
+kit. Read/download them later and choose a compatible letter alongside the resume
+PDF in a recipient ZIP. Wrong-job/profile combinations are refused. Invalid
+saved letter files are reported without deletion.
+
+Discover jobs has explicit Previous/Next pages with validated offsets and retained
+market choice. Applications combines market, text, stage and due-through-today
+filters. Stage/submission forms preserve existing reminders; a stale form can
+reload current tracking while keeping its draft and requiring renewed submission
+confirmation. [Continuing-workflow guide](docs/continuing-applications.md).
 
 ## Apply for a job with RoleWeave
 
@@ -43,7 +56,7 @@ questions. Custom widgets and iframes remain manual; real ATS acceptance is pend
 [What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
 
 
-Version0.17.0 includes reviewed cover letters, exact private application dossiers,
+Version0.18.0 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -52,10 +65,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.17.0-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.18.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.17.0-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.18.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open
