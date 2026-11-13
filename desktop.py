@@ -878,7 +878,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=f"RoleWeave {APP_VERSION}")
     parser.add_argument("--legacy", action="store_true", help="Open advanced native tools")
-    parser.add_argument("--port", type=int, default=8765, help="Loopback browser workspace port; 0 chooses a free port")
+    parser.add_argument("--port", type=int, default=8765, help="Preferred loopback port; an occupied port falls back safely, 0 always chooses a free port")
     parser.add_argument("--no-browser", action="store_true", help="Print local workspace URL without opening a browser")
     paths = parser.add_mutually_exclusive_group()
     paths.add_argument("--db", type=Path)
@@ -903,7 +903,7 @@ def main():
             if args.no_browser:
                 print("Could not open the local workspace. Check storage and the chosen port.", file=sys.stderr)
             else:
-                messagebox.showerror("Could not open RoleWeave", "The local workspace could not start. Close an older RoleWeave instance, then retry. Use --port 0 if the default port is occupied. Your data was not reset.")
+                messagebox.showerror("Could not open RoleWeave", "The local workspace could not start. RoleWeave attempted automatic local-port selection. Check the complete app folder and workspace storage access. Your data was not reset.")
             return 1
     root = tk.Tk()
     install_error_handler(root)

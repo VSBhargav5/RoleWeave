@@ -5,17 +5,18 @@ const net=require('node:net');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
 (async()=>{
  const executable=path.resolve(process.argv[2]||'out/portable/RoleWeave/RoleWeave.exe');
  const folder=await fs.mkdtemp(path.resolve('out/live-packaged-search-'));
- const listener=net.createServer();await new Promise(resolve=>listener.listen(0,'127.0.0.1',resolve));const port=listener.address().port;await new Promise(resolve=>listener.close(resolve));
- const origin='http://127.0.0.1:'+port;
+ const listener=net.createServer();await new Promise(resolve=>listener.listen(0,'127.0.0.1',resolve));const port=process.argv.includes('--default-port')?8765:listener.address().port;await new Promise(resolve=>listener.close(resolve));
+ let origin='http://127.0.0.1:'+port;
  const child=spawn(executable,['--db',path.join(folder,'synthetic.db'),'--port',String(port),'--no-browser'],{windowsHide:true,stdio:'ignore'});
  let browser,page;
  try{
   let health;
-  for(let i=0;i<100;i++){try{health=await(await fetch(origin+'/health')).json();break}catch{await new Promise(resolve=>setTimeout(resolve,100))}}
-  assert.equal(health?.app,'roleweave-local-v1');
+  const expected=crypto.createHash('sha256').update(path.join(folder,'synthetic.db')).digest('hex');for(let i=0;i<100;i++){for(const candidate of (port===8765?[8765,8766,8767,8768,8769,8770,8771,8772]:[port])){try{const base='http://127.0.0.1:'+candidate;const marker=await(await fetch(base+'/health')).json();if(marker.workspace===expected){origin=base;health=marker;break}}catch{}}if(health)break;await new Promise(resolve=>setTimeout(resolve,100))}
+  assert.equal(health?.app,'roleweave-local-v1');if(port===8765){const repeat=spawn(executable,['--db',path.join(folder,'synthetic.db'),'--port','8765','--no-browser'],{windowsHide:true,stdio:'ignore'});const code=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{repeat.kill();reject(Error('Repeat launch did not reuse current workspace'))},10000);repeat.once('exit',code=>{clearTimeout(timer);resolve(code)})});assert.equal(code,0);assert.equal((await(await fetch(origin+'/health')).json()).workspace,expected)}
   browser=await chromium.launch({headless:true});page=await browser.newPage({viewport:{width:1440,height:1000}});
   await page.goto(origin);await page.locator('nav [data-action=discover]').click();
   await page.locator('[name=query]').fill('data engineer');await page.locator('[name=location]').fill('london');
