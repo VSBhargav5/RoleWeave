@@ -20,6 +20,16 @@ except ModuleNotFoundError:
     PDF_AVAILABLE = False
 
 MAX_RESUME_BYTES = 8 * 1024 * 1024
+THEMES = {"classic": {"accent": "#334d66", "name_size": 21, "body_size": 10},
+          "slate": {"accent": "#175b63", "name_size": 24, "body_size": 10},
+          "editorial": {"accent": "#593b73", "name_size": 26, "body_size": 10}}
+
+
+def checked_theme(theme):
+    if not isinstance(theme, str) or theme not in THEMES:
+        raise ValueError("Choose Classic, Slate or Editorial layout")
+    return THEMES[theme]
+
 
 
 def selected_facts(profile, identifiers):
@@ -46,7 +56,8 @@ def resume_text(profile, identifiers):
     return "\n".join(lines)
 
 
-def resume_html(profile, identifiers):
+def resume_html(profile, identifiers, theme="classic"):
+    palette = checked_theme(theme)
     facts = selected_facts(profile, identifiers)
     def escaped(value):
         return html.escape(value, quote=True).replace("\n", "<br>")
@@ -58,6 +69,7 @@ def resume_html(profile, identifiers):
              'h1{font-size:23pt;margin:0 0 4px}h2{font-size:12pt;border-bottom:1px solid #ccd4dc;padding-bottom:4px;margin-top:20px;break-after:avoid}',
              '.headline{font-size:13pt;color:#334d66}.contact{font-size:10pt;color:#334155}p{margin:7px 0}li{margin:6px 0;overflow-wrap:anywhere}',
              '.screen-only{background:#eef3f8;padding:10px;font:10pt Arial;margin-bottom:20px}@media print{body{padding:0}.screen-only{display:none}}',
+             ('' if theme == 'classic' else 'h1{font-size:'+str(palette['name_size']+2)+'pt;color:'+palette['accent']+'}h2{color:'+palette['accent']+';border-bottom:2px solid '+palette['accent']+'}.headline{color:'+palette['accent']+'}') +
              '</style></head><body><aside class="screen-only">Review this document before use. Print with your browser menu or Ctrl+P. No external resources are loaded.</aside>',
              '<main><h1>' + escaped(profile["name"]) + '</h1>']
     if profile["headline"]:
@@ -81,20 +93,12 @@ def resume_html(profile, identifiers):
     return payload
 
 
-def resume_pdf(profile, identifiers):
+def resume_pdf(profile, identifiers, theme="classic"):
+    palette = checked_theme(theme)
     if not PDF_AVAILABLE:
         raise ValueError("PDF support is missing. Run Setup-RoleWeave.cmd or choose HTML-only.")
     facts = selected_facts(profile, identifiers)
-    fonts = Path(reportlab.__file__).parent / "fonts"
-    for name, file in (("RoleWeaveVera", "Vera.ttf"), ("RoleWeaveVeraBold", "VeraBd.ttf")):
-        if name not in pdfmetrics.getRegisteredFontNames():
-            pdfmetrics.registerFont(TTFont(name, str(fonts / file)))
-    characters = set(resume_text(profile, identifiers)) - set("\n\r\t")
-    missing = [char for char in characters if ord(char) not in pdfmetrics.getFont("RoleWeaveVera").face.charToGlyph]
-    if missing:
-        points = ", ".join(f"U+{ord(char):04X}" for char in sorted(missing)[:8])
-        raise ValueError(f"Bundled PDF font cannot render {points}. Save an HTML-only version and print it from your browser.")
-    pdfmetrics.registerFontFamily("RoleWeaveVera", normal="RoleWeaveVera", bold="RoleWeaveVeraBold")
+    prepare_pdf_fonts(resume_text(profile, identifiers))
     body = ParagraphStyle("Body", fontName="RoleWeaveVera", fontSize=10, leading=14, spaceAfter=6, alignment=TA_LEFT)
     name_style = ParagraphStyle("Name", parent=body, fontName="RoleWeaveVeraBold", fontSize=21, leading=26, spaceAfter=4)
     headline = ParagraphStyle("Headline", parent=body, fontSize=12, leading=16, textColor=colors.HexColor("#334d66"))
@@ -102,6 +106,12 @@ def resume_pdf(profile, identifiers):
     section_style = ParagraphStyle("Section", parent=body, fontName="RoleWeaveVeraBold", fontSize=11, leading=15,
                                    spaceBefore=10, spaceAfter=6, keepWithNext=True)
     bullet = ParagraphStyle("Claim", parent=body, leftIndent=9, firstLineIndent=-9)
+    if theme != "classic":
+        name_style.fontSize = palette["name_size"]
+        name_style.leading = palette["name_size"] + 5
+        name_style.textColor = colors.HexColor(palette["accent"])
+        headline.textColor = colors.HexColor(palette["accent"])
+        section_style.textColor = colors.HexColor(palette["accent"])
     def paragraph(value, style):
         return Paragraph(html.escape(value).replace("\n", "<br/>"), style)
     story = [paragraph(profile["name"], name_style)]
@@ -135,3 +145,18 @@ def resume_pdf(profile, identifiers):
     if len(payload) > MAX_RESUME_BYTES:
         raise ValueError("Resume PDF exceeds 8 MiB")
     return payload
+
+
+def prepare_pdf_fonts(content):
+    if not PDF_AVAILABLE:
+        raise ValueError("PDF support is missing. Install the runtime requirements.")
+    fonts = Path(reportlab.__file__).parent / "fonts"
+    for name, file in (("RoleWeaveVera", "Vera.ttf"), ("RoleWeaveVeraBold", "VeraBd.ttf")):
+        if name not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(name, str(fonts / file)))
+    characters = set(content) - set("\n\r\t")
+    missing = [char for char in characters if ord(char) not in pdfmetrics.getFont("RoleWeaveVera").face.charToGlyph]
+    if missing:
+        points = ", ".join(f"U+{ord(char):04X}" for char in sorted(missing)[:8])
+        raise ValueError(f"Bundled PDF font cannot render {points}. Save an HTML-only version and print it from your browser.")
+    pdfmetrics.registerFontFamily("RoleWeaveVera", normal="RoleWeaveVera", bold="RoleWeaveVeraBold")

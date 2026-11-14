@@ -11,12 +11,12 @@ from safe_export import publish_bytes
 
 def recipient_bytes(dossier, formats):
     verify_dossier_bytes(dossier)
-    if not isinstance(formats, list) or not formats or len(formats) != len(set(formats)) or any(value not in ("txt", "html", "pdf", "letter") for value in formats):
-        raise ValueError("Choose distinct document formats: txt, html, pdf, letter")
+    if not isinstance(formats, list) or not formats or len(formats) != len(set(formats)) or any(value not in ("txt", "html", "pdf", "letter", "letter-pdf") for value in formats):
+        raise ValueError("Choose distinct document formats: txt, html, pdf, letter, letter-pdf")
     output = BytesIO()
     with zipfile.ZipFile(BytesIO(dossier)) as source, zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as target:
         for format in formats:
-            name = "cover-letter.txt" if format == "letter" else "resume." + format
+            name = "cover-letter.pdf" if format == "letter-pdf" else "cover-letter.txt" if format == "letter" else "resume." + format
             if name not in source.namelist():
                 raise ValueError("Selected document format is unavailable: " + format)
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
@@ -57,7 +57,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dossier", type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--formats", required=True, nargs="+", choices=("txt", "html", "pdf", "letter"))
+    parser.add_argument("--formats", required=True, nargs="+", choices=("txt", "html", "pdf", "letter", "letter-pdf"))
     parser.add_argument("--confirm", action="store_true")
     args = parser.parse_args()
     with args.dossier.open("rb") as handle:

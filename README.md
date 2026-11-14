@@ -9,6 +9,17 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## Application documents, with a visual studio
+
+Open a saved job → Build resume. Choose one of three layouts, select and order
+reviewed facts, preview the document and download the exact preview PDF. A changed
+selection/layout requires another review before freezing. New cover letters export
+as PDF or TXT, and application ZIPs can contain both recipient PDFs.
+
+[Application studio guide](docs/application-studio.md). Existing frozen documents
+and backups remain supported. AI drafting/chat and universal application filling
+are still missing; this is not Dossier feature parity.
+
 ## Start with your resume and keep your workspace recoverable
 
 Career profile → **Import existing resume** accepts local text PDFs, DOCX and
@@ -40,7 +51,7 @@ stops it, but finding an older host is no longer required to open the new app.
 
 ## Release status
 
-V0.19 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.20 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows

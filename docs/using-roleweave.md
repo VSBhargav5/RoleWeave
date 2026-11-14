@@ -1,4 +1,4 @@
-# Use RoleWeave from an existing resume — v0.19
+# Use RoleWeave from an existing resume — v0.20
 
 ## The local application workflow
 
@@ -14,8 +14,9 @@
 4. Open the saved job, review requirements and optionally connect exact quotes
    to your sourced facts. A changed review is a new identity; applications do not
    automatically move to that revision.
-5. Build a resume from selected reviewed facts, inspect the preview, confirm and
-   download the frozen PDF. Optionally write/review a cover letter. Documents and
+5. Build a resume in the [visual studio](application-studio.md): choose a layout,
+   select/order reviewed facts, inspect the preview, confirm and
+   download the frozen PDF. Optionally write/review a PDF cover letter. Documents and
    the application kit reopen earlier versions; recipient ZIPs contain only the
    selected resume and compatible letter, not private evidence/history.
 6. Open the employer application. The optional Chrome/Edge helper can preview and
@@ -67,8 +68,8 @@ confirm. RoleWeave checks paths, sizes, hashes and the database before creating 
 **new independent workspace**. It never merges this ZIP into the active database
 or overwrites its files. Writes are staged, and a completion marker is published
 only after closed writes. An interruption can leave an unlisted staging directory;
-it is not presented as a completed recovery. Hard-link-capable storage is required. Windows recovery refuses paths at the
-legacy length boundary before creating output; use a shorter workspace folder.
+it is not presented as a completed recovery. Hard-link-capable storage is required. Windows recovery uses explicit extended paths to support deep workspace folders
+without changing system settings.
 
 Open the recovered copy from the confirmation or Settings → Recovered workspaces.
 It opens separately and is labelled in the header. You can still use the original.

@@ -48,20 +48,22 @@ def validate_job_context(context):
     return context
 
 
-def make_resume_version(profile, identifiers, label, job=None, include_pdf=True):
+def make_resume_version(profile, identifiers, label, job=None, include_pdf=True, theme="classic"):
     text(label, "Resume version label")
     if len(label) > 2000 or type(include_pdf) is not bool:
         raise ValueError("Invalid resume label or PDF selection")
     data, digest = profile_snapshot(profile["snapshot"])
     if digest != profile["snapshot_sha256"]:
         raise ValueError("Profile fingerprint mismatch")
-    html = resume_html(data, identifiers)
-    pdf = resume_pdf(data, identifiers) if include_pdf else b""
+    html = resume_html(data, identifiers, theme)
+    pdf = resume_pdf(data, identifiers, theme) if include_pdf else b""
     record = {"format": "roleweave-resume-v1", "label": label, "profile_id": profile["id"],
               "profile_sha256": digest, "profile_snapshot_base64": encoded(profile["snapshot"]),
               "selected_fact_ids": identifiers, "job_context": job_context(job),
               "html_base64": encoded(html), "html_sha256": hashlib.sha256(html).hexdigest(),
               "pdf_base64": encoded(pdf), "pdf_sha256": hashlib.sha256(pdf).hexdigest() if pdf else ""}
+    if theme != "classic":
+        record.update(format="roleweave-resume-v2", theme=theme)
     snapshot = json.dumps(record, ensure_ascii=True).encode("utf-8")
     resume_snapshot(snapshot)
     return snapshot
@@ -76,7 +78,9 @@ def resume_snapshot(snapshot):
         raise ValueError("Invalid resume version JSON") from exc
     keys = {"format", "label", "profile_id", "profile_sha256", "profile_snapshot_base64", "selected_fact_ids",
             "job_context", "html_base64", "html_sha256", "pdf_base64", "pdf_sha256"}
-    if not isinstance(record, dict) or set(record) != keys or record["format"] != "roleweave-resume-v1":
+    if isinstance(record, dict) and record.get("format") == "roleweave-resume-v2":
+        keys.add("theme")
+    if not isinstance(record, dict) or set(record) != keys or record["format"] not in ("roleweave-resume-v1", "roleweave-resume-v2"):
         raise ValueError("Unsupported resume version")
     text(record["label"], "Resume label")
     text(record["profile_id"], "Profile version ID")
@@ -86,7 +90,7 @@ def resume_snapshot(snapshot):
     if digest != record["profile_sha256"]:
         raise ValueError("Resume source profile fingerprint mismatch")
     html = decoded(record["html_base64"], MAX_RESUME_BYTES)
-    if hashlib.sha256(html).hexdigest() != record["html_sha256"] or html != resume_html(profile, record["selected_fact_ids"]):
+    if hashlib.sha256(html).hexdigest() != record["html_sha256"] or html != resume_html(profile, record["selected_fact_ids"], record.get("theme", "classic")):
         raise ValueError("Resume HTML does not match selected source claims")
     pdf = decoded(record["pdf_base64"], MAX_RESUME_BYTES)
     if (pdf and (not pdf.startswith(b"%PDF-") or hashlib.sha256(pdf).hexdigest() != record["pdf_sha256"])) or (not pdf and record["pdf_sha256"] != ""):

@@ -42,14 +42,21 @@ class WorkspaceBundleTests(unittest.TestCase):
         again=restore_bundle(payload,self.root/'recovered')
         self.assertNotEqual(again['id'],result['id'])
 
-    @unittest.skipUnless(os.name=='nt','Windows legacy path boundary')
-    def test_deep_windows_recovery_fails_before_creating_output(self):
+    @unittest.skipUnless(os.name=='nt','Windows extended path behavior')
+    def test_deep_windows_recovery_preserves_sources_and_reopens(self):
+        import shutil
+        from workspace_bundle import storage_path,recovery_list
         parent=self.root/('deep-'+90*'x')/'recovered'
+        self.addCleanup(lambda:shutil.rmtree(storage_path(parent.parent),ignore_errors=True))
         payload=self.service.workspace_bundle()
-        with self.assertRaisesRegex(ValueError,'shorter workspace path'):
-            restore_bundle(payload,parent)
-        self.assertFalse(parent.exists())
-        self.assertTrue(self.service.store.list_jobs())
+        result=restore_bundle(payload,parent)
+        recovered=WebService(recovered_database(parent,result['id']))
+        original=next((recovered.artifacts/'resume-imports').iterdir())
+        self.assertGreater(len(str(original)),260)
+        self.assertEqual(original.read_bytes(),b'Synthetic original resume.')
+        self.assertEqual(recovery_list(parent)['items'][0]['id'],result['id'])
+        self.assertEqual(recovered.download('packet',self.packet['id'])[0],self.service.download('packet',self.packet['id'])[0])
+        self.assertTrue(inspect_bundle(recovered.workspace_bundle())[1]['artifacts'])
 
     def test_tampered_and_traversal_bundles_fail_before_persistent_output(self):
         payload=self.service.workspace_bundle()

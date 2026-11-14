@@ -1,0 +1,7 @@
+/* Scoped to the read-only shadow document; no remote fonts or resources. */
+:host{display:block;overflow:auto;color:#17212b;background:white}
+*{box-sizing:border-box}.paper{font:11pt/1.45 Arial,sans-serif;color:#17212b;background:white;padding:24px;overflow-wrap:anywhere;min-height:100%;text-align:left}
+h1{font-size:23pt;margin:0 0 4px;line-height:1.2}h2{font-size:12pt;border-bottom:1px solid #ccd4dc;padding-bottom:4px;margin-top:20px}
+.headline{font-size:13pt;color:#334d66}.contact{font-size:10pt;color:#334155}p{margin:7px 0}li{margin:6px 0}ul{padding-left:20px}
+.slate h1{font-size:26pt;color:#175b63}.slate h2{color:#175b63;border-bottom:2px solid #175b63}.slate .headline{color:#175b63}
+.editorial h1{font-size:28pt;color:#593b73}.editorial h2{color:#593b73;border-bottom:2px solid #593b73}.editorial .headline{color:#593b73}
