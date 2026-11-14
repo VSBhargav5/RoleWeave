@@ -177,6 +177,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.reply(200, payload, content_type, filename)
         elif path == "/api/backup":
             self.reply(200, service.backup(), "application/json", "RoleWeave-backup.json")
+        elif path == "/api/workspace-bundle":
+            self.reply(200, service.workspace_bundle(), "application/zip", "RoleWeave-workspace.zip")
         elif path == "/api/browser-helper":
             stream = BytesIO()
             with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -198,13 +200,21 @@ class RequestHandler(BaseHTTPRequestHandler):
                     raise ValueError("Choose a backup file")
                 self.reply(200, self.server.service.restore(self.body(64 * 1024 * 1024)))
                 return
+            if path == "/api/recovery/preview":
+                if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
+                    raise ValueError("Choose a workspace ZIP")
+                self.reply(200,self.server.service.preview_recovery(self.body(64*1024*1024)))
+                return
             if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
                 raise ValueError("JSON request required")
-            data = json.loads(self.body(), object_pairs_hook=unique_json)
+            data = json.loads(self.body(8*1024*1024 if path=='/api/resume-import/preview' else 1024*1024), object_pairs_hook=unique_json)
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
             routes = {"/api/jobs": service.save_job, "/api/profile": service.save_profile,
+                      "/api/resume-import/preview": service.preview_resume_import,
+                      "/api/resume-import/commit": service.commit_resume_import,
+                      "/api/recovery/restore": service.restore_recovery,
                       "/api/review": service.save_review, "/api/search": service.search,
                       "/api/review/from-profile": service.review_from_profile,
                       "/api/search/save": service.save_search_job,
@@ -215,6 +225,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                       "/api/track": service.track, "/api/submission": service.submit_observation}
             if path in routes:
                 self.reply(200, routes[path](data))
+            elif path == '/api/recovery/open':
+                recovered=service.recovery_database(data)
+                if getattr(sys,'frozen',False):command=[sys.executable,'--db',str(recovered)]
+                else:
+                    executable=Path(sys.executable).with_name('pythonw.exe')
+                    command=[str(executable) if executable.exists() else sys.executable,str(RESOURCE_ROOT/'desktop.py'),'--db',str(recovered)]
+                subprocess.Popen(command,cwd=RESOURCE_ROOT)
+                self.reply(200,{'opened':True})
             elif path == "/api/quit":
                 require(data, ("confirmed",), ("confirmed",))
                 if data["confirmed"] is not True:

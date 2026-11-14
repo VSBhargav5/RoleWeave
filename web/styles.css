@@ -409,3 +409,4 @@ button:focus-visible{outline:2px solid var(--accent)}
 .table-wrap{max-width:100%}
 }
 .section-title{margin:28px 0 16px}.pagination{margin:16px 0 10px}.pagination .muted{margin-right:auto}
+.import-blocks{max-height:440px;overflow:auto;margin:16px 0}.import-block{padding:12px 0;border-bottom:1px solid var(--line)}.import-block .field{max-width:240px;margin-left:26px}
