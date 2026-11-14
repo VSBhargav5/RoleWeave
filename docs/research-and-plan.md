@@ -15,16 +15,17 @@ assets or history are imported into RoleWeave.
 | --- | --- |
 | Resume import, profile, local tracking and recovery | Implemented; personal acceptance still open |
 | Resume presentation and recipient documents | v0.20 adds three layouts, ordered selections and PDF letters; visual studio guide linked below |
-| AI drafting and conversational refinement | Missing from the browser workflow; native quote proposals are a narrower feature, not equivalent |
+| AI drafting and refinement | v0.21 adds source-referenced browser proposals, explicit revisions, selective human approval and saved job drafts; one model/provider, no automatic agent or live quality proof |
 | Broader discovery and scheduled agent | One role/location provider plus explicit boards; saved scheduled searches/agent remain unbuilt |
 | Connected email and broad calendar | Gmail and general two-way sync missing; narrow consented Google follow-up sync is separately implemented/offline tested |
 | Employer applications | Reviewed native contact fields only; unsupported controls, uploads, screening and final submit remain manual |
 | Distribution / readiness | Unsigned Windows beta; real installed-helper/employer, personal and upgrade acceptance remain gates |
 
-[Document studio and current limits](application-studio.md). Next implementation
-priority after this release is a reviewed browser-based tailoring/refinement
-workflow with explicit provider/payload consent and source-bound suggestions.
-Do not claim equivalent AI assistance from a layout selector. Live paid/personal
+[Document studio and current limits](application-studio.md). The reviewed browser tailoring/refinement workflow is now implemented in v0.21
+([guide](ai-tailoring.md)); this supersedes the earlier missing-feature note.
+Broader provider/settings support, scheduled discovery and connected mail remain
+future work. Do not equate source references, synthetic checks or layout choices
+with factual reliability or live quality. Live paid/personal
 requests, accounts and submissions need their required authorization. Older
 phase estimates below are historical planning, not the current shipped checklist.
 

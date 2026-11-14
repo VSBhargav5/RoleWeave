@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import ssl
 import threading
+import time
 from runtime_paths import APP_VERSION
 from web_server import LocalServer
 from web_service import WebService, seed_web_demo
@@ -36,8 +37,16 @@ def run_web_self_test(destination):
                 return payload
             finally:
                 connection.close()
+        def post(route,data):
+            connection=http.client.HTTPConnection('127.0.0.1',server.server_port,timeout=10)
+            try:
+                connection.request('POST',route,body=json.dumps(data).encode(),headers={'X-RoleWeave-Token':server.token,'Content-Type':'application/json'})
+                response=connection.getresponse();payload=response.read()
+                if response.status!=200:raise ValueError('Bundled POST route failed')
+                return json.loads(payload)
+            finally:connection.close()
         get('/api/bootstrap', False)
-        for asset in ('/', '/app.js', '/styles.css', '/icons.js', '/api/browser-helper'):
+        for asset in ('/', '/app.js', '/tailoring.js', '/styles.css', '/document-preview.css', '/icons.js', '/api/browser-helper'):
             if not get(asset): raise ValueError('Bundled asset missing')
         data = json.loads(get('/api/bootstrap'))
         resume = data['resumes'][0]
@@ -81,6 +90,27 @@ def run_web_self_test(destination):
                                'formats':['pdf','letter-pdf'],'confirmed':True})
         if not service.download('packet',packet['id'])[0]:raise ValueError('Studio application kit unavailable')
         report['document_studio']=True
+        ai=post('/api/tailoring/preview',{'job_id':record['job_context']['id'],'profile_id':profile['id'],
+                 'profile_sha256':profile['snapshot_sha256'],'fact_ids':record['selected_fact_ids'],
+                 'instruction':'Synthetic offline runtime check. Preserve project context.'})
+        if not ai['offline_demo']:raise ValueError('Self-test must never use a live model')
+        post('/api/tailoring/send',{'id':ai['id'],'sha256':ai['sha256'],'key':'','confirmed':True})
+        deadline=time.monotonic()+5
+        while True:
+            result=post('/api/tailoring/status',{'id':ai['id']})
+            if result['status']=='completed':break
+            if result['status']!='running' or time.monotonic()>deadline:raise ValueError('Offline tailoring task failed')
+            time.sleep(.01)
+        accepted=post('/api/tailoring/accept',{'id':ai['id'],'result_sha256':result['result_sha256'],
+                       'fact_edits':[{'id':record['selected_fact_ids'][0],'text':'Reviewed synthetic runtime application wording.'}],
+                       'fields':{'letter_intro':'Reviewed synthetic introduction.'},'confirmed':True})
+        saved=json.loads(get('/api/application-draft?id='+accepted['draft_id']))
+        if saved['profile']['id']!=accepted['profile']['id'] or json.loads(get('/api/bootstrap'))['profile']['id']!=profile['id']:
+            raise ValueError('Reviewed draft changed the master profile')
+        from workspace_bundle import inspect_bundle
+        if inspect_bundle(service.workspace_bundle())[1]['artifacts'].get('drafts')!=1:raise ValueError('Draft recovery snapshot missing')
+        report['ai_tailoring']=True
+
 
         # Demo freezes HTML; the core test suite separately covers PDF creation.
         if not get('/api/download?kind=resume&id='+resume['id']+'&format=html'):
@@ -91,6 +121,7 @@ def run_web_self_test(destination):
         report['error'] = 'Synthetic web runtime check failed; no private diagnostics logged.'
     finally:
         if server:
+            server.service.tailoring.shutdown()
             server.shutdown()
             server.server_close()
         (destination / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')

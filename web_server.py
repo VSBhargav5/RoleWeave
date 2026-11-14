@@ -17,10 +17,11 @@ import webbrowser
 import zipfile
 
 from career_profile import unique_json
+from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
-ASSETS = {"/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
+ASSETS = {"/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
 
@@ -164,6 +165,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/resume":
             require(params, ("id",), ("id",))
             self.reply(200, service.get_resume(params["id"]))
+        elif path == "/api/application-draft":
+            require(params,("id",),("id",))
+            self.reply(200,load_draft(service.store,params["id"]))
         elif path == "/api/letter":
             require(params, ("id",), ("id",))
             self.reply(200, service.get_letter(params["id"]))
@@ -212,7 +216,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/jobs": service.save_job, "/api/profile": service.save_profile,
+            routes = {"/api/tailoring/preview": service.tailoring.preview, "/api/tailoring/send": service.tailoring.send,
+                      "/api/tailoring/status": service.tailoring.status, "/api/tailoring/cancel": service.tailoring.cancel,
+                      "/api/tailoring/accept": service.tailoring.accept, "/api/jobs": service.save_job, "/api/profile": service.save_profile,
                       "/api/resume-import/preview": service.preview_resume_import,
                       "/api/resume-import/commit": service.commit_resume_import,
                       "/api/recovery/restore": service.restore_recovery,
@@ -226,6 +232,15 @@ class RequestHandler(BaseHTTPRequestHandler):
                       "/api/track": service.track, "/api/submission": service.submit_observation}
             if path in routes:
                 self.reply(200, routes[path](data))
+            elif path == '/api/practice':
+                require(data,('confirmed',),('confirmed',))
+                if data['confirmed'] is not True:raise ValueError('Confirm opening a separate offline practice workspace')
+                if getattr(sys,'frozen',False):command=[sys.executable,'--demo']
+                else:
+                    executable=Path(sys.executable).with_name('pythonw.exe')
+                    command=[str(executable) if executable.exists() else sys.executable,str(RESOURCE_ROOT/'desktop.py'),'--demo']
+                subprocess.Popen(command,cwd=RESOURCE_ROOT)
+                self.reply(200,{'opened':True,'offline_practice':True})
             elif path == '/api/recovery/open':
                 recovered=service.recovery_database(data)
                 if getattr(sys,'frozen',False):command=[sys.executable,'--db',str(recovered)]
@@ -238,6 +253,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 require(data, ("confirmed",), ("confirmed",))
                 if data["confirmed"] is not True:
                     raise ValueError("Confirm closing the local app")
+                service.tailoring.shutdown()
                 self.reply(200, {"closed": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
             elif path == "/api/legacy":

@@ -62,7 +62,8 @@ Learning remains unverified until you practice.
 
 ## What this does not complete
 
-This improves local document preparation. It does not add AI drafting/chat,
+[v0.21 browser tailoring](ai-tailoring.md) adds reviewed AI proposals and explicit
+revisions, with separate saved drafts. It does not add multi-provider/full chat,
 scheduled discovery, Gmail, broad calendar synchronization, universal employer
 form filling, automatic uploads/submission, signing or verified personal acceptance.
 The helper still handles its documented native contact-field subset. Optional

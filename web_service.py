@@ -10,6 +10,7 @@ import threading
 import time
 from uuid import uuid4
 
+from application_draft import list_drafts, load_draft
 from application_dossier import build_dossier
 from career_profile import imported_career_facts, profile_snapshot, SECTIONS
 from cover_letter import make_letter, letter_snapshot
@@ -25,6 +26,7 @@ from runtime_paths import APP_VERSION
 from safe_export import publish_bytes
 from source_links import source_link
 from submission_receipt import record_basic_submission
+from tailoring_session import TailoringSession
 from workspace_bundle import export_bundle, inspect_bundle, restore_bundle, recovered_database, recovery_list, no_link
 
 
@@ -61,6 +63,7 @@ class WebService:
         self.lock = threading.RLock()
         self.imports = {}
         self.pending_recovery = None
+        self.tailoring = TailoringSession(self.store,demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
 
     def profile(self):
@@ -87,7 +90,7 @@ class WebService:
         return {key: item[key] for key in ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")} | {
             "posting": data["posting"], "review_data": data, "review": item["review"],
             "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier),
-            "letters": self.letters(identifier)}
+            "letters": self.letters(identifier), "drafts": list_drafts(self.store,identifier)}
 
     def save_job(self, data):
         require(data, ("title", "company", "source_url", "market", "posting"), ("title", "company", "market", "posting"))

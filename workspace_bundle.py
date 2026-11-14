@@ -12,13 +12,14 @@ from uuid import uuid4
 import zipfile
 
 from career_profile import unique_json
+from application_draft import draft_snapshot, bound_profile
 from cover_letter import letter_snapshot
 from job_store import JobStore
 from safe_export import publish_bytes
 
 LIMIT=64*1024*1024
 FORMAT='roleweave-workspace-v1'
-PATTERNS={'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
+PATTERNS={'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
           'sources':r'[a-f0-9]{64}\.json', 'resume-imports':r'[a-f0-9]{64}\.(pdf|docx|txt)'}
 
 
@@ -71,7 +72,9 @@ def captured_artifacts(root):
 
 def validate_artifact(name,payload):
     if not valid_name(name):raise ValueError('Unsupported workspace archive path')
-    if name.startswith('web-artifacts/letters/'):
+    if name.startswith('web-artifacts/drafts/'):
+        draft_snapshot(payload)
+    elif name.startswith('web-artifacts/letters/'):
         letter_snapshot(payload)
     elif name.startswith(('web-artifacts/sources/','web-artifacts/resume-imports/')):
         if hashlib.sha256(payload).hexdigest()!=Path(name).stem:
@@ -84,6 +87,8 @@ def export_bundle(store, artifacts):
     if first!=shelf_bytes(store) or captured!=captured_artifacts(artifacts):
         raise ValueError('Workspace changed during backup; finish other saves and retry')
     parts={'shelf.json':first}|captured
+    for name,data in captured.items():
+        if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
     if sum(map(len,parts.values()))>LIMIT:raise ValueError('Workspace bundle exceeds 64 MiB')
     manifest={'format':FORMAT,'unencrypted':True,'managed_only':True,
               'files':{name:{'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()} for name,data in parts.items()}}
@@ -125,6 +130,8 @@ def inspect_bundle(payload):
         with tempfile.TemporaryDirectory(prefix='roleweave-validate-') as folder:
             path=Path(folder)/'shelf.json';path.write_bytes(parts['shelf.json'])
             store=JobStore(Path(folder)/'jobs.db');store.restore(path)
+            for name,data in parts.items():
+                if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
             summary={'jobs':len(store.list_jobs()),'profiles':len(store.list_profiles()),'resumes':len(store.list_resumes()),
                      'artifacts':dict(Counter(name.split('/')[1] for name in parts if name!='shelf.json')),
                      'files':len(parts),'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}

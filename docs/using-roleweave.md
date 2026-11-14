@@ -1,4 +1,4 @@
-# Use RoleWeave from an existing resume — v0.20
+# Use RoleWeave from an existing resume — v0.21
 
 ## The local application workflow
 
@@ -14,7 +14,8 @@
 4. Open the saved job, review requirements and optionally connect exact quotes
    to your sourced facts. A changed review is a new identity; applications do not
    automatically move to that revision.
-5. Build a resume in the [visual studio](application-studio.md): choose a layout,
+5. Optionally use [Tailor with AI](ai-tailoring.md) for reviewed application wording
+   in a separate draft. Build a resume in the [visual studio](application-studio.md): choose a layout,
    select/order reviewed facts, inspect the preview, confirm and
    download the frozen PDF. Optionally write/review a PDF cover letter. Documents and
    the application kit reopen earlier versions; recipient ZIPs contain only the
