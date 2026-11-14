@@ -8,7 +8,7 @@ from job_store import JobStore
 from test_profile import synthetic_profile
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows dossier workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows dossier workflow")
 class DossierUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

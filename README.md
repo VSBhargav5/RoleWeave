@@ -9,6 +9,15 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## One interface: the browser workspace
+
+Use **Launch-RoleWeave.cmd** in this repository or the complete v0.22 portable
+package. The launcher chooses the current versioned package, ignoring stale
+`out/portable` builds. Normal launch, offline practice and old `--legacy`
+shortcuts all open the browser interface. Native-only tools are pending migration;
+there is no advanced-tools fallback. Existing data is preserved, never merged
+automatically. [Launch and workspace guide](docs/single-interface.md).
+
 ## Reviewed AI drafts in the browser
 
 Saved job → **Tailor with AI** previews an exact posting/selected-facts request.
@@ -63,7 +72,7 @@ stops it, but finding an older host is no longer required to open the new app.
 
 ## Release status
 
-V0.21 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.22 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
@@ -98,8 +107,9 @@ No company-board URL is required for this discovery path.
 [Browser workspace, helper setup and complete walkthrough](docs/browser-workspace.md).
 
 The new default uses browser-rendered CSS/SVG and the existing Python/SQLite core.
-Settings → Open advanced tools retains the native workflows and optional
-integrations. Original shelf paths and immutable document/history contracts remain.
+The native interface is retired; employer-board management, Calendar setup,
+audits and rehearsal screens await browser migration. Original shelf paths and
+immutable document/history contracts remain.
 The helper does not submit, upload, overwrite existing values or answer sensitive
 questions. Custom widgets and iframes remain manual; real ATS acceptance is pending.
 
@@ -336,7 +346,7 @@ The self-test requires a new output directory and uses only synthetic data.
 On Windows x64, install `requirements-build.txt` in a separate Python 3.12
 environment, then run `python build_windows.py`. Build output stays under `out/`.
 CI tests Python 3.11/3.12 on Windows/Linux (native UI checks run on Windows),
-builds the portable app and runs its synthetic profile/resume/recovery self-test.
+builds the portable app and runs its headless browser profile/resume/recovery self-test.
 Neither tests nor a package build establish personal usefulness or ATS behavior.
 
 Windows per-user setup and uninstall: [installation guide](docs/windows-installation.md).

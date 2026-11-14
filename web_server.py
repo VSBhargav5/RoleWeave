@@ -257,16 +257,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.reply(200, {"closed": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
             elif path == "/api/legacy":
-                require(data, ("confirmed",), ("confirmed",))
-                if data["confirmed"] is not True:
-                    raise ValueError("Confirm opening native tools")
-                if getattr(sys, "frozen", False):
-                    command = [sys.executable, "--legacy", "--db", str(service.store.path)]
-                else:
-                    executable = Path(sys.executable).with_name("pythonw.exe")
-                    command = [str(executable) if executable.exists() else sys.executable, str(RESOURCE_ROOT / "desktop.py"), "--legacy", "--db", str(service.store.path)]
-                subprocess.Popen(command, cwd=RESOURCE_ROOT)
-                self.reply(200, {"opened": True})
+                self.reply(410,{"error":"The native interface is retired. Continue in the browser workspace; native-only tools are pending migration."})
             else:
                 self.reply(404, {"error": "Unknown application action"})
         except (ValueError, TypeError, UnicodeError, RecursionError) as exc:

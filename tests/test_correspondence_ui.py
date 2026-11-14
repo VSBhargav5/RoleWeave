@@ -7,7 +7,7 @@ from test_mail_observation import synthetic_mail
 import test_application_dossier as dossier_tests
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows correspondence workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows correspondence workflow")
 class CorrespondenceUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

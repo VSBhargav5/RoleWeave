@@ -27,7 +27,9 @@ Current incremental workflow: [saved documents, search pages and safe follow-ups
 
 
 Current default: [v0.18 browser workspace and reviewed filling](browser-workspace.md).
-The older native workflows below remain under Settings → Open advanced tools.
+As of v0.22 the native interface is retired. Older native-only workflows below
+are historical implementation evidence, not browser availability. See
+[single interface and migration limits](single-interface.md).
 Browser UI, role/location discovery and contact filling are implemented and
 synthetically tested. Real helper installation, employer-form compatibility and
 personal acceptance remain separate, unverified gates.

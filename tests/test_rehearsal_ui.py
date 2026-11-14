@@ -8,7 +8,7 @@ from job_store import JobStore
 from rehearsal_journal import read_rehearsal
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows rehearsal workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows rehearsal workflow")
 class RehearsalUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

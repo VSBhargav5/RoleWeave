@@ -9,7 +9,7 @@ from demo_data import seed_practice
 from job_store import JobStore
 
 
-@unittest.skipUnless(os.name == "nt", "Windows readiness interactions")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Windows readiness interactions")
 class ReadinessUITests(unittest.TestCase):
     def test_shelf_audit_reports_without_network_or_database_mutation(self):
         before = self.store.path.read_bytes()

@@ -4,7 +4,7 @@ import unittest
 from background_task import BackgroundTask
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows task lifecycle")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows task lifecycle")
 class BackgroundTaskTests(unittest.TestCase):
     def test_cancel_then_destroy_removes_pending_poll_without_callbacks_or_tcl_errors(self):
         import tkinter as tk

@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows unsaved draft guards")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows unsaved draft guards")
 class DraftTests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk
