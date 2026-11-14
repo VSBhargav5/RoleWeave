@@ -87,6 +87,8 @@ def export_bundle(store, artifacts):
     if first!=shelf_bytes(store) or captured!=captured_artifacts(artifacts):
         raise ValueError('Workspace changed during backup; finish other saves and retry')
     parts={'shelf.json':first}|captured
+    for name,data in captured.items():
+        if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
     if sum(map(len,parts.values()))>LIMIT:raise ValueError('Workspace bundle exceeds 64 MiB')
     manifest={'format':FORMAT,'unencrypted':True,'managed_only':True,
               'files':{name:{'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()} for name,data in parts.items()}}

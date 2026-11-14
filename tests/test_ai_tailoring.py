@@ -177,3 +177,9 @@ class TailoringSessionTests(unittest.TestCase):
         restored_store=JobStore(recovered_database(root,restored['id']))
         self.assertEqual(load_draft(restored_store,accepted['draft_id'])['profile'],reopened['profile'])
         self.assertEqual(restored_store.active_profile()['id'],self.profile_id)
+        # A valid-looking draft hash must still reference real source snapshots.
+        record_path=self.store.path.parent/'web-artifacts'/'drafts'/(accepted['draft_id']+'.json')
+        record=json.loads(record_path.read_bytes());record['profile_sha256']='0'*64;record_path.write_text(json.dumps(record),encoding='utf-8')
+        self.assertTrue(list_drafts(self.store,self.job)['issues'])
+        with self.assertRaisesRegex(ValueError,'fingerprint'):WebService(self.store.path).workspace_bundle()
+        with self.assertRaises(ValueError):load_draft(self.store,'../outside')
