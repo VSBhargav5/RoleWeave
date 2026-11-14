@@ -232,6 +232,15 @@ class RequestHandler(BaseHTTPRequestHandler):
                       "/api/track": service.track, "/api/submission": service.submit_observation}
             if path in routes:
                 self.reply(200, routes[path](data))
+            elif path == '/api/practice':
+                require(data,('confirmed',),('confirmed',))
+                if data['confirmed'] is not True:raise ValueError('Confirm opening a separate offline practice workspace')
+                if getattr(sys,'frozen',False):command=[sys.executable,'--demo']
+                else:
+                    executable=Path(sys.executable).with_name('pythonw.exe')
+                    command=[str(executable) if executable.exists() else sys.executable,str(RESOURCE_ROOT/'desktop.py'),'--demo']
+                subprocess.Popen(command,cwd=RESOURCE_ROOT)
+                self.reply(200,{'opened':True,'offline_practice':True})
             elif path == '/api/recovery/open':
                 recovered=service.recovery_database(data)
                 if getattr(sys,'frozen',False):command=[sys.executable,'--db',str(recovered)]

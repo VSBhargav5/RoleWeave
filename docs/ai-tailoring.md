@@ -72,7 +72,8 @@ python -m unittest discover -s tests -p test_ai_tailoring.py -v
 python desktop.py --web-self-test out/new-tailoring-runtime-check
 ```
 
-The separately seeded practice workspace is visibly labelled. **Run offline
+Use **Settings & backup → Open offline practice** to start a separate seeded
+workspace without using a terminal. It is visibly labelled. **Run offline
 practice** uses fixed synthetic wording and never calls a model, even if networking
 is available. It exercises consent, revision, review, persistence and document
 handoff. Synthetic success does not demonstrate live model/account compatibility,

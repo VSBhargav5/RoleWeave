@@ -183,3 +183,23 @@ class TailoringSessionTests(unittest.TestCase):
         self.assertTrue(list_drafts(self.store,self.job)['issues'])
         with self.assertRaisesRegex(ValueError,'fingerprint'):WebService(self.store.path).workspace_bundle()
         with self.assertRaises(ValueError):load_draft(self.store,'../outside')
+
+    def test_practice_launcher_requires_consent_and_uses_only_fixed_demo_arguments(self):
+        import http.client
+        from web_server import LocalServer
+        from web_service import WebService
+        server=LocalServer(('127.0.0.1',0),WebService(self.store.path))
+        worker=threading.Thread(target=server.serve_forever,daemon=True);worker.start()
+        def post(confirmed):
+            connection=http.client.HTTPConnection('127.0.0.1',server.server_port,timeout=3)
+            try:
+                connection.request('POST','/api/practice',body=json.dumps({'confirmed':confirmed}),headers={'Content-Type':'application/json','X-RoleWeave-Token':server.token})
+                response=connection.getresponse();payload=json.loads(response.read());return response.status,payload
+            finally:connection.close()
+        try:
+            with patch('web_server.subprocess.Popen') as launch:
+                self.assertEqual(post(False)[0],400);launch.assert_not_called()
+                status,payload=post(True);self.assertEqual(status,200);self.assertTrue(payload['offline_practice'])
+                command=launch.call_args.args[0];self.assertEqual(command[-1],'--demo');self.assertNotIn('--db',command)
+            self.assertEqual(self.store.active_profile()['id'],self.profile_id)
+        finally:server.shutdown();server.server_close();worker.join(2)
