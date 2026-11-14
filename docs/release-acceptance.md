@@ -1,4 +1,4 @@
-# Release acceptance — v0.18 controlled beta
+# Release acceptance — v0.19 controlled beta
 
 Current v0.19 flow: [resume import, application use and managed recovery](using-roleweave.md). Older database-only backup limitations below do not describe the new recovery ZIP.
 
@@ -43,8 +43,8 @@ trial with synthetic data before private use. No automatic update service exists
 On 12 November the owner chose **local Windows v1 first**. V1 covers the eight
 local workflow groups in personal-readiness.md. Google Calendar and AI remain
 optional preview integrations; their live trials are not local-v1 blockers and
-they must not be advertised as production-validated. Global discovery, automatic
-applications and general account synchronization are outside this release scope.
+they must not be advertised as production-validated. Bounded role/location discovery and reviewed contact filling are now implemented.
+Automatic submission and general account synchronization remain outside scope.
 
 Local v1 acceptance focuses on first launch, reviewed local records/documents,
 manual tracking, explicit exports and recovery. Signing/distribution and
@@ -138,7 +138,7 @@ Download the portable/setup artifact and release-evidence artifact from the
 same successful CI run. Compare the relevant file hash with SHA256SUMS.txt:
 
 ```powershell
-Get-FileHash -LiteralPath .\RoleWeave-0.18.2-windows-x64.zip -Algorithm SHA256
+Get-FileHash -LiteralPath .\RoleWeave-0.19.0-windows-x64.zip -Algorithm SHA256
 ```
 
 A matching hash detects a changed download relative to that run. It does not
