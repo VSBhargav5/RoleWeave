@@ -22,6 +22,15 @@ PATTERNS={'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
           'sources':r'[a-f0-9]{64}\.json', 'resume-imports':r'[a-f0-9]{64}\.(pdf|docx|txt)'}
 
 
+def storage_path(path):
+    """Use explicit Windows extended paths without changing system settings."""
+    path=Path(path)
+    if os.name!='nt':return path
+    absolute=os.path.abspath(path)
+    if absolute.startswith("\\\\?\\"):return Path(absolute)
+    return Path("\\\\?\\UNC\\"+absolute[2:] if absolute.startswith("\\\\") else "\\\\?\\"+absolute)
+
+
 def no_link(path):
     if path.is_symlink() or (hasattr(path,'is_junction') and path.is_junction()):
         raise ValueError('Linked workspace artifact paths are unsupported')
@@ -126,10 +135,8 @@ def inspect_bundle(payload):
 
 def restore_bundle(payload, parent):
     parts,summary=inspect_bundle(payload)  # Validate everything before reserving persistent output.
-    parent=Path(parent);no_link(parent)
+    parent=storage_path(parent);no_link(parent)
     identifier=uuid4().hex;stage=parent/('.stage-'+identifier);final=parent/identifier
-    if os.name=='nt' and any(len(str((stage/name).absolute()))>=250 for name in parts):
-        raise ValueError('Recovery needs a shorter workspace path on Windows. Open a workspace in a shorter folder and retry; current data is unchanged')
     parent.mkdir(parents=True,exist_ok=True)
     stage.mkdir(exist_ok=False)
     source=stage/'shelf.json';publish_bytes(source,parts.pop('shelf.json'))
@@ -145,7 +152,7 @@ def restore_bundle(payload, parent):
 def recovered_database(parent, identifier):
     if not isinstance(identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',identifier):
         raise ValueError('Choose a completed recovered workspace')
-    parent=Path(parent);directory=parent/identifier
+    parent=storage_path(parent);directory=parent/identifier
     for path in (parent,directory,directory/'RECOVERY.json',directory/'jobs.db'):no_link(path)
     with (directory/'RECOVERY.json').open('rb') as source:raw=source.read(1024*1024+1)
     if len(raw)>1024*1024:raise ValueError('Recovery marker exceeds its limit')
@@ -157,7 +164,7 @@ def recovered_database(parent, identifier):
 
 
 def recovery_list(parent):
-    parent=Path(parent);no_link(parent)
+    parent=storage_path(parent);no_link(parent)
     if not parent.exists():return {'items':[],'issues':[]}
     items=[];issues=[]
     for index,path in enumerate(parent.iterdir()):
