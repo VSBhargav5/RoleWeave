@@ -17,7 +17,10 @@ const os=require('node:os');
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({viewport:{width:1440,height:1000},deviceScaleFactor:1});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+  // Synthetic first-use shelf has no prepared PDF; production data stays untouched.
+  await page.route('**/api/bootstrap',async route=>{const r=await route.fetch();const d=await r.json();d.resumes=[];await route.fulfill({response:r,json:d})},{times:1});
   await page.goto(origin);await page.getByRole('heading',{name:'Make your next move.'}).waitFor();
+  const onboarding=await page.locator('.onboarding').boundingBox(),metrics=await page.locator('.metrics').boundingBox();assert.ok(Math.abs(metrics.y-onboarding.y-onboarding.height-24)<2,'Onboarding and metrics have a real section gap');const steps=await page.locator('.onboarding-progress li').all();assert.equal(steps.length,3);const stepBoxes=await Promise.all(steps.map(e=>e.boundingBox()));assert.ok(stepBoxes.every(b=>Math.abs(b.y-stepBoxes[0].y)<2),'Setup markers share a baseline');
   await fs.promises.mkdir(path.join(root,'out','web-qa'),{recursive:true});
   await page.screenshot({path:path.join(root,'out','web-qa','overview.png'),fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No desktop horizontal overflow');
