@@ -139,12 +139,12 @@ class JobStore:
         with closing(sqlite3.connect(self.path)) as db, db:
             initialize_schema(db)
 
-    def create_resume(self, profile_id, identifiers, label, job_id=None, include_pdf=True, confirmed=False):
+    def create_resume(self, profile_id, identifiers, label, job_id=None, include_pdf=True, confirmed=False, theme="classic"):
         if confirmed is not True:
             raise ValueError("Review and explicitly approve the resume content before saving")
         profile = self.load_profile(profile_id)
         job = self.load(job_id) if job_id is not None else None
-        snapshot = make_resume_version(profile, identifiers, label, job, include_pdf)
+        snapshot = make_resume_version(profile, identifiers, label, job, include_pdf, theme)
         _record, digest = resume_snapshot(snapshot)
         identifier = str(uuid4())
         with closing(sqlite3.connect(self.path)) as db, db:
