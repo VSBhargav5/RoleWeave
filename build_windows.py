@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from runtime_paths import APP_VERSION, RESOURCE_ROOT
 
-BUNDLED_DISTRIBUTIONS = ("reportlab", "Pillow", "charset-normalizer", "google-auth-oauthlib", "google-auth",
+BUNDLED_DISTRIBUTIONS = ("reportlab", "Pillow", "charset-normalizer", "pypdf", "google-auth-oauthlib", "google-auth",
                          "requests-oauthlib", "oauthlib", "requests", "urllib3", "certifi", "idna",
                          "cryptography", "cffi", "pycparser", "pyasn1", "pyasn1-modules")
 
