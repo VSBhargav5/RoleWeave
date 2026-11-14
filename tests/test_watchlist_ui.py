@@ -8,7 +8,7 @@ from job_store import JobStore
 from test_employer_watchlist import synthetic_watchlist
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows watchlist workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows watchlist workflow")
 class WatchlistUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

@@ -10,7 +10,7 @@ from test_discovery import fixture
 from job_store import JobStore
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows discovery workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows discovery workflow")
 class DiscoveryUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

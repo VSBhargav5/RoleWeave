@@ -36,19 +36,13 @@ class DesktopErrorTests(unittest.TestCase):
         with patch("desktop_errors.messagebox.showerror", side_effect=tk.TclError("gone")):
             root.report_callback_exception(RuntimeError, RuntimeError("failed"), None)
 
-    def test_startup_failure_reports_nonzero_and_destroys_window(self):
-        from unittest.mock import MagicMock
+    def test_browser_startup_failure_never_falls_back_to_native_workspace(self):
         import sqlite3
         import desktop
-        root = MagicMock()
-        root.winfo_screenwidth.return_value = 1600
-        root.winfo_screenheight.return_value = 1000
         with patch("sys.argv", ["desktop.py", "--legacy", "--db", "synthetic-do-not-create.db"]), \
-             patch("desktop.tk.Tk", return_value=root), \
-             patch("desktop.JobStore", side_effect=sqlite3.OperationalError("synthetic locked database")), \
+             patch("desktop.tk.Tk") as native, \
+             patch("web_server.run_application", side_effect=sqlite3.OperationalError("synthetic locked database")), \
              patch("desktop.messagebox.showerror") as dialog:
             self.assertEqual(desktop.main(), 1)
-        self.assertTrue(callable(root.report_callback_exception))
-        root.destroy.assert_called_once_with()
-        root.mainloop.assert_not_called()
+        native.assert_not_called()
         dialog.assert_called_once()

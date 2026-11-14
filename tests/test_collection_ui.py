@@ -11,7 +11,7 @@ from test_watchlist_fetch import fake_fetch
 from watchlist_fetch import fetch_watchlist
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows collection workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows collection workflow")
 class CollectionUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

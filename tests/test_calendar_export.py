@@ -74,7 +74,7 @@ class CalendarTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             follow_up_calendar(item, [{**events[0], "job_id": "other"}])
 
-    @unittest.skipUnless(os.name == "nt", "Native Windows calendar export")
+    @unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows calendar export")
     def test_tracker_refuses_unsaved_date_then_exports_saved_observation(self):
         import tkinter as tk
         from application_tracker import ApplicationTracker

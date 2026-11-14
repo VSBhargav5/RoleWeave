@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows Tk smoke")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows Tk smoke")
 class DesktopTests(unittest.TestCase):
     def test_save_reopen_filter_and_import_preserve_posting(self):
         import tkinter as tk

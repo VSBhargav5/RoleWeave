@@ -11,7 +11,7 @@ from job_store import JobStore
 from background_task import BackgroundTask
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows reviewed AI workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows reviewed AI workflow")
 class AIUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

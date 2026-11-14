@@ -6,8 +6,9 @@ Current v0.19 flow: [resume import, application use and managed recovery](using-
 RoleWeave now starts in your default browser. The interface uses browser-rendered
 text, CSS gradients, SVG icons, rounded surfaces and responsive layouts. Python
 and the existing SQLite shelf remain authoritative. There is no frontend build
-step or Node dependency for users. Tkinter remains available under Settings →
-Open advanced tools, or `python desktop.py --legacy`.
+step or Node dependency for users. As of v0.22 the native interface is retired.
+All normal launches, including old `--legacy` shortcuts, use the browser.
+[Stable launcher and preserved workspace paths](single-interface.md).
 
 ## First application
 
@@ -77,7 +78,7 @@ Real employer compatibility and human acceptance have not yet been established.
   outside shelf backups; preserve that directory separately if required. Clearing
   the prepared local sheet does not clear an already loaded extension sheet.
 - Settings → Quit stops the host. Closing a tab alone leaves it running. Optional
-  AI/Calendar and older advanced tools remain native and retain their consent gates.
+  Browser AI tailoring is available; Calendar and other native-only screens await browser migration.
 
 ## Runnable verification and a focused exercise
 
@@ -110,7 +111,8 @@ The test exercises discovery/save, PDF/letter/ZIP downloads, tracking, draft gua
 actual synthetic native-input filling and stale/no-overwrite/no-submit behavior.
 It exercises the mapper through browser automation; real installed-extension
 toolbar permission/installation and actual employer forms require manual acceptance.
-Windows packaging also runs source/frozen local HTTP/asset and native self-tests.
+Windows packaging runs headless source/frozen local HTTP/asset self-tests.
+Archived native regression tests run only when explicitly enabled on CI runners.
 
 ## Comparison and remaining work
 

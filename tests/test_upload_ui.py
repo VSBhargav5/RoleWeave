@@ -6,7 +6,7 @@ import unittest
 import test_dossier_ui as dossier_ui
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows upload workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows upload workflow")
 class UploadUITests(unittest.TestCase):
     def setUp(self):
         dossier_ui.DossierUITests.setUp(self)

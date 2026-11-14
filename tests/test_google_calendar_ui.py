@@ -9,7 +9,7 @@ from job_store import JobStore
 from google_calendar_sync import prepare_sync
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows Calendar review")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows Calendar review")
 class GoogleCalendarUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

@@ -8,7 +8,7 @@ from demo_data import seed_practice
 from job_store import JobStore
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows workspace design and navigation")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows workspace design and navigation")
 class DesktopDesignTests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk
@@ -227,7 +227,7 @@ class DesktopDesignTests(unittest.TestCase):
 
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows Tk lifecycle")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows Tk lifecycle")
 class ThemeLifecycleTests(unittest.TestCase):
     def test_immediate_close_has_no_queued_theme_error_and_does_not_run_timers(self):
         import tkinter as tk

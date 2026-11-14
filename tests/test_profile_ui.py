@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 
-@unittest.skipUnless(os.name == "nt", "Native Windows career profile workflow")
+@unittest.skipUnless(os.name == "nt" and os.environ.get("ROLEWEAVE_TEST_NATIVE_ARCHIVE") == "1", "Native Windows career profile workflow")
 class ProfileUITests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk

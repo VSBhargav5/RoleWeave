@@ -17,7 +17,6 @@ from profile_editor import CareerProfileEditor
 from resume_builder import ResumeBuilder
 from demo_data import seed_practice
 from runtime_paths import APP_VERSION, default_database_path, new_practice_path
-from startup_selftest import run_self_test
 from application_dossier import verify_dossier
 from dossier_window import DossierWindow
 from letter_window import LetterWindow, FrozenLetterWindow
@@ -877,7 +876,7 @@ class JobShelf(ttk.Frame):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=f"RoleWeave {APP_VERSION}")
-    parser.add_argument("--legacy", action="store_true", help="Open advanced native tools")
+    parser.add_argument("--legacy", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--port", type=int, default=8765, help="Preferred loopback port; an occupied port falls back safely, 0 always chooses a free port")
     parser.add_argument("--no-browser", action="store_true", help="Print local workspace URL without opening a browser")
     paths = parser.add_mutually_exclusive_group()
@@ -891,52 +890,22 @@ def main():
     if args.extract_resume_worker:
         from resume_import import worker
         return worker(*args.extract_resume_worker)
-    if args.self_test:
-        raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
-    if args.web_self_test:
+    if args.self_test or args.web_self_test:
         from web_selftest import run_web_self_test
-        return 0 if run_web_self_test(args.web_self_test) else 2
+        return 0 if run_web_self_test(args.self_test or args.web_self_test) else 2
     if args.search_check:
         from search_selftest import run_search_check
         return 0 if run_search_check(args.search_check) else 2
-    if not args.legacy:
-        from web_server import run_application
-        try:
-            return run_application(args.db, args.demo, args.port, not args.no_browser)
-        except (OSError, ValueError, sqlite3.Error):
-            if args.no_browser:
-                print("Could not open the local workspace. Check storage and the chosen port.", file=sys.stderr)
-            else:
-                messagebox.showerror("Could not open RoleWeave", "The local workspace could not start. RoleWeave attempted automatic local-port selection. Check the complete app folder and workspace storage access. Your data was not reset.")
-            return 1
-    root = tk.Tk()
-    install_error_handler(root)
-    root.title(f"RoleWeave {APP_VERSION} - {'Synthetic practice' if args.demo else 'Job workspace'}")
-    # Leave room for window chrome/taskbar in Tk's DPI-scaled screen coordinates.
-    initial_width = max(1040, min(1360, root.winfo_screenwidth() - 80))
-    initial_height = max(700, min(880, root.winfo_screenheight() - 120))
-    initial_x = max(0, (root.winfo_screenwidth() - initial_width) // 2)
-    initial_y = 12
-    root.geometry(f"{initial_width}x{initial_height}+{initial_x}+{initial_y}")
-    root.minsize(1040, 700)
+    # --legacy is accepted only for old shortcuts; every app launch uses the browser.
+    from web_server import run_application
     try:
-        path = new_practice_path(default_database_path().parent) if args.demo else args.db or default_database_path()
-        store = JobStore(path)
-        identifier = seed_practice(store) if args.demo else None
-        shelf = JobShelf(root, store)
-        if identifier:
-            shelf.show_saved(identifier)
-            shelf.detail_tabs.select(1)
-            shelf.status.set("Synthetic practice only. Your main workspace is unchanged.")
-        elif not store.list_jobs() and not store.active_profile():
-            shelf.status.set("Welcome. Start with Career profile, or use Getting started to open a separate synthetic practice workspace.")
-        root.protocol("WM_DELETE_WINDOW", shelf.close)
-    except (OSError, sqlite3.Error, ValueError, RuntimeError, tk.TclError) as exc:
-        messagebox.showerror("Could not open RoleWeave", str(exc), parent=root)
-        root.destroy()
+        return run_application(args.db, args.demo, args.port, not args.no_browser)
+    except (OSError, ValueError, sqlite3.Error):
+        if args.no_browser:
+            print("Could not open the local workspace. Check storage and the chosen port.", file=sys.stderr)
+        else:
+            messagebox.showerror("Could not open RoleWeave", "The browser workspace could not start. Check the complete app folder and workspace storage access. Your data was not reset.")
         return 1
-    root.mainloop()
-    return 0
 
 
 if __name__ == "__main__":
