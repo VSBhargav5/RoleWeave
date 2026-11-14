@@ -64,6 +64,24 @@ def run_web_self_test(destination):
         if not service.recovery_database({'id':restored['id'],'confirmed':True}).is_file():
             raise ValueError('Managed workspace recovery failed')
         report['managed_recovery']=True
+        studio_args={'job_id':record['job_context']['id'],'profile_id':profile['id'],
+                     'profile_sha256':profile['snapshot_sha256'],'fact_ids':record['selected_fact_ids'],
+                     'label':'Synthetic studio runtime','theme':'slate'}
+        preview=service.resume(studio_args)
+        studio=service.resume(studio_args|{'confirmed':True,'preview_sha256':preview['preview_sha256']},freeze=True)
+        if service.download('resume',studio['id'])[0]!=base64.b64decode(preview['pdf_base64']):
+            raise ValueError('Studio preview differs from frozen PDF')
+        letter_args={'job_id':record['job_context']['id'],'resume_id':studio['id'],'fact_ids':record['selected_fact_ids'],
+                     'motivation':'Synthetic studio runtime.','closing':'Thank you.','include_pdf':True,'confirmed':False}
+        letter_preview=service.letter(letter_args,freeze=False)
+        studio_letter=service.letter(letter_args|{'confirmed':True,'preview_sha256':letter_preview['preview_sha256']})
+        if service.download('letter',studio_letter['id'],'pdf')[0]!=base64.b64decode(letter_preview['pdf_base64']):
+            raise ValueError('Letter preview differs from frozen PDF')
+        packet=service.packet({'job_id':record['job_context']['id'],'resume_id':studio['id'],'letter_id':studio_letter['id'],
+                               'formats':['pdf','letter-pdf'],'confirmed':True})
+        if not service.download('packet',packet['id'])[0]:raise ValueError('Studio application kit unavailable')
+        report['document_studio']=True
+
         # Demo freezes HTML; the core test suite separately covers PDF creation.
         if not get('/api/download?kind=resume&id='+resume['id']+'&format=html'):
             raise ValueError('Frozen resume unavailable')
