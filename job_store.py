@@ -202,16 +202,19 @@ class JobStore:
         publish_bytes(destination, payload)
         return hashlib.sha256(payload).hexdigest()
 
-    def save_profile(self, snapshot):
+    def save_profile(self, snapshot, *, activate=True):
+        if type(activate) is not bool:
+            raise ValueError("Choose whether to activate the profile")
         _data, digest = profile_snapshot(snapshot)
         identifier = str(uuid4())
         with closing(sqlite3.connect(self.path)) as db, db:
             current = db.execute("SELECT value FROM app_settings WHERE key='active_profile'").fetchone()
-            if current and db.execute("SELECT 1 FROM career_profiles WHERE id=? AND snapshot_sha256=?", (current[0], digest)).fetchone():
+            if activate and current and db.execute("SELECT 1 FROM career_profiles WHERE id=? AND snapshot_sha256=?", (current[0], digest)).fetchone():
                 raise ValueError("This profile is unchanged; no new version was saved")
             db.execute("INSERT INTO career_profiles VALUES (?, ?, ?, ?)",
                        (identifier, datetime.now(timezone.utc).isoformat(), digest, snapshot))
-            db.execute("INSERT OR REPLACE INTO app_settings VALUES ('active_profile', ?)", (identifier,))
+            if activate:
+                db.execute("INSERT OR REPLACE INTO app_settings VALUES ('active_profile', ?)", (identifier,))
         return identifier
 
     def load_profile(self, identifier):

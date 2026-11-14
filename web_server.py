@@ -212,7 +212,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/jobs": service.save_job, "/api/profile": service.save_profile,
+            routes = {"/api/tailoring/preview": service.tailoring.preview, "/api/tailoring/send": service.tailoring.send,
+                      "/api/tailoring/status": service.tailoring.status, "/api/tailoring/cancel": service.tailoring.cancel,
+                      "/api/tailoring/accept": service.tailoring.accept, "/api/jobs": service.save_job, "/api/profile": service.save_profile,
                       "/api/resume-import/preview": service.preview_resume_import,
                       "/api/resume-import/commit": service.commit_resume_import,
                       "/api/recovery/restore": service.restore_recovery,
@@ -238,6 +240,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 require(data, ("confirmed",), ("confirmed",))
                 if data["confirmed"] is not True:
                     raise ValueError("Confirm closing the local app")
+                service.tailoring.shutdown()
                 self.reply(200, {"closed": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
             elif path == "/api/legacy":

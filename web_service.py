@@ -25,6 +25,7 @@ from runtime_paths import APP_VERSION
 from safe_export import publish_bytes
 from source_links import source_link
 from submission_receipt import record_basic_submission
+from tailoring_session import TailoringSession
 from workspace_bundle import export_bundle, inspect_bundle, restore_bundle, recovered_database, recovery_list, no_link
 
 
@@ -61,6 +62,7 @@ class WebService:
         self.lock = threading.RLock()
         self.imports = {}
         self.pending_recovery = None
+        self.tailoring = TailoringSession(self.store,demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
 
     def profile(self):
