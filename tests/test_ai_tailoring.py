@@ -123,7 +123,7 @@ class TailoringSessionTests(unittest.TestCase):
         restored=JobStore(Path(self.temp.name)/'restored.db');restored.restore(backup)
         self.assertEqual(restored.active_profile()['id'],self.profile_id)
         self.assertEqual(restored.load_profile(accepted['profile']['id'])['profile'],accepted['profile']['profile'])
-        with self.assertRaises(ValueError):self.session.accept(args)
+        self.assertEqual(self.session.accept(args),accepted)
 
     def test_cancel_discards_late_results_and_blocks_another_concurrent_send(self):
         started,release=threading.Event(),threading.Event()
@@ -155,3 +155,25 @@ class TailoringSessionTests(unittest.TestCase):
             self.assertEqual(result['status'],'completed')
             self.assertEqual(result['draft']['bullets'][0]['text'],self.profile['profile']['facts'][0]['claim'])
             provider.assert_not_called()
+
+    def test_saved_draft_reopens_and_workspace_restore_verifies_exact_sources(self):
+        from application_draft import load_draft,list_drafts
+        from workspace_bundle import inspect_bundle,restore_bundle,recovered_database
+        from web_service import WebService
+        session=TailoringSession(self.store,demo=True);p=session.preview(self.args)
+        session.send({'id':p['id'],'sha256':p['sha256'],'key':'','confirmed':True});session.entries[p['id']]['thread'].join(2)
+        done=session.status({'id':p['id']})
+        args={'id':p['id'],'result_sha256':done['result_sha256'],'fact_edits':[{'id':'project-python','text':'Reviewed synthetic claim.'}],
+              'fields':{'letter_intro':'Reviewed introduction.'},'confirmed':True}
+        with patch('tailoring_session.save_draft',side_effect=OSError('Synthetic full disk')):
+            with self.assertRaises(OSError):session.accept(args)
+        before=len(self.store.list_profiles());accepted=session.accept(args)
+        self.assertEqual(len(self.store.list_profiles()),before)
+        reopened=load_draft(self.store,accepted['draft_id'])
+        self.assertEqual(reopened['letter'],accepted['letter'])
+        self.assertEqual(list_drafts(self.store,self.job)['items'][0]['id'],accepted['draft_id'])
+        payload=WebService(self.store.path).workspace_bundle();self.assertEqual(inspect_bundle(payload)[1]['artifacts']['drafts'],1)
+        root=Path(self.temp.name)/'recovered';restored=restore_bundle(payload,root)
+        restored_store=JobStore(recovered_database(root,restored['id']))
+        self.assertEqual(load_draft(restored_store,accepted['draft_id'])['profile'],reopened['profile'])
+        self.assertEqual(restored_store.active_profile()['id'],self.profile_id)

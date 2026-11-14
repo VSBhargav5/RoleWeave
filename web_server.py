@@ -17,6 +17,7 @@ import webbrowser
 import zipfile
 
 from career_profile import unique_json
+from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
@@ -164,6 +165,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/resume":
             require(params, ("id",), ("id",))
             self.reply(200, service.get_resume(params["id"]))
+        elif path == "/api/application-draft":
+            require(params,("id",),("id",))
+            self.reply(200,load_draft(service.store,params["id"]))
         elif path == "/api/letter":
             require(params, ("id",), ("id",))
             self.reply(200, service.get_letter(params["id"]))
