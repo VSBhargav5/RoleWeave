@@ -67,10 +67,21 @@ jobs:
           if ($webTest.ExitCode -ne 0) { exit 1 }
           $webReport = Get-Content out/package-web-smoke/report.json -Raw | ConvertFrom-Json
           if (-not $webReport.ok -or -not $webReport.frozen) { exit 1 }
+          if (-not $webReport.resume_import -or -not $webReport.managed_recovery) { exit 1 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --ignore-scripts playwright@1.62.1
+      - run: npx playwright install chromium --only-shell
+      - name: Verify the complete packaged browser workflow with synthetic data
+        shell: pwsh
+        run: |
+          $env:ROLEWEAVE_PACKAGE = (Resolve-Path './out/portable/RoleWeave/RoleWeave.exe').Path
+          node tests/browser-workflow.cjs
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.18.2-windows-x64
-          path: out/RoleWeave-0.18.2-windows-x64.zip
+          name: RoleWeave-0.19.0-windows-x64
+          path: out/RoleWeave-0.19.0-windows-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
@@ -89,7 +100,7 @@ jobs:
           if (Test-Path $dataRoot) { throw 'Synthetic data path must be absent' }
           New-Item -ItemType Directory -Path $dataRoot | Out-Null
           Set-Content (Join-Path $dataRoot 'preserve-me.txt') 'synthetic-preservation-marker'
-          $setup = Resolve-Path out/RoleWeave-0.18.2-windows-x64-setup.exe
+          $setup = Resolve-Path out/RoleWeave-0.19.0-windows-x64-setup.exe
           $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $installRoot + '"'))
           1..2 | ForEach-Object {
             $process = Start-Process $setup -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
@@ -105,14 +116,14 @@ jobs:
           if ((Get-Content (Join-Path $dataRoot 'preserve-me.txt')) -ne 'synthetic-preservation-marker') { throw 'User data changed' }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.18.2-windows-x64-setup
-          path: out/RoleWeave-0.18.2-windows-x64-setup.exe
+          name: RoleWeave-0.19.0-windows-x64-setup
+          path: out/RoleWeave-0.19.0-windows-x64-setup.exe
           if-no-files-found: error
 
       - name: Hash the closed release artifacts
         shell: pwsh
         run: |
-          $files = @('out/RoleWeave-0.18.2-windows-x64.zip', 'out/RoleWeave-0.18.2-windows-x64-setup.exe')
+          $files = @('out/RoleWeave-0.19.0-windows-x64.zip', 'out/RoleWeave-0.19.0-windows-x64-setup.exe')
           $lines = foreach ($file in $files) {
             $item = Get-FileHash -LiteralPath $file -Algorithm SHA256
             $item.Hash.ToLowerInvariant() + '  ' + (Split-Path $file -Leaf)
@@ -120,7 +131,7 @@ jobs:
           $lines | Set-Content -LiteralPath out/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.18.2-release-evidence
+          name: RoleWeave-0.19.0-release-evidence
           path: |
             out/SHA256SUMS.txt
             out/package-smoke/report.json

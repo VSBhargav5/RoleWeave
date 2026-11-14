@@ -1,5 +1,8 @@
 # Personal-use readiness - v0.18.0
 
+Current v0.19 flow: [resume import, application use and managed recovery](using-roleweave.md). Older database-only backup limitations below do not describe the new recovery ZIP.
+
+
 Current incremental workflow: [saved documents, search pages and safe follow-ups](continuing-applications.md).
 
 

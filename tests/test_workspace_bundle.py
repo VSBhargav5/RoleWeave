@@ -2,6 +2,7 @@ import base64
 import hashlib
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -40,6 +41,15 @@ class WorkspaceBundleTests(unittest.TestCase):
         self.assertEqual(len(recovered.store.list_jobs()),len(self.service.store.list_jobs()))
         again=restore_bundle(payload,self.root/'recovered')
         self.assertNotEqual(again['id'],result['id'])
+
+    @unittest.skipUnless(os.name=='nt','Windows legacy path boundary')
+    def test_deep_windows_recovery_fails_before_creating_output(self):
+        parent=self.root/('deep-'+90*'x')/'recovered'
+        payload=self.service.workspace_bundle()
+        with self.assertRaisesRegex(ValueError,'shorter workspace path'):
+            restore_bundle(payload,parent)
+        self.assertFalse(parent.exists())
+        self.assertTrue(self.service.store.list_jobs())
 
     def test_tampered_and_traversal_bundles_fail_before_persistent_output(self):
         payload=self.service.workspace_bundle()

@@ -9,7 +9,21 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
-## v0.18.2 packaged-search fix
+## Start with your resume and keep your workspace recoverable
+
+Career profile → **Import existing resume** accepts local text PDFs, DOCX and
+UTF-8 TXT. Preview the extracted text, choose accurate excerpts and sections,
+confirm, then save your profile draft. No qualifications or contact details are
+inferred. Original source bytes and hashes stay local.
+
+Settings → **Download recovery ZIP** includes the database and managed letters,
+recipient files, original imports and provider snapshots. Preview/validate a
+bundle before restoring it into a separate workspace; the current one stays
+intact. Legacy database-only JSON backup remains available.
+
+[Complete first-use and recovery guide](docs/using-roleweave.md).
+
+## Reliable startup and HTTPS
 
 The original local Windows build omitted a required SSL policy sidecar from its
 Python runtime, so source searches passed while packaged first searches failed.
@@ -26,7 +40,7 @@ stops it, but finding an older host is no longer required to open the new app.
 
 ## Release status
 
-V0.18 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.19 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
@@ -71,7 +85,7 @@ questions. Custom widgets and iframes remain manual; real ATS acceptance is pend
 [What is ready and what remains](docs/personal-readiness.md):8/8 core local workflow groups are implemented/offline tested; personal acceptance and optional live integrations have separate gates. Getting started now explains the current workflow and your actual data path.
 
 
-Version0.18.2 includes reviewed cover letters, exact private application dossiers,
+Version0.19.0 includes reviewed cover letters, exact private application dossiers,
 recipient-only document exports, manual submission receipts and local email
 excerpt review. Source-bound records and conflict-safe tracking preserve prior
 evidence. [Application delivery guide](docs/application-delivery.md).
@@ -80,10 +94,10 @@ Core features run locally. Optional AI requires your own session key and
 per-request consent. Live quality, personal usefulness and connected-account
 integrations remain unverified.
 
-For the portable build, extract the **whole** `RoleWeave-0.18.2-windows-x64.zip`
+For the portable build, extract the **whole** `RoleWeave-0.19.0-windows-x64.zip`
 and open `RoleWeave/RoleWeave.exe`. Keep its `_internal` directory beside it.
 The build is unsigned. A per-user setup artifact is available; automatic updates are not provided.
-The CI run's `RoleWeave-0.18.2-windows-x64` artifact contains this ZIP.
+The CI run's `RoleWeave-0.19.0-windows-x64` artifact contains this ZIP.
 
 For source use, install Python 3.11+ with Tcl/Tk, run
 `Setup-RoleWeave.cmd` once to install pinned dependencies in `.venv`, then open

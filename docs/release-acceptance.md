@@ -1,5 +1,8 @@
 # Release acceptance — v0.18 controlled beta
 
+Current v0.19 flow: [resume import, application use and managed recovery](using-roleweave.md). Older database-only backup limitations below do not describe the new recovery ZIP.
+
+
 v0.18.2 removes the hidden-old-host startup blocker. Normal launch checks the
 bounded loopback range8765–8772 for the exact current version/workspace, reopens
 it when found, or binds an available port. An occupied port falls back safely;

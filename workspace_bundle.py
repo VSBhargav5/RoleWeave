@@ -3,6 +3,7 @@ from collections import Counter
 import hashlib
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -125,8 +126,11 @@ def inspect_bundle(payload):
 
 def restore_bundle(payload, parent):
     parts,summary=inspect_bundle(payload)  # Validate everything before reserving persistent output.
-    parent=Path(parent);no_link(parent);parent.mkdir(parents=True,exist_ok=True)
+    parent=Path(parent);no_link(parent)
     identifier=uuid4().hex;stage=parent/('.stage-'+identifier);final=parent/identifier
+    if os.name=='nt' and any(len(str((stage/name).absolute()))>=250 for name in parts):
+        raise ValueError('Recovery needs a shorter workspace path on Windows. Open a workspace in a shorter folder and retry; current data is unchanged')
+    parent.mkdir(parents=True,exist_ok=True)
     stage.mkdir(exist_ok=False)
     source=stage/'shelf.json';publish_bytes(source,parts.pop('shelf.json'))
     store=JobStore(stage/'jobs.db');store.restore(source)

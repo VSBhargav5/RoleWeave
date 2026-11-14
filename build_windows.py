@@ -1,5 +1,6 @@
 """Build the portable Windows x64 app using an isolated, pinned build environment."""
 import importlib.metadata
+import argparse
 import os
 from pathlib import Path
 import platform
@@ -41,8 +42,11 @@ def main():
     if sys.platform != "win32" or platform.machine().lower() not in ("amd64", "x86_64"):
         raise SystemExit("Build this Windows x64 package on an x64 Windows Python installation.")
     root = RESOURCE_ROOT
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--versioned',action='store_true',help='Publish beside existing versions instead of replacing an active portable app')
+    args=parser.parse_args()
     output = root / "out"
-    target = output / "portable"
+    target = output / ("portable-v"+APP_VERSION if args.versioned else "portable")
     for path in (output, target, target / "RoleWeave"):
         if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
             raise SystemExit("Refusing linked build output directories")
