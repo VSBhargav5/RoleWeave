@@ -76,6 +76,6 @@ def list_drafts(store,job_id):
         if not re.fullmatch(r'[a-f0-9]{32}\.json',path.name):continue
         try:
             draft=load_draft(store,path.stem)
-            if draft['job_id']==job_id:items.append({'id':draft['id'],'created_at':draft['created_at'],'headline':draft['profile']['profile']['headline']})
+            if draft['job_id']==job_id:items.append({'id':draft['id'],'created_at':draft['created_at'],'profile_id':draft['profile']['id'],'headline':draft['profile']['profile']['headline']})
         except (ValueError,OSError,KeyError,TypeError,RecursionError):issues.append('A saved draft failed verification; its original file was preserved.')
     return {'items':sorted(items,key=lambda x:(x['created_at'],x['id']),reverse=True),'issues':issues}

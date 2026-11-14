@@ -21,7 +21,7 @@ from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
-ASSETS = {"/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
+ASSETS = {"/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
 
