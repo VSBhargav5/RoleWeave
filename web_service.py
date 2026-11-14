@@ -18,7 +18,7 @@ from job_search import JobSearch, search_path
 from job_store import JobStore
 from recipient_bundle import recipient_bytes
 from resume_render import resume_text
-from resume_versions import decoded
+from resume_versions import decoded, make_resume_version
 from resume_import import extract_in_worker, document_name, MAX_FILE
 from roleweave import MAX_BYTES, MARKETS, review_snapshot
 from runtime_paths import APP_VERSION
@@ -219,16 +219,24 @@ class WebService:
         return self.save_job({"title": row["title"], "company": row["company"], "source_url": row["url"], "market": data["market"], "posting": row["posting"]})
 
     def resume(self, data, freeze=False):
-        require(data, ("profile_id", "profile_sha256", "job_id", "fact_ids", "label", "confirmed"), ("profile_id", "profile_sha256", "job_id", "fact_ids"))
+        require(data, ("profile_id", "profile_sha256", "job_id", "fact_ids", "label", "theme", "preview_sha256", "confirmed"), ("profile_id", "profile_sha256", "job_id", "fact_ids"))
         profile = self.store.load_profile(data["profile_id"])
         if profile["snapshot_sha256"] != data["profile_sha256"]:
             raise ValueError("Profile evidence changed; reload and review it")
-        self.store.load(data["job_id"])
+        job=self.store.load(data["job_id"])
+        theme=data.get("theme", "classic")
+        snapshot=make_resume_version(profile,data["fact_ids"],data.get("label", "Reviewed application resume"),job,True,theme)
+        record=json.loads(snapshot)
+        digest=hashlib.sha256(snapshot).hexdigest()
         text = resume_text(profile["profile"], data["fact_ids"])
         if not freeze:
-            return {"text": text, "profile_id": profile["id"], "profile_sha256": profile["snapshot_sha256"]}
+            return {"text": text, "html": decoded(record["html_base64"],8*1024*1024).decode("utf-8"),
+                    "pdf_base64": record["pdf_base64"], "preview_sha256": digest,
+                    "profile_id": profile["id"], "profile_sha256": profile["snapshot_sha256"]}
         confirmed(data)
-        identifier = self.store.create_resume(profile["id"], data["fact_ids"], data.get("label", "Reviewed application resume"), data["job_id"], include_pdf=True, confirmed=True)
+        if ("theme" in data or "preview_sha256" in data) and data.get("preview_sha256") != digest:
+            raise ValueError("Resume preview changed; preview and review the current layout and selection again")
+        identifier = self.store.create_resume(profile["id"], data["fact_ids"], data.get("label", "Reviewed application resume"), data["job_id"], include_pdf=True, confirmed=True, theme=theme)
         return {"id": identifier, "text": text}
 
     def get_resume(self, identifier):
@@ -294,26 +302,29 @@ class WebService:
                 if job_id is None or context["id"] == job_id:
                     items.append({"id": path.stem, "job_id": context["id"], "title": context["title"],
                                   "company": context["company"], "profile_id": record["profile_id"],
-                                  "profile_sha256": record["profile_sha256"], "text_sha256": record["text_sha256"]})
+                                  "profile_sha256": record["profile_sha256"], "text_sha256": record["text_sha256"], "has_pdf": "pdf_base64" in record})
             except (OSError, ValueError):
                 issues.append("A saved letter failed verification; its original file was preserved.")
         return {"items": sorted(items, key=lambda item: (item["company"], item["title"], item["id"])), "issues": issues}
 
     def get_letter(self, identifier):
         record, _ = letter_snapshot(self._letter_bytes(identifier))
-        return {"text": record["text"], "job_id": record["job_context"]["id"], "text_sha256": record["text_sha256"]}
+        return {"text": record["text"], "job_id": record["job_context"]["id"], "text_sha256": record["text_sha256"], "has_pdf": "pdf_base64" in record}
 
     def letter(self, data, freeze=True):
-        require(data, ("job_id", "resume_id", "fact_ids", "motivation", "closing", "confirmed"), ("job_id", "resume_id", "fact_ids", "motivation", "closing", "confirmed"))
+        require(data, ("job_id", "resume_id", "fact_ids", "motivation", "closing", "include_pdf", "preview_sha256", "confirmed"), ("job_id", "resume_id", "fact_ids", "motivation", "closing", "confirmed"))
         if freeze:
             confirmed(data)
         resume = self.store.load_resume(data["resume_id"])
         if not resume["resume"]["job_context"] or resume["resume"]["job_context"]["id"] != data["job_id"]:
             raise ValueError("Choose a resume frozen for this exact job")
         profile = self.store.load_profile(resume["resume"]["profile_id"])
-        snapshot = make_letter(profile, data["fact_ids"], self.store.load(data["job_id"]), data["motivation"], data["closing"], confirmed=True)
+        snapshot = make_letter(profile, data["fact_ids"], self.store.load(data["job_id"]), data["motivation"], data["closing"], confirmed=True, include_pdf=data.get("include_pdf",False))
         if not freeze:
-            return {"text": letter_snapshot(snapshot)[0]["text"]}
+            record=letter_snapshot(snapshot)[0]
+            return {"text": record["text"], "pdf_base64": record.get("pdf_base64", ""), "preview_sha256": hashlib.sha256(snapshot).hexdigest()}
+        if (data.get("include_pdf") or "preview_sha256" in data) and data.get("preview_sha256") != hashlib.sha256(snapshot).hexdigest():
+            raise ValueError("Letter preview changed; preview and review it again")
         identifier = uuid4().hex
         publish_bytes(self._artifact("letters", identifier), snapshot)
         return {"id": identifier, "text": letter_snapshot(snapshot)[0]["text"]}
@@ -391,6 +402,11 @@ class WebService:
             return value, "application/pdf" if format == "pdf" else "text/html; charset=utf-8", "resume." + format
         if kind == "letter":
             record, _ = letter_snapshot(self._letter_bytes(identifier))
+            if format=="pdf" and "pdf_base64" in record:
+                return decoded(record["pdf_base64"],2*1024*1024), "application/pdf", "cover-letter.pdf"
+            if format not in ("txt", "pdf"):
+                raise ValueError("Choose letter PDF or TXT")
+            if format=="pdf":raise ValueError("This older letter has no frozen PDF; download TXT or create a new PDF letter")
             return record["text"].encode(), "text/plain; charset=utf-8", "cover-letter.txt"
         if kind == "packet":
             return self._artifact("packets", identifier).read_bytes(), "application/zip", "application-documents.zip"

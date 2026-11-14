@@ -21,7 +21,8 @@ from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new
 from web_service import WebService, browser_profile, require, seed_web_demo
 
 ASSETS = {"/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
-          "/icons.js": ("icons.js", "application/javascript")}
+          "/icons.js": ("icons.js", "application/javascript"),
+          "/document-preview.css": ("document-preview.css", "text/css")}
 
 
 class LocalServer(ThreadingHTTPServer):

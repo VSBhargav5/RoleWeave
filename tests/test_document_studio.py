@@ -87,3 +87,35 @@ class DocumentStudioTests(unittest.TestCase):
         self.assertIn('FINAL LETTER END','\n'.join(p.extract_text() for p in reader.pages))
         with self.assertRaisesRegex(ValueError,'font cannot render'):
             make_letter(self.profile,self.ids,self.store.load(self.job),'Unsupported \U0001f680','Thanks.',confirmed=True,include_pdf=True)
+
+    def test_web_preview_binds_layout_order_label_and_letter_pdf_before_save(self):
+        from web_service import WebService
+        service=WebService(self.store.path)
+        args={'profile_id':self.profile_id,'profile_sha256':self.profile['snapshot_sha256'],
+              'job_id':self.job,'fact_ids':self.ids,'label':'Reviewed studio','theme':'slate'}
+        preview=service.resume(args)
+        self.assertIn('html',preview);self.assertTrue(preview['pdf_base64'])
+        with self.assertRaisesRegex(ValueError,'preview changed'):
+            service.resume(args|{'confirmed':True},freeze=True)
+        for changes in ({'theme':'editorial'},{'fact_ids':list(reversed(self.ids))},{'label':'Changed label'}):
+            with self.assertRaisesRegex(ValueError,'preview changed'):
+                service.resume(args|changes|{'confirmed':True,'preview_sha256':preview['preview_sha256']},freeze=True)
+        result=service.resume(args|{'confirmed':True,'preview_sha256':preview['preview_sha256']},freeze=True)
+        self.assertEqual(service.download('resume',result['id'])[0],decoded(preview['pdf_base64'],8*1024*1024))
+        letter_args={'job_id':self.job,'resume_id':result['id'],'fact_ids':self.ids,'motivation':'Synthetic intro.','closing':'Thanks.',
+                     'include_pdf':True,'confirmed':False}
+        letter_preview=service.letter(letter_args,freeze=False)
+        with self.assertRaisesRegex(ValueError,'preview changed'):
+            service.letter(letter_args|{'confirmed':True,'preview_sha256':'changed'})
+        letter=service.letter(letter_args|{'confirmed':True,'preview_sha256':letter_preview['preview_sha256']})
+        self.assertTrue(service.get_letter(letter['id'])['has_pdf'])
+        self.assertEqual(service.download('letter',letter['id'],'pdf')[0],decoded(letter_preview['pdf_base64'],2*1024*1024))
+        self.assertEqual(service.download('letter',letter['id'],'txt')[2],'cover-letter.txt')
+        packet=service.packet({'job_id':self.job,'resume_id':result['id'],'letter_id':letter['id'],
+                               'formats':['pdf','letter-pdf'],'confirmed':True})
+        with zipfile.ZipFile(BytesIO(service.download('packet',packet['id'])[0])) as archive:
+            self.assertEqual(set(archive.namelist()),{'resume.pdf','cover-letter.pdf'})
+        from workspace_bundle import restore_bundle,recovered_database
+        recovered=restore_bundle(service.workspace_bundle(),self.root/'recovered')
+        restored=WebService(recovered_database(self.root/'recovered',recovered['id']))
+        self.assertEqual(restored.download('letter',letter['id'],'pdf')[0],service.download('letter',letter['id'],'pdf')[0])
