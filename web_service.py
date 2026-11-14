@@ -1,15 +1,17 @@
 """Local web application operations; reuses the existing validated domain models."""
 from datetime import date
+import base64
 import hashlib
 import json
 from pathlib import Path
 import re
 import tempfile
 import threading
+import time
 from uuid import uuid4
 
 from application_dossier import build_dossier
-from career_profile import imported_career_facts, profile_snapshot
+from career_profile import imported_career_facts, profile_snapshot, SECTIONS
 from cover_letter import make_letter, letter_snapshot
 from demo_data import seed_practice
 from job_search import JobSearch, search_path
@@ -17,11 +19,13 @@ from job_store import JobStore
 from recipient_bundle import recipient_bytes
 from resume_render import resume_text
 from resume_versions import decoded
+from resume_import import extract_in_worker, document_name, MAX_FILE
 from roleweave import MAX_BYTES, MARKETS, review_snapshot
 from runtime_paths import APP_VERSION
 from safe_export import publish_bytes
 from source_links import source_link
 from submission_receipt import record_basic_submission
+from workspace_bundle import export_bundle, inspect_bundle, restore_bundle, recovered_database, recovery_list, no_link
 
 
 def require(data, allowed, required=()):
@@ -55,6 +59,8 @@ class WebService:
         self.searcher = JobSearch()
         self.searches = {}
         self.lock = threading.RLock()
+        self.imports = {}
+        self.pending_recovery = None
         self.artifacts = self.store.path.parent / "web-artifacts"
 
     def profile(self):
@@ -66,8 +72,11 @@ class WebService:
     def bootstrap(self):
         jobs = self.store.list_jobs()
         today = date.today().isoformat()
-        return {"version": APP_VERSION, "demo": self.demo, "profile": self.profile(), "jobs": jobs,
-                "resumes": self.store.list_resumes(), "letters": self.letters(), "stats": {
+        label='Recovered workspace · '+self.store.path.parent.name[:8] if self.store.path.parent.parent.name=='recovered' else 'Main workspace'
+        return {"version": APP_VERSION, "demo": self.demo, "workspace_label": 'Synthetic practice' if self.demo else label,
+                "profile": self.profile(), "jobs": jobs,
+                "resumes": self.store.list_resumes(), "letters": self.letters(),
+                "recoveries": recovery_list(self.store.path.parent/'recovered'), "stats": {
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
@@ -97,6 +106,51 @@ class WebService:
             return self.profile()
         self.store.save_profile(snapshot)
         return self.profile()
+
+    def preview_resume_import(self, data):
+        require(data, ('name','base64'), ('name','base64'))
+        document_name(data['name'])
+        if not isinstance(data['base64'],str) or len(data['base64'])>6*1024*1024:
+            raise ValueError('Resume must contain at most 4 MiB')
+        payload=base64.b64decode(data['base64'],validate=True)
+        if len(payload)>MAX_FILE:raise ValueError('Resume must contain at most 4 MiB')
+        result=extract_in_worker(payload,data['name'])
+        identifier=uuid4().hex
+        with self.lock:
+            self.imports={k:v for k,v in self.imports.items() if time.monotonic()-v['at']<600}
+            if len(self.imports)>=5:raise ValueError('Too many pending imports. Finish one or retry after ten minutes')
+            self.imports[identifier]={'at':time.monotonic(),'payload':payload,'name':data['name'],'result':result}
+        return result | {'id':identifier,'name':data['name']}
+
+    def commit_resume_import(self, data):
+        require(data, ('id','selected','confirmed'), ('id','selected','confirmed'))
+        confirmed(data)
+        with self.lock:
+            entry=self.imports.get(data['id'])
+            if entry is None or time.monotonic()-entry['at']>=600:
+                raise ValueError('Resume preview expired. Select the file again and review it')
+            rows=data['selected']
+            if not isinstance(rows,list) or not 1<=len(rows)<=100:
+                raise ValueError('Select between 1 and 100 reviewed excerpts')
+            blocks={b['id']:b for b in entry['result']['blocks']}
+            seen=set();facts=[]
+            for row in rows:
+                require(row,('id','section'),('id','section'))
+                if not isinstance(row['id'],str) or row['id'] in seen or row['id'] not in blocks or row['section'] not in SECTIONS:
+                    raise ValueError('Select distinct observed excerpts and choose each section')
+                seen.add(row['id']);block=blocks[row['id']];digest=entry['result']['sha256']
+                facts.append({'id':'resume:'+digest+':'+row['id']+':'+hashlib.sha256(block['text'].encode()).hexdigest()[:16],
+                              'claim':block['text'],'source':f"{entry['name']}; original SHA256 {digest}; extracted block {row['id']}. Human-selected excerpt, not independently verified.",
+                              'reviewed':True,'section':row['section']})
+            directory=self.artifacts/'resume-imports'
+            no_link(self.artifacts);no_link(directory)
+            directory.mkdir(parents=True,exist_ok=True)
+            path=directory/(entry['result']['sha256']+Path(entry['name']).suffix.lower())
+            if path.exists():
+                if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest()!=entry['result']['sha256']:
+                    raise ValueError('Existing resume source fingerprint differs; no file was overwritten')
+            else:publish_bytes(path,entry['payload'])
+            return {'facts':facts,'source_sha256':entry['result']['sha256']}
 
     def save_review(self, data):
         require(data, ("id", "review", "confirmed"), ("id", "review", "confirmed"))
@@ -292,6 +346,29 @@ class WebService:
             path = Path(folder) / "backup.json"
             self.store.backup(path)
             return path.read_bytes()
+
+    def workspace_bundle(self):
+        return export_bundle(self.store,self.artifacts)
+
+    def preview_recovery(self, payload):
+        _,summary=inspect_bundle(payload)
+        identifier=uuid4().hex
+        with self.lock:self.pending_recovery={'id':identifier,'at':time.monotonic(),'payload':payload,'summary':summary}
+        return {'id':identifier,'summary':summary}
+
+    def restore_recovery(self, data):
+        require(data,('id','sha256','confirmed'),('id','sha256','confirmed'));confirmed(data)
+        with self.lock:
+            pending=self.pending_recovery
+            if pending is None or pending['id']!=data['id'] or pending['summary']['sha256']!=data['sha256'] or time.monotonic()-pending['at']>=600:
+                raise ValueError('Recovery preview expired or differs. Choose and review the bundle again')
+            result=restore_bundle(pending['payload'],self.store.path.parent/'recovered')
+            self.pending_recovery=None
+            return result
+
+    def recovery_database(self, data):
+        require(data,('id','confirmed'),('id','confirmed'));confirmed(data)
+        return recovered_database(self.store.path.parent/'recovered',data['id'])
 
     def restore(self, payload):
         with tempfile.TemporaryDirectory(prefix="roleweave-restore-") as folder:

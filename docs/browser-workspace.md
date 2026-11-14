@@ -1,5 +1,8 @@
 # Browser workspace and reviewed form filling — v0.17
 
+Current v0.19 flow: [resume import, application use and managed recovery](using-roleweave.md). Older database-only backup limitations below do not describe the new recovery ZIP.
+
+
 RoleWeave now starts in your default browser. The interface uses browser-rendered
 text, CSS gradients, SVG icons, rounded surfaces and responsive layouts. Python
 and the existing SQLite shelf remain authoritative. There is no frontend build

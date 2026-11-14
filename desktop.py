@@ -886,7 +886,11 @@ def main():
     paths.add_argument("--self-test", type=Path, help="Verify this runtime using a new synthetic output folder")
     paths.add_argument("--web-self-test", type=Path, help="Verify bundled browser assets and local API in a new synthetic folder")
     paths.add_argument("--search-check", type=Path, help="Explicit live public data-engineer/London search; writes metadata only")
+    paths.add_argument("--extract-resume-worker", nargs=2, metavar=('INPUT','OUTPUT'), help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.extract_resume_worker:
+        from resume_import import worker
+        return worker(*args.extract_resume_worker)
     if args.self_test:
         raise SystemExit(0 if run_self_test(args.self_test, JobShelf) else 2)
     if args.web_self_test:

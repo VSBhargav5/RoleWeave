@@ -1,7 +1,7 @@
 # Third-party components
 
 RoleWeave is original software under the repository LICENSE. The portable build
-bundles Python, Tcl/Tk, ReportLab, Pillow and charset-normalizer. Their license
+bundles Python, Tcl/Tk, ReportLab, Pillow, charset-normalizer and pypdf. Their license
 texts are copied into the build's `licenses/` directory and package metadata.
 
 - Python: Python Software Foundation license; https://www.python.org/psf/license/
@@ -9,12 +9,12 @@ texts are copied into the build's `licenses/` directory and package metadata.
 - ReportLab: BSD license; https://pypi.org/project/reportlab/5.1.0/
 - Pillow: license text distributed with Pillow; https://pypi.org/project/Pillow/13.0.0/
 - charset-normalizer: MIT; https://pypi.org/project/charset-normalizer/3.5.2/
+- pypdf: BSD-3-Clause; https://pypi.org/project/pypdf/7.1.0/ . Used for local resume text extraction.
 - Bitstream Vera fonts: bundled with ReportLab, under the included
   `bitstream-vera-license.txt`. The font files are embedded in generated PDFs.
 
 PyInstaller is a build tool under its distribution exception; it is not the app's
-license. See https://pyinstaller.org/en/stable/license.html . Its build tools and
-pypdf are development dependencies rather than features of the application.
+license. See https://pyinstaller.org/en/stable/license.html . PyInstaller and its helpers are development dependencies. pypdf is now a bundled application dependency.
 
 No upstream Dossier, Jobleft, Cue or StudyFrame code/assets are imported.
 

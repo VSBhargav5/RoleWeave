@@ -1,6 +1,7 @@
 reportlab==5.1.0
 Pillow==13.0.0
 charset-normalizer==3.5.2
+pypdf==7.1.0
 
 # Browser OAuth for the optional Google Calendar integration.
 google-auth-oauthlib==1.5.0

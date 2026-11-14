@@ -33,6 +33,24 @@ class WebWorkspaceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             profile_snapshot(json.dumps(profile).encode())
 
+    def test_resume_import_requires_observed_selection_section_and_confirmation(self):
+        import base64
+        payload=b'Synthetic Candidate\nBuilt a Python pipeline.'
+        old=self.service.profile()
+        preview=self.service.preview_resume_import({'name':'resume.txt','base64':base64.b64encode(payload).decode()})
+        self.assertEqual(self.service.profile(),old)
+        args={'id':preview['id'],'selected':[{'id':'2','section':'Projects'}],'confirmed':True}
+        for changes in [{'confirmed':False},{'selected':[{'id':'invented','section':'Projects'}]},
+                        {'selected':[{'id':'2','section':'Unknown'}]},{'selected':[]}]:
+            with self.assertRaises(ValueError):self.service.commit_resume_import(args|changes)
+        result=self.service.commit_resume_import(args)
+        self.assertEqual(result['facts'][0]['claim'],'Built a Python pipeline.')
+        self.assertIn(hashlib.sha256(payload).hexdigest(),result['facts'][0]['source'])
+        self.assertEqual(self.service.profile(),old)  # Still a draft; no automatic profile write.
+        self.assertEqual((self.service.artifacts/'resume-imports'/(preview['sha256']+'.txt')).read_bytes(),payload)
+        self.service.imports[preview['id']]['at']-=601
+        with self.assertRaisesRegex(ValueError,'expired'):self.service.commit_resume_import(args)
+
     def test_contact_sheet_contains_no_facts_or_tokens(self):
         sheet = browser_profile(self.service.profile()['profile'])
         self.assertEqual(set(sheet), {'format', 'fields'})
@@ -166,6 +184,21 @@ class WebWorkspaceTests(unittest.TestCase):
         self.assertEqual(request('/api/browser-helper',headers)[0],200)
         self.assertEqual(request('/api/jobs',headers|{'Content-Type':'text/plain'},'POST','{}')[0],400)
         self.assertEqual(request('/api/jobs',headers|{'Content-Type':'application/json'},'POST','{"title":1,"title":2}')[0],400)
+        status,payload,_=request('/api/workspace-bundle',headers)
+        self.assertEqual(status,200)
+        status,preview,_=request('/api/recovery/preview',headers|{'Content-Type':'application/octet-stream'},'POST',payload)
+        self.assertEqual(status,200);preview=json.loads(preview)
+        status,restored,_=request('/api/recovery/restore',headers|{'Content-Type':'application/json'},'POST',
+                                  json.dumps({'id':preview['id'],'sha256':preview['summary']['sha256'],'confirmed':True}))
+        self.assertEqual(status,200);restored=json.loads(restored)
+        with patch('web_server.subprocess.Popen') as launch:
+            self.assertEqual(request('/api/recovery/open',headers|{'Content-Type':'application/json'},'POST',
+                                      json.dumps({'id':restored['id'],'confirmed':False}))[0],400)
+            launch.assert_not_called()
+            self.assertEqual(request('/api/recovery/open',headers|{'Content-Type':'application/json'},'POST',
+                                      json.dumps({'id':restored['id'],'confirmed':True}))[0],200)
+            self.assertIn('--db',launch.call_args.args[0])
+            self.assertEqual(Path(launch.call_args.args[0][-1]),self.service.recovery_database({'id':restored['id'],'confirmed':True}))
 
 
 class RoleSearchTests(unittest.TestCase):

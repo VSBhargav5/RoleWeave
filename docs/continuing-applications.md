@@ -1,5 +1,8 @@
 # Continue applications without starting over — v0.18
 
+Current v0.19 flow: [resume import, application use and managed recovery](using-roleweave.md). Older database-only backup limitations below do not describe the new recovery ZIP.
+
+
 ## Return to a prepared application
 
 Open Documents → Cover letters, or the exact saved job → Application kit. Read a

@@ -1,4 +1,7 @@
-# Personal-use readiness - v0.18.0
+# Personal-use readiness — v0.19.0
+
+Current v0.19 flow: [resume import, application use and managed recovery](using-roleweave.md). Older database-only backup limitations below do not describe the new recovery ZIP.
+
 
 Current incremental workflow: [saved documents, search pages and safe follow-ups](continuing-applications.md).
 
@@ -25,7 +28,7 @@ integrations have separate gates below. More commits cannot complete those gates
 | Application files | Private dossiers, verification and recipient-only documents | Inspect exactly what you will share; keep private sources/history private |
 | Manual tracking | Stages, decisions, follow-ups, receipts and local mail excerpts | Record real observations yourself; no automatic sending/mailbox access |
 | Rehearsal | Frozen source questions, answer/reflection drafts, local timer, packs, comparison | Practice and verify explanations; text/time changes do not prove learning |
-| Recovery and integrity | V3 backup/restore, backup inspection, read-only shelf audit | Restore a copy into a separate practice shelf; preserve separate artifact files |
+| Recovery and integrity | Database JSON backup/restore, managed-workspace ZIP recovery, read-only shelf audit | Restore the ZIP separately; preserve files exported outside the managed workspace |
 
 ## What is only partly validated?
 
@@ -36,9 +39,10 @@ integrations have separate gates below. More commits cannot complete those gates
 | Calendar integration | Local `.ics` export plus explicit Google one-way follow-up sync implemented/offline tested | Desktop OAuth setup, scope consent and a synthetic live trial; see [Google Calendar guide](google-calendar.md) |
 | Other connected accounts | Mailbox/general two-way account synchronization not implemented | Optional Google follow-up sync is the chosen narrow integration; no live account has been linked |
 
-Global cross-site job search, automatic applications, employer outreach and
-background account synchronization are not implemented. Manual source selection,
-preparation and tracking are usable without them. No new account permissions,
+Role/location search is implemented through the bounded FreeHire adapter; coverage
+and sponsorship are not guaranteed. Automatic submission, employer outreach and
+background account synchronization are not implemented. Reviewed contact filling,
+document preparation and manual tracking support the local application journey. No new account permissions,
 personal transmission or paid model call was performed for this release.
 
 ## Live public-board evidence (11 November 2026)
@@ -64,12 +68,12 @@ Existing source integrity and absence-is-not-closure limitations still apply.
 
 ## Start with the refreshed app
 
-Extract the complete `RoleWeave-0.18.0-windows-x64.zip` and open
+Extract the complete `RoleWeave-0.19.0-windows-x64.zip` and open
 `RoleWeave/RoleWeave.exe`, keeping `_internal` beside it. The build is unsigned.
-Choose **Getting started**, which now has scrollable First use, Readiness and
-Data tabs. Opening it sends nothing and changes no shelf records. Its footer
-stays visible at the supported minimum size. Use **Open separate synthetic
-practice workspace** before entering personal information.
+The default browser workspace shows first-application steps. Start with Career
+profile → Import existing resume. Use the separate synthetic practice workspace
+from Settings before entering personal information. Native advanced tools remain
+available in Settings.
 
 Source alternative, from this checkout with dependencies installed:
 
@@ -81,8 +85,9 @@ python desktop.py --self-test out/new-personal-readiness-smoke
 
 Self-test output must use a new folder. Source and portable defaults use different
 shelves; the guide shows the actual current database path. Back up and explicitly
-restore if migrating. Full-shelf backups exclude separate journal, dossier,
-letter, source-archive and exported files; keep private copies separately.
+restore if migrating. The database-only JSON excludes separate artifacts. The new recovery ZIP includes
+all managed web artifacts; files saved elsewhere remain outside it. Keep private
+copies of external journals, dossiers and exports separately.
 
 For one60-90minute acceptance session, use [the rehearsal workflow](rehearsal-workflow.md)
 inside a separate synthetic shelf, then prepare one permitted posting/profile/
