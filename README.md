@@ -1,5 +1,14 @@
 # RoleWeave
 
+## Workspace insights (v0.27)
+
+The new Insights page adds current/ever-recorded stage bars, twelve UTC weeks of
+first Applied observations, and a market-filtered follow-up month calendar with
+exact-review agendas. Read-only, no provider/account access. Counts are saved
+reviews and manual observations, not verified submissions or conversion rates.
+[Guide, limits and runnable checks](docs/workspace-insights.md).
+
+
 ## Provider/model preferences (v0.26)
 
 Settings now supports OpenAI, Anthropic, Mistral and numeric-loopback Ollama / LM
@@ -36,8 +45,8 @@ No OCR or inferred employment/profile write is added.
 
 ## Dossier comparison and application email
 
-[Current 25-area parity checklist](docs/dossier-parity.md): v0.26 has 10 implemented,
-8 partial and 7 missing areas. These are scoped workflow counts, not an overall
+[Current 25-area parity checklist](docs/dossier-parity.md): v0.27 has 11 implemented,
+7 partial and 7 missing areas. These are scoped workflow counts, not an overall
 completion percentage or production acceptance. Live accounts, employer forms and
 personal usefulness remain separate gates.
 

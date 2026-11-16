@@ -10,6 +10,9 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.24: 8 implemented, 9 partial, 8 missing.**
 **With v0.25: 9 implemented, 9 partial, 7 missing.**
 **With v0.26: 10 implemented, 8 partial, 7 missing.**
+**With v0.27: 11 implemented, 7 partial, 7 missing.**
+The dashboard area now has explicit stage-observation bars, weekly activity and a
+follow-up month calendar; interview-event/account sync remains in Calendar partial.
 Provider selection closes the scoped provider/model/local-server area; arbitrary
 remote endpoints and every model variant are not claimed supported.
 Markdown closes the stated import-format gap; saved manual searches/review queue
@@ -39,7 +42,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Mailbox reply reading and AI responses | Missing | Native manual local excerpt review is not browser inbox/AI reply handling |
 | Google Calendar integration | Partial | Narrow native-only follow-up contract; no browser/two-way interview calendar |
 | Application board/table/stage tracking | Implemented | Manual observations, reminders and conflict guards |
-| Dashboard funnel/charts/calendar | Partial | Global counts and reminders; no equivalent funnel/week charts/month calendar |
+| Dashboard funnel/charts/calendar | Partial | **Implemented in v0.27:** current/ever-recorded bars,12UTC weeks, market-filtered follow-up month/agenda; no inferred conversion rates or verified outcome claims |
 | Managed data export/import/recovery | Implemented | Managed ZIP plus DB backup; explicitly scoped exclusions |
 | Nightly automatic backups | Missing | Explicit manual recovery only |
 | External MCP connector | Missing | Not implemented |
