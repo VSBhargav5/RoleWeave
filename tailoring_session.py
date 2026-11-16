@@ -10,6 +10,7 @@ import model_providers
 from model_preferences import read_settings
 from resume_render import selected_facts
 from application_draft import save_draft
+import refinement_history
 
 
 def fields(data,allowed,required):
@@ -35,7 +36,18 @@ class TailoringSession:
             raise ValueError('Draft sources changed; reload and preview again')
 
     def preview(self,data):
-        fields(data,('profile_id','profile_sha256','job_id','fact_ids','instruction','previous'),('profile_id','profile_sha256','job_id','fact_ids','instruction'))
+        fields(data,('profile_id','profile_sha256','job_id','fact_ids','instruction','previous','retain_history','parent_id'),('profile_id','profile_sha256','job_id','fact_ids','instruction'))
+        retain=data.get('retain_history',False);parent_id=data.get('parent_id','')
+        if type(retain) is not bool:raise ValueError('Choose whether to retain conversation history')
+        refinement_history.identifier(parent_id,empty=True)
+        if retain:refinement_history.check_capacity(self.store)
+        if parent_id and (not retain or data.get('previous') is None):raise ValueError('A retained revision needs its prior proposal')
+        if parent_id:
+            parent=refinement_history.load_turn(self.store,parent_id)
+            if refinement_history.verify_chain(parent,lambda i:refinement_history.read_turn(self.store,i))>=refinement_history.MAX_TURNS:
+                raise ValueError('Conversation reached50 turns on this path; start a new conversation before sending')
+            if parent['profile_id']!=data['profile_id'] or parent['profile_sha256']!=data['profile_sha256'] or parent['job_id']!=data['job_id'] or parent['fact_ids']!=data['fact_ids']:
+                raise ValueError('Retained revision sources differ; start a new conversation')
         profile=self.store.load_profile(data['profile_id'])
         if profile['snapshot_sha256']!=data['profile_sha256']:raise ValueError('Profile changed; reload before preview')
         job=self.store.load(data['job_id']);job=dict(job,posting=json.loads(job['snapshot'])['posting'])
@@ -46,8 +58,9 @@ class TailoringSession:
             if len(self.entries)>=5:raise ValueError('Finish existing draft sessions or retry after ten minutes')
             identifier=uuid4().hex;digest=model_providers.request_fingerprint(payload,config)
             self.entries[identifier]={'at':time.monotonic(),'profile':profile,'job':job,'ids':list(data['fact_ids']),
-                                      'provider':config,'payload':payload,'sha256':digest,'status':'preview','cancel':threading.Event()}
-        return {'id':identifier,'sha256':digest,'payload':payload.decode(),'model':config['model'],'endpoint':model_providers.destination(config),'provider':model_providers.KINDS[config['kind']],'local':config['kind'] in model_providers.LOCAL,'offline_demo':self.demo}
+                                      'provider':config,'payload':payload,'sha256':digest,'status':'preview','cancel':threading.Event(),
+                                      'instruction':data['instruction'],'previous':data.get('previous'),'retain_history':retain,'parent_id':parent_id}
+        return {'id':identifier,'sha256':digest,'payload':payload.decode(),'model':config['model'],'endpoint':model_providers.destination(config),'provider':model_providers.KINDS[config['kind']],'local':config['kind'] in model_providers.LOCAL,'offline_demo':self.demo,'retain_history':retain}
 
     def send(self,data):
         fields(data,('id','sha256','key','confirmed'),('id','sha256','key','confirmed'))
@@ -55,6 +68,7 @@ class TailoringSession:
         key=data['key']
         with self.lock:
             entry=self._entry(data['id'])
+            if entry['parent_id']:refinement_history.load_turn(self.store,entry['parent_id'])
             model_providers.validate_key(entry['provider'],key,self.demo)
             if entry['status']!='preview' or entry['sha256']!=data['sha256']:raise ValueError('Request preview changed or was already used')
             if any(v.get('thread') and v['thread'].is_alive() for v in self.entries.values()):raise ValueError('Wait for the previous AI request to finish cancelling')
@@ -71,7 +85,11 @@ class TailoringSession:
             else: result=model_providers.propose(entry['provider'],entry['payload'],facts,key,entry['cancel'])
             with self.lock:
                 if not entry['cancel'].is_set():
-                    entry['draft']=result;entry['result_sha256']=hashlib.sha256(json.dumps(result,sort_keys=True,ensure_ascii=True).encode()).hexdigest();entry['status']='completed'
+                    entry['draft']=result;entry['result_sha256']=hashlib.sha256(json.dumps(result,sort_keys=True,ensure_ascii=True).encode()).hexdigest()
+                    if entry['retain_history']:
+                        try:entry['history_id']=refinement_history.save_turn(self.store,entry,self.demo)
+                        except (OSError,ValueError,KeyError,TypeError,RecursionError):entry['history_warning']='The proposal is available for this session, but local history completion could not be confirmed. A file may exist. Keep a copy before closing; no automatic retry.'
+                    entry['status']='completed'
         except Exception:
             with self.lock:
                 if not entry['cancel'].is_set():entry['status']='failed'
@@ -82,9 +100,42 @@ class TailoringSession:
         fields(data,('id',),('id',))
         with self.lock:
             entry=self._entry(data['id']);result={'id':data['id'],'status':entry['status']}
-            if entry['status']=='completed':result.update(draft=entry['draft'],result_sha256=entry['result_sha256'])
+            if entry['status']=='completed':
+                result.update(draft=entry['draft'],result_sha256=entry['result_sha256'])
+                for key in ('history_id','history_warning'):
+                    if key in entry:result[key]=entry[key]
             if entry['status']=='failed':result['error']='The request failed, was refused or returned an unsupported draft. Nothing was accepted. Review the request before a new attempt.'
             return result
+
+    def history(self,data):
+        fields(data,('job_id','offset'),('job_id',))
+        return refinement_history.listing(self.store,data['job_id'],data.get('offset',0))
+
+    def remove_history(self,data):
+        fields(data,('conversation_id','job_id','confirmed'),('conversation_id','job_id','confirmed'))
+        if data['confirmed'] is not True:raise ValueError('Confirm removing this complete local conversation')
+        with self.lock:
+            if any(v.get('thread') and v['thread'].is_alive() for v in self.entries.values()):raise ValueError('Wait for the current request to finish before removing history')
+            return refinement_history.remove_conversation(self.store,data['conversation_id'],data['job_id'])
+
+    def reopen(self,data):
+        fields(data,('id','job_id'),('id','job_id'))
+        record=refinement_history.load_turn(self.store,data['id'])
+        if record['job_id']!=data['job_id']:raise ValueError('This conversation belongs to another exact job review')
+        profile,job=refinement_history.bound_sources(self.store,record)
+        with self.lock:
+            self.entries={k:v for k,v in self.entries.items() if (time.monotonic()-v['at']<600 and v['status']!='cancelled') or (v.get('thread') and v['thread'].is_alive())}
+            if len(self.entries)>=5:raise ValueError('Finish existing draft sessions or retry after ten minutes')
+            identifier=uuid4().hex
+            self.entries[identifier]={'at':time.monotonic(),'profile':profile,'job':job,'ids':record['fact_ids'],
+                'provider':record['provider'],'payload':record['payload'].encode(),'sha256':record['request_sha256'],
+                'status':'completed','cancel':threading.Event(),'draft':record['draft'],'result_sha256':record['result_sha256'],
+                'instruction':record['instruction'],'previous':record['previous'],'retain_history':True,
+                'parent_id':record['parent_id'],'history_id':record['id']}
+        return {'id':identifier,'sha256':record['request_sha256'],'payload':record['payload'],'draft':record['draft'],
+            'result_sha256':record['result_sha256'],'history_id':record['id'],'instruction':record['instruction'],
+            'profile':{k:profile[k] for k in ('id','snapshot_sha256','profile')},'fact_ids':record['fact_ids'],
+            'offline_demo':record['offline_demo'],'provider':record['provider'],'retain_history':True}
 
     def cancel(self,data):
         fields(data,('id',),('id',))

@@ -474,3 +474,11 @@ profile versions and stale-editor protection. See [workflow and checks](docs/str
 Reference contacts require explicit entry selection to print; structured reference
 email/phone are excluded from AI context. Whole-entry review remains your assertion,
 not independent verification. Other partial/missing parity areas remain open.
+
+### Retained refinement conversations (v0.32)
+
+Opt into unencrypted local request/proposal history, reopen an earlier proposal
+without a model call, branch revisions and recover or remove a whole conversation.
+[Workflow, limits and practice](docs/refinement-conversations.md). Credential fields
+are excluded; manually typed private text is not scrubbed. Fresh review/consent
+remain required. Other partial/missing parity areas stay open.
