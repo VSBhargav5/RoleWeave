@@ -6,7 +6,8 @@ import time
 from uuid import uuid4
 
 from ai_tailoring import request_payload, propose, reviewed_variant, synthetic_draft, FIELDS
-from ai_requirements import MODEL,ENDPOINT
+import model_providers
+from model_preferences import read_settings
 from resume_render import selected_facts
 from application_draft import save_draft
 
@@ -38,23 +39,23 @@ class TailoringSession:
         profile=self.store.load_profile(data['profile_id'])
         if profile['snapshot_sha256']!=data['profile_sha256']:raise ValueError('Profile changed; reload before preview')
         job=self.store.load(data['job_id']);job=dict(job,posting=json.loads(job['snapshot'])['posting'])
-        payload=request_payload(job,profile['profile'],data['fact_ids'],data['instruction'],data.get('previous'))
+        config=read_settings(self.store)['config']
+        payload=model_providers.request_payload(request_payload(job,profile['profile'],data['fact_ids'],data['instruction'],data.get('previous')),config)
         with self.lock:
             self.entries={k:v for k,v in self.entries.items() if (time.monotonic()-v['at']<600 and v['status']!='cancelled') or (v.get('thread') and v['thread'].is_alive())}
             if len(self.entries)>=5:raise ValueError('Finish existing draft sessions or retry after ten minutes')
-            identifier=uuid4().hex;digest=hashlib.sha256(payload).hexdigest()
+            identifier=uuid4().hex;digest=model_providers.request_fingerprint(payload,config)
             self.entries[identifier]={'at':time.monotonic(),'profile':profile,'job':job,'ids':list(data['fact_ids']),
-                                      'payload':payload,'sha256':digest,'status':'preview','cancel':threading.Event()}
-        return {'id':identifier,'sha256':digest,'payload':payload.decode(),'model':MODEL,'endpoint':ENDPOINT,'offline_demo':self.demo}
+                                      'provider':config,'payload':payload,'sha256':digest,'status':'preview','cancel':threading.Event()}
+        return {'id':identifier,'sha256':digest,'payload':payload.decode(),'model':config['model'],'endpoint':model_providers.destination(config),'provider':model_providers.KINDS[config['kind']],'local':config['kind'] in model_providers.LOCAL,'offline_demo':self.demo}
 
     def send(self,data):
         fields(data,('id','sha256','key','confirmed'),('id','sha256','key','confirmed'))
         if data['confirmed'] is not True:raise ValueError('Review the exact request and authorize this one send')
         key=data['key']
-        if not self.demo and (not isinstance(key,str) or not 1<=len(key)<=1000 or not key.isascii() or any(ord(c)<33 or ord(c)>126 for c in key)):
-            raise ValueError('Enter a valid one-request API key')
         with self.lock:
             entry=self._entry(data['id'])
+            model_providers.validate_key(entry['provider'],key,self.demo)
             if entry['status']!='preview' or entry['sha256']!=data['sha256']:raise ValueError('Request preview changed or was already used')
             if any(v.get('thread') and v['thread'].is_alive() for v in self.entries.values()):raise ValueError('Wait for the previous AI request to finish cancelling')
             entry['status']='running'
@@ -65,7 +66,9 @@ class TailoringSession:
     def _run(self,entry,key):
         try:
             facts=selected_facts(entry['profile']['profile'],entry['ids'])
-            result=synthetic_draft(facts) if self.demo else propose(entry['payload'],facts,key,entry['cancel'])
+            if self.demo: result=synthetic_draft(facts)
+            elif entry['provider']['kind']=='openai': result=propose(entry['payload'],facts,key,entry['cancel'])
+            else: result=model_providers.propose(entry['provider'],entry['payload'],facts,key,entry['cancel'])
             with self.lock:
                 if not entry['cancel'].is_set():
                     entry['draft']=result;entry['result_sha256']=hashlib.sha256(json.dumps(result,sort_keys=True,ensure_ascii=True).encode()).hexdigest();entry['status']='completed'
@@ -114,7 +117,7 @@ class TailoringSession:
             draft_id=save_draft(self.store,{'job_id':entry['job']['id'],'job_sha256':entry['job']['input_sha256'],
                 'profile_id':profile['id'],'profile_sha256':profile['snapshot_sha256'],
                 'source_profile_id':entry['profile']['id'],'source_profile_sha256':entry['profile']['snapshot_sha256'],
-                'selected_fact_ids':selected,'letter':letter,'request_sha256':entry['sha256'],'result_sha256':entry['result_sha256']})
+                'provider':entry['provider'],'selected_fact_ids':selected,'letter':letter,'request_sha256':entry['sha256'],'result_sha256':entry['result_sha256']})
             entry['status']='accepted'
             result={'draft_id':draft_id,'profile':{k:profile[k] for k in ('id','snapshot_sha256','profile')},
                     'selected_fact_ids':[r['id'] for r in data['fact_edits']] or entry['ids'],'letter':letter,

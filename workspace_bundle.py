@@ -1,6 +1,7 @@
 """Verified recovery of the shelf and all managed web artifacts into a new workspace."""
 from application_email import email_snapshot, replay_email
 from collections import Counter
+from model_preferences import stored_settings, parse_settings, save_settings
 from discovery_store import DiscoveryStore, parse_snapshot as parse_discovery, verify_bindings as verify_discovery
 import hashlib
 from io import BytesIO
@@ -41,7 +42,7 @@ def no_link(path):
 
 
 def valid_name(name):
-    if name in ('shelf.json','discovery.json'):return True
+    if name in ('shelf.json','discovery.json','model-settings.json'):return True
     parts=name.split('/')
     return len(parts)==3 and parts[0]=='web-artifacts' and parts[1] in PATTERNS and re.fullmatch(PATTERNS[parts[1]],parts[2]) is not None
 
@@ -75,6 +76,8 @@ def captured_artifacts(root):
 
 def validate_artifact(name,payload):
     if not valid_name(name):raise ValueError('Unsupported workspace archive path')
+    if name == 'model-settings.json':
+        parse_settings(payload); return
     if name == 'discovery.json':
         parse_discovery(payload); return
     if name.startswith('web-artifacts/emails/'):
@@ -92,13 +95,16 @@ def validate_artifact(name,payload):
 
 def export_bundle(store, artifacts):
     first=shelf_bytes(store)
+    preferences=stored_settings(store)
     discovery_path=store.path.with_suffix(".discovery.db")
     discovery=DiscoveryStore(discovery_path).snapshot() if discovery_path.exists() else None
     captured=captured_artifacts(artifacts)
     if first!=shelf_bytes(store) or captured!=captured_artifacts(artifacts):
         raise ValueError('Workspace changed during backup; finish other saves and retry')
     if discovery != (DiscoveryStore(discovery_path).snapshot() if discovery_path.exists() else None): raise ValueError('Discovery changed during backup; retry')
+    if preferences != stored_settings(store): raise ValueError('Model preferences changed during backup; retry')
     parts={'shelf.json':first}|captured
+    if preferences is not None: parts['model-settings.json']=preferences
     if discovery is not None:
         parts['discovery.json']=discovery
         verify_discovery(parse_discovery(discovery),store,parts)
@@ -123,7 +129,7 @@ def inspect_bundle(payload):
     try:
         with zipfile.ZipFile(BytesIO(payload)) as archive:
             entries=archive.infolist();names=[e.filename for e in entries]
-            if len(entries)>1003 or len(names)!=len(set(names)) or 'manifest.json' not in names or 'shelf.json' not in names:
+            if len(entries)>1004 or len(names)!=len(set(names)) or 'manifest.json' not in names or 'shelf.json' not in names:
                 raise ValueError('Unsupported or duplicate workspace bundle members')
             if sum(e.file_size for e in entries)>LIMIT or any(e.flag_bits&1 for e in entries):
                 raise ValueError('Expanded workspace exceeds 64 MiB or is encrypted')
@@ -153,7 +159,7 @@ def inspect_bundle(payload):
                 if name.startswith('web-artifacts/emails/'):replay_email(store,data)
             if 'discovery.json' in parts: verify_discovery(parse_discovery(parts['discovery.json']),store,parts)
             summary={'jobs':len(store.list_jobs()),'profiles':len(store.list_profiles()),'resumes':len(store.list_resumes()),
-                     'artifacts':dict(Counter(name.split('/')[1] for name in parts if name not in ('shelf.json','discovery.json'))),
+                     'artifacts':dict(Counter(name.split('/')[1] for name in parts if name not in ('shelf.json','discovery.json','model-settings.json'))),
                      'files':len(parts),'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}
         return parts,summary
     except (zipfile.BadZipFile,KeyError,TypeError,UnicodeError,RuntimeError,NotImplementedError,RecursionError) as exc:
@@ -168,6 +174,8 @@ def restore_bundle(payload, parent):
     stage.mkdir(exist_ok=False)
     source=stage/'shelf.json';publish_bytes(source,parts.pop('shelf.json'))
     store=JobStore(stage/'jobs.db');store.restore(source)
+    if 'model-settings.json' in parts:
+        save_settings(store,parse_settings(parts.pop('model-settings.json')))
     if 'discovery.json' in parts:
         DiscoveryStore(store.path.with_suffix('.discovery.db')).restore(parts.pop('discovery.json'))
     for name,data in parts.items():

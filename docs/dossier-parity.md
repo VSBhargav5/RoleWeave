@@ -9,6 +9,9 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **Baseline v0.23: 7 implemented, 9 partial, 9 missing.**
 **With v0.24: 8 implemented, 9 partial, 8 missing.**
 **With v0.25: 9 implemented, 9 partial, 7 missing.**
+**With v0.26: 10 implemented, 8 partial, 7 missing.**
+Provider selection closes the scoped provider/model/local-server area; arbitrary
+remote endpoints and every model variant are not claimed supported.
 Markdown closes the stated import-format gap; saved manual searches/review queue
 move the agent area from missing to partial. Scheduler/scoring/automatic drafts
 remain absent; the other partial areas are not claimed complete.
@@ -28,9 +31,9 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | YC/Hacker News startup discovery | Missing | Not implemented |
 | Named scheduled discovery/agent queue | Missing | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Explicit requirement/evidence links; no equivalent AI scored ranking |
-| Reviewed tailored resume and PDF letter | Implemented | One source-bound OpenAI workflow; real quality unverified |
+| Reviewed tailored resume and PDF letter | Implemented | Source-bound reviewed provider workflow; real quality unverified |
 | Full refinement chat and undo | Partial | Explicit revised proposals and saved drafts; no full chat/unit-level undo |
-| AI provider/model settings and local models | Partial | One OpenAI model; no Ollama/LM Studio/Anthropic/Mistral/custom endpoint |
+| AI provider/model settings and local models | Partial | **Implemented in v0.26:** selected models, OpenAI/Anthropic/Mistral, Ollama/LM Studio numeric loopback; fixed hosts, no arbitrary remote URL; live quality unverified |
 | Application email composer and mail-client handoff | Missing | **Implemented in v0.24:** reviewed local EML, exact PDFs, reopen/copy/download; no automated sending |
 | Connected Gmail sending | Missing | No account integration or sends |
 | Mailbox reply reading and AI responses | Missing | Native manual local excerpt review is not browser inbox/AI reply handling |
