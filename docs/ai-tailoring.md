@@ -1,4 +1,7 @@
-# Reviewed browser AI tailoring — v0.21
+# Reviewed browser AI tailoring — introduced v0.21
+
+Current extensions: [provider/model selection](model-providers.md) (v0.26) and
+[local review undo/redo/reset](review-undo.md) (v0.30).
 
 ## One job, one separate application draft
 
@@ -88,8 +91,8 @@ learning completion is claimed until you practice.
 
 ## Current limits
 
-One provider/model and explicit single-request revisions; no multi-provider
-settings, automatic drafting agent, Gmail, general two-way calendar sync,
+Explicit single-request revisions with selected provider/model settings; no
+persisted full refinement chat, automatic drafting agent, Gmail, general two-way calendar sync,
 universal employer widgets, automatic uploads or submission. Native advanced
 Google/AI tools keep their previous boundaries. Actual live AI quality, real
 employer/helper and personal acceptance, unusual scaling, signing/distribution

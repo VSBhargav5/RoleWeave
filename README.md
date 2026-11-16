@@ -1,5 +1,14 @@
 # RoleWeave
 
+## Review edits with undo (v0.30)
+
+AI wording review now has local Undo/Redo for wording and selected suggestions,
+plus per-field Reset to proposal. These controls reset accuracy consent and make
+no model request. Each new proposal starts a fresh bounded history; accepted drafts
+keep existing source/provenance guards. [Guide and checks](docs/review-undo.md).
+Persisted full refinement chat remains pending.
+
+
 ## Employer boards in the browser (v0.29)
 
 The optional Employer boards page brings Greenhouse, Lever global/Europe and Ashby
