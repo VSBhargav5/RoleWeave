@@ -1,4 +1,5 @@
 """Verified recovery of the shelf and all managed web artifacts into a new workspace."""
+from application_email import email_snapshot, replay_email
 from collections import Counter
 import hashlib
 from io import BytesIO
@@ -20,7 +21,7 @@ from safe_export import publish_bytes
 
 LIMIT=64*1024*1024
 FORMAT='roleweave-workspace-v1'
-PATTERNS={'rehearsals':r'[a-f0-9]{32}\.json', 'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
+PATTERNS={'emails':r'[a-f0-9]{32}\.json', 'rehearsals':r'[a-f0-9]{32}\.json', 'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
           'sources':r'[a-f0-9]{64}\.json', 'resume-imports':r'[a-f0-9]{64}\.(pdf|docx|txt)'}
 
 
@@ -73,7 +74,9 @@ def captured_artifacts(root):
 
 def validate_artifact(name,payload):
     if not valid_name(name):raise ValueError('Unsupported workspace archive path')
-    if name.startswith('web-artifacts/rehearsals/'):
+    if name.startswith('web-artifacts/emails/'):
+        email_snapshot(payload)
+    elif name.startswith('web-artifacts/rehearsals/'):
         rehearsal_snapshot(payload)
     elif name.startswith('web-artifacts/drafts/'):
         draft_snapshot(payload)
@@ -93,6 +96,7 @@ def export_bundle(store, artifacts):
     for name,data in captured.items():
         if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
         if name.startswith('web-artifacts/rehearsals/'):bound_rehearsal(store,rehearsal_snapshot(data)[0])
+        if name.startswith('web-artifacts/emails/'):replay_email(store,data)
     if sum(map(len,parts.values()))>LIMIT:raise ValueError('Workspace bundle exceeds 64 MiB')
     manifest={'format':FORMAT,'unencrypted':True,'managed_only':True,
               'files':{name:{'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()} for name,data in parts.items()}}
@@ -137,6 +141,7 @@ def inspect_bundle(payload):
             for name,data in parts.items():
                 if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
                 if name.startswith('web-artifacts/rehearsals/'):bound_rehearsal(store,rehearsal_snapshot(data)[0])
+                if name.startswith('web-artifacts/emails/'):replay_email(store,data)
             summary={'jobs':len(store.list_jobs()),'profiles':len(store.list_profiles()),'resumes':len(store.list_resumes()),
                      'artifacts':dict(Counter(name.split('/')[1] for name in parts if name!='shelf.json')),
                      'files':len(parts),'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}

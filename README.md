@@ -9,6 +9,19 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## Dossier comparison and application email
+
+[Current 25-area parity checklist](docs/dossier-parity.md): v0.24 has 8 implemented,
+9 partial and 8 missing areas. These are scoped workflow counts, not an overall
+completion percentage or production acceptance. Live accounts, employer forms and
+personal usefulness remain separate gates.
+
+Saved job → **Prepare application email**: choose a frozen PDF resume and optional
+matching PDF letter, enter sender/recipient/message, preview exact attachments,
+then confirm a local draft. Save/reopen, copy the message or download an EML for
+your mail client. No email is sent and tracking remains unchanged. Managed recovery
+includes saved drafts. [Email handoff and limits](docs/application-email.md).
+
 ## Interview rehearsal in the browser
 
 Saved job → **Interview rehearsal**: choose exact requirement questions, reveal
@@ -81,7 +94,7 @@ stops it, but finding an older host is no longer required to open the new app.
 
 ## Release status
 
-V0.23 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.24 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
