@@ -4,6 +4,17 @@ Reviewed 31 October 2026. Features below are upstream documentation claims unles
 specific source inspection is stated. No upstream apps were installed or
 benchmarked, and upstream test/performance counts are not our verification.
 
+## Current comparison — 16 November 2026
+
+The [25-area Dossier parity checklist](dossier-parity.md) supersedes the older
+summary below. Dossier remains pinned at c79562e67e0459c999ea5dcbbeb444e98837ccda;
+current README and email/agent/provider source paths were rechecked. V0.23 baseline:
+7 implemented,9 partial,9 missing. V0.24 adds reviewed local application-email
+handoff:8 implemented,9 partial,8 missing. These are scoped workflow counts, not
+production readiness or a percentage. Gmail/live replies, agent discovery,
+provider breadth, localization, remote hosting/authentication and MCP remain gaps.
+See [email workflow](application-email.md). No source/assets/history imported.
+
 ## Current gap review — 14 November 2026
 
 Re-read [Dossier README at c79562e](https://github.com/AienTech/dossier/blob/c79562e67e0459c999ea5dcbbeb444e98837ccda/README.md).
