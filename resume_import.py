@@ -25,8 +25,8 @@ class ResumeImportError(ValueError):
 def document_name(name):
     if not isinstance(name, str) or not 1 <= len(name) <= 200 or any(c in name for c in '/\\') or any(ord(c)<32 for c in name):
         raise ResumeImportError('Choose a resume filename without paths or control characters')
-    if Path(name).suffix.lower() not in ('.pdf','.docx','.txt'):
-        raise ResumeImportError('Choose a text PDF, DOCX or UTF-8 TXT resume')
+    if Path(name).suffix.lower() not in ('.pdf','.docx','.txt','.md','.markdown'):
+        raise ResumeImportError('Choose a text PDF, DOCX or UTF-8 TXT/Markdown resume')
     return name
 
 
@@ -35,7 +35,7 @@ def extract_text(payload, name):
     if not isinstance(payload, bytes) or not 0 < len(payload) <= MAX_FILE:
         raise ResumeImportError('Resume must contain at most 4 MiB')
     suffix = Path(name).suffix.lower()
-    if suffix == '.txt':
+    if suffix in ('.txt','.md','.markdown'):
         text = payload.decode('utf-8-sig')
     elif suffix == '.docx':
         with zipfile.ZipFile(BytesIO(payload)) as archive:
@@ -95,7 +95,7 @@ def worker(source, destination):
     except ResumeImportError as exc:
         result={'ok':False,'error':str(exc)}
     except Exception:
-        result={'ok':False,'error':'Could not extract this resume. Use a readable PDF, DOCX or UTF-8 TXT copy'}
+        result={'ok':False,'error':'Could not extract this resume. Use a readable PDF, DOCX or UTF-8 TXT/Markdown copy'}
     Path(destination).write_text(json.dumps(result,ensure_ascii=True),encoding='utf-8')
     return 0
 

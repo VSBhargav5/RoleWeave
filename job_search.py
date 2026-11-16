@@ -39,7 +39,7 @@ def parse_search(snapshot, offset=0):
     if not isinstance(data, dict) or not isinstance(data.get("data"), list) or len(data["data"]) > 20:
         raise ValueError("The search provider returned an unsupported response")
     meta = data.get("meta", {})
-    if not isinstance(meta, dict) or meta.get("ignored_params"):
+    if not isinstance(meta, dict) or (meta.get("ignored_params") or meta.get("ignored_values")):
         raise ValueError("The provider ignored a requested filter; narrow your search before continuing")
     for key, expected in (("offset", offset), ("limit", 20)):
         if key in meta and (type(meta[key]) is not int or meta[key] != expected):
@@ -71,12 +71,14 @@ def parse_search(snapshot, offset=0):
                          "source_url": SOURCE_URL, "observed_at": observed, "source_sha256": digest})
         except (ValueError, TypeError) as exc:
             excluded.append({"row": index, "reason": str(exc)})
+    if "total_is_lower_bound" in meta and type(meta["total_is_lower_bound"]) is not bool:
+        raise ValueError("Unsupported source count boundary")
     total = meta.get("total")
     if total is not None and (type(total) is not int or total < 0):
         raise ValueError("Unsupported source result count")
     return {"jobs": jobs, "excluded": excluded, "total": total, "observed_at": observed,
             "page": {"offset": offset, "returned": len(data["data"]),
-                     "has_next": offset < 9980 and len(data["data"]) == 20 and (total is None or offset + 20 < total)},
+                     "has_next": offset < 9980 and len(data["data"]) == 20 and (total is None or meta.get("total_is_lower_bound", False) or offset + 20 < total)},
             "source": SOURCE, "source_url": SOURCE_URL, "source_sha256": digest,
             "notice": "Source observations, not eligibility or sponsorship checks. FreeHire personal/non-commercial API."}
 
