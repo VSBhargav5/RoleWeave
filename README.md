@@ -1,5 +1,15 @@
 # RoleWeave
 
+## Employer boards in the browser (v0.29)
+
+The optional Employer boards page brings Greenhouse, Lever global/Europe and Ashby
+observations into the supported browser UI: explicit fetch, local paged filters,
+reviewed imports, exact archive download/replay and comparison. Repeated unchanged
+postings reuse a review; required source receipts join managed recovery. The normal
+role/location search still needs no board URL. No application or account access.
+[Workflow, evidence and limits](docs/browser-employer-boards.md).
+
+
 ## Resume theme builder (v0.28)
 
 Build a bounded custom resume style alongside the three existing presets: dark

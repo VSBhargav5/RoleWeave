@@ -21,7 +21,7 @@ from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
-ASSETS = {"/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
+ASSETS = {"/boards.js": ("boards.js", "application/javascript"), "/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
 
@@ -160,6 +160,20 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/job":
             require(params, ("id",), ("id",))
             self.reply(200, service.job(params["id"]))
+        elif path == "/api/boards":
+            require(params, ())
+            self.reply(200, service.boards.listing())
+        elif path == "/api/boards/page":
+            require(params, ('id','query','exclude','descriptions','offset'), ('id',))
+            if params.get('descriptions','false') not in ('true','false'):raise ValueError('Invalid description filter')
+            self.reply(200,service.boards.page(params['id'],params.get('query',''),params.get('exclude',''),params.get('descriptions')=='true',int(params.get('offset','0'))))
+        elif path == "/api/boards/row":
+            require(params, ('id','row_id'), ('id','row_id'))
+            self.reply(200,service.boards.row(params['id'],params['row_id']))
+        elif path == "/api/boards/archive":
+            require(params, ('id',), ('id',))
+            with service.boards.lock:payload=service.boards.ready(params['id'])['archive']
+            self.reply(200,payload,'application/json','RoleWeave-board-observation.json')
         elif path == "/api/insights":
             self.reply(200, service.workflow_insights(params))
         elif path == "/api/discovery":
@@ -211,6 +225,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             path, params = self.query()
             if params:
                 raise ValueError("POST actions do not accept URL parameters")
+            if path == "/api/boards/replay":
+                if self.headers.get('Content-Type','').split(';')[0]!='application/octet-stream':raise ValueError('Choose a board observation JSON')
+                self.reply(200,self.server.service.boards.replay(self.body(12*1024*1024)))
+                return
             if path == "/api/restore":
                 if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
                     raise ValueError("Choose a backup file")
@@ -227,7 +245,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            routes = {"/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),
@@ -269,6 +287,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if data["confirmed"] is not True:
                     raise ValueError("Confirm closing the local app")
                 service.tailoring.shutdown()
+                service.boards.shutdown()
                 self.reply(200, {"closed": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
             elif path == "/api/legacy":

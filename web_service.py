@@ -1,5 +1,6 @@
 """Local web application operations; reuses the existing validated domain models."""
 from datetime import date
+from board_workspace import BoardWorkspace, PREFIX as BOARD_PREFIX
 from discovery_store import DiscoveryStore
 from model_preferences import read_settings, save_settings
 from workflow_insights import insights
@@ -67,6 +68,7 @@ class WebService:
         self.store = JobStore(path)
         self.demo = demo
         self.searcher = JobSearch()
+        self.boards = BoardWorkspace(self.store,demo=demo)
         self.searches = {}
         self.lock = threading.RLock()
         self.imports = {}
@@ -92,6 +94,18 @@ class WebService:
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
+
+    def board_action(self,data):
+        require(data,('action','provider','token','id','row_id','company','market','sha256','confirmed','before','after'))
+        action=data.get('action')
+        keys={'fetch':{'action','provider','token','confirmed'},'close':{'action','id'},'import':{'action','id','row_id','company','market','sha256','confirmed'},'compare':{'action','before','after'}}
+        if action not in keys or set(data)!=keys[action]:raise ValueError('Invalid board action fields')
+        if action=='fetch':return self.boards.start(data['provider'],data['token'],data['confirmed'])
+        if action=='close':return self.boards.close(data['id'])
+        if action=='compare':
+            from discovery_archive import compare_observations
+            with self.boards.lock:return {'items':compare_observations(self.boards.ready(data['before'])['feed'],self.boards.ready(data['after'])['feed'])}
+        return self.boards.import_row(data['id'],data['row_id'],data['company'],data['market'],data['sha256'],data['confirmed'])
 
     def resume_theme(self, data):
         require(data, ('theme','source'))
@@ -121,6 +135,7 @@ class WebService:
 
     def save_job(self, data):
         require(data, ("title", "company", "source_url", "market", "posting"), ("title", "company", "market", "posting"))
+        if isinstance(data['posting'],str) and data['posting'].startswith(BOARD_PREFIX):raise ValueError('Use employer-board replay/import for reserved source evidence; do not paste its protocol header')
         if data.get("source_url"):
             source_link(data["source_url"])
         snapshot = json.dumps({"market": data["market"], "posting": data["posting"], "facts": [], "requirements": []}, ensure_ascii=False).encode()
@@ -193,7 +208,12 @@ class WebService:
             raise ValueError("This review must preserve its original posting and market")
         if old == data["review"]:
             return self.job(original["id"])
-        identifier = self.store.save(snapshot, original["title"], original["company"], original["source_url"])
+        identifier=None
+        if old['posting'].startswith(BOARD_PREFIX):
+            for candidate in self.store.list_jobs():
+                if all(candidate[k]==original[k] for k in ('title','company','source_url','market')) and self.store.load(candidate['id'])['snapshot']==snapshot:identifier=candidate['id'];break
+        if identifier is None:identifier = self.store.save(snapshot, original["title"], original["company"], original["source_url"])
+        self.boards.inherit_receipt(original['id'],identifier)
         return self.job(identifier)
 
     def save_discovery_search(self, data):
