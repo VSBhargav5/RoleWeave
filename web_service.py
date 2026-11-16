@@ -3,6 +3,7 @@ from datetime import date
 from discovery_store import DiscoveryStore
 from model_preferences import read_settings, save_settings
 from workflow_insights import insights
+from resume_theme import parse_theme, validate_theme
 import base64
 import hashlib
 import json
@@ -91,6 +92,12 @@ class WebService:
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
+
+    def resume_theme(self, data):
+        require(data, ('theme','source'))
+        if set(data)=={'theme'}:return {'theme':validate_theme(data['theme'])}
+        if set(data)=={'source'} and isinstance(data['source'],str):return {'theme':parse_theme(data['source'].encode('utf-8'))}
+        raise ValueError('Choose exactly one theme or JSON source')
 
     def workflow_insights(self, data):
         require(data, ('month', 'market'))
