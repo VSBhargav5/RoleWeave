@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from ai_tailoring import bounded,FIELDS
 from career_profile import unique_json
+from model_providers import validate_config
 from resume_render import selected_facts
 from safe_export import publish_bytes
 
@@ -26,7 +27,9 @@ def draft_snapshot(payload):
     record=json.loads(payload,object_pairs_hook=unique_json)
     keys={'format','job_id','job_sha256','profile_id','profile_sha256','source_profile_id','source_profile_sha256',
           'selected_fact_ids','letter','request_sha256','result_sha256','created_at','user_reviewed'}
-    if not isinstance(record,dict) or set(record)!=keys or record['format']!='roleweave-application-draft-v1' or record['user_reviewed'] is not True:
+    if isinstance(record,dict) and record.get('format')=='roleweave-application-draft-v2':
+        keys.add('provider');validate_config(record.get('provider'))
+    if not isinstance(record,dict) or set(record)!=keys or record['format'] not in ('roleweave-application-draft-v1','roleweave-application-draft-v2') or record['user_reviewed'] is not True:
         raise ValueError('Unsupported reviewed application draft')
     for key in ('job_sha256','profile_sha256','source_profile_sha256','request_sha256','result_sha256'):
         if not isinstance(record[key],str) or not re.fullmatch('[a-f0-9]{64}',record[key]):raise ValueError('Invalid application draft fingerprint')
@@ -49,7 +52,7 @@ def bound_profile(store,record):
 
 
 def save_draft(store,record):
-    record=dict(record,format='roleweave-application-draft-v1',user_reviewed=True,created_at=datetime.now(timezone.utc).isoformat())
+    record=dict(record,format='roleweave-application-draft-v2' if 'provider' in record else 'roleweave-application-draft-v1',user_reviewed=True,created_at=datetime.now(timezone.utc).isoformat())
     payload=json.dumps(record,ensure_ascii=True,indent=2).encode();draft_snapshot(payload);bound_profile(store,record)
     folder=directory(store);folder.mkdir(parents=True,exist_ok=True);identifier=uuid4().hex
     publish_bytes(folder/(identifier+'.json'),payload)

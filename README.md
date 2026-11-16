@@ -1,5 +1,16 @@
 # RoleWeave
 
+## Provider/model preferences (v0.26)
+
+Settings now supports OpenAI, Anthropic, Mistral and numeric-loopback Ollama / LM
+Studio-compatible drafting servers. Save only model/kind/port; no credentials or
+provider request on save. Every send retains exact preview, destination binding,
+one-request key, consent and human review. Preferences and provider provenance
+survive managed recovery; existing drafts/bundles remain compatible.
+[Setup, limits and offline verification](docs/model-providers.md). Live provider
+compatibility and quality remain unverified; no model server is started/downloaded.
+
+
 A personal Python job-search workspace for Data Engineering and applied AI roles.
 Two separate markets: India/remote-from-India and international relocation.
 Original implementation inspired by existing tools, with no upstream source,
@@ -25,8 +36,8 @@ No OCR or inferred employment/profile write is added.
 
 ## Dossier comparison and application email
 
-[Current 25-area parity checklist](docs/dossier-parity.md): v0.25 has 9 implemented,
-9 partial and 7 missing areas. These are scoped workflow counts, not an overall
+[Current 25-area parity checklist](docs/dossier-parity.md): v0.26 has 10 implemented,
+8 partial and 7 missing areas. These are scoped workflow counts, not an overall
 completion percentage or production acceptance. Live accounts, employer forms and
 personal usefulness remain separate gates.
 

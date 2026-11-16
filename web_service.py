@@ -1,6 +1,7 @@
 """Local web application operations; reuses the existing validated domain models."""
 from datetime import date
 from discovery_store import DiscoveryStore
+from model_preferences import read_settings, save_settings
 import base64
 import hashlib
 import json
@@ -83,12 +84,18 @@ class WebService:
         today = date.today().isoformat()
         label='Recovered workspace · '+self.store.path.parent.name[:8] if self.store.path.parent.parent.name=='recovered' else 'Main workspace'
         return {"version": APP_VERSION, "demo": self.demo, "workspace_label": 'Synthetic practice' if self.demo else label,
-                "profile": self.profile(), "jobs": jobs,
+                "profile": self.profile(), "jobs": jobs, "ai_provider": read_settings(self.store),
                 "resumes": self.store.list_resumes(), "letters": self.letters(),
                 "recoveries": recovery_list(self.store.path.parent/'recovered'), "stats": {
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
+
+    def save_model_settings(self, data):
+        require(data, ('config', 'expected_sha256'), ('config', 'expected_sha256'))
+        if not isinstance(data['expected_sha256'], str) or not re.fullmatch('[a-f0-9]{64}', data['expected_sha256']):
+            raise ValueError('Refresh provider preferences before saving')
+        return save_settings(self.store, data['config'], data['expected_sha256'])
 
     def job(self, identifier):
         item = self.store.load(identifier)
