@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from career_profile import profile_snapshot, unique_json
+from career_entries import fact_text, fact_heading
 from resume_render import selected_facts
 from letter_render import letter_pdf
 from resume_versions import decoded, encoded, job_context, validate_job_context as checked_context
@@ -25,7 +26,7 @@ def render_letter(profile, identifiers, context, motivation, closing):
              f"I am applying for the {context['title']} role at {context['company']}.", "",
              motivation, "", "Selected examples from my reviewed record:", ""]
     for fact in facts:
-        lines.extend([fact["section"] + ": " + fact["claim"], ""])
+        lines.extend([fact_heading(fact) + ": " + fact_text(fact), ""])
     lines.extend([closing, "", profile["name"], ""])
     payload = "\n".join(lines).encode("utf-8")
     if len(payload) > 65536:

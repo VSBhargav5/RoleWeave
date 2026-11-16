@@ -202,13 +202,20 @@ class JobStore:
         publish_bytes(destination, payload)
         return hashlib.sha256(payload).hexdigest()
 
-    def save_profile(self, snapshot, *, activate=True):
+    def save_profile(self, snapshot, *, activate=True, expected_active_sha256=None):
         if type(activate) is not bool:
             raise ValueError("Choose whether to activate the profile")
         _data, digest = profile_snapshot(snapshot)
         identifier = str(uuid4())
         with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
             current = db.execute("SELECT value FROM app_settings WHERE key='active_profile'").fetchone()
+            if expected_active_sha256 is not None:
+                if not isinstance(expected_active_sha256,str) or (expected_active_sha256 and (len(expected_active_sha256)!=64 or any(c not in '0123456789abcdef' for c in expected_active_sha256))):
+                    raise ValueError("Invalid active profile fingerprint")
+                row=db.execute("SELECT snapshot_sha256 FROM career_profiles WHERE id=?",(current[0],)).fetchone() if current else None
+                if expected_active_sha256!=(row[0] if row else ''):
+                    raise ValueError("The active profile changed in another window. Keep your draft and reload the current profile before saving.")
             if activate and current and db.execute("SELECT 1 FROM career_profiles WHERE id=? AND snapshot_sha256=?", (current[0], digest)).fetchone():
                 raise ValueError("This profile is unchanged; no new version was saved")
             db.execute("INSERT INTO career_profiles VALUES (?, ?, ?, ?)",

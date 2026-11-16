@@ -478,3 +478,10 @@ dialog.ai-modal{width:1180px;max-width:calc(100vw - 32px)}
 .workspace-content[data-view=boards] .job-card .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px;min-width:0}.workspace-content[data-view=boards] .job-card .actions .btn{white-space:normal;text-align:center;min-width:0}.workspace-content[data-view=boards] .job-card small{overflow-wrap:anywhere}.workspace-content[data-view=boards] .search-bar .fact-choice{flex:0 1 185px;min-width:170px;white-space:normal}.workspace-content[data-view=boards] .panel-head{flex-wrap:wrap}
 
 .ai-history{display:grid;grid-template-columns:1fr auto;gap:12px 20px;align-items:center;padding:18px;margin:20px 0;border:1px solid #3b4d3e;border-radius:12px;background:#18221b}.ai-history h4{font-size:14px}.ai-history p{font-size:11px;color:var(--muted);line-height:1.6;margin-top:5px}.ai-history-status{grid-column:1/-1;color:var(--muted);font-size:10px}.ai-edit>[data-ai^=reset-]{font-size:10px;min-height:32px;padding:7px 10px;margin:4px 0 10px}@media(max-width:850px){.ai-history{grid-template-columns:1fr}.ai-history .actions{justify-content:flex-start}}
+
+.entry-summary strong{font-size:17px;line-height:1.5;margin:8px 0}.entry-summary small{display:block;color:var(--violet);line-height:1.6;margin-bottom:14px}.entry-summary p{white-space:pre-wrap}.fact-card .actions{margin-top:16px}.fact-card .actions .btn{font-size:11px}#career-entry-form{display:grid;gap:20px}#career-entry-fields{align-items:start}#career-entry-form .document-preview{max-height:260px;overflow:auto}
+
+.entry-summary,.entry-summary strong,.entry-summary small,.entry-summary>span{display:block}.entry-summary{margin:.5rem 0;overflow-wrap:anywhere}.entry-summary strong{font-size:1rem}
+
+#profile-form .split{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}#profile-form .panel{min-width:0}#profile-form .panel-head{flex-wrap:wrap}
+@media(max-width:1200px){#profile-form .split{grid-template-columns:minmax(0,1fr)}}

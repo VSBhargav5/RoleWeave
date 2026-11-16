@@ -20,6 +20,7 @@ from application_draft import list_drafts, load_draft
 from application_email import FIELDS as EMAIL_FIELDS, MAX_EMAIL_SNAPSHOT, email_snapshot, make_email_snapshot, replay_email, preview_fingerprint
 from application_dossier import build_dossier
 from career_profile import imported_career_facts, profile_snapshot, SECTIONS
+from career_entries import SCHEMAS, fact_text
 from cover_letter import make_letter, letter_snapshot
 from demo_data import seed_practice
 from job_search import JobSearch, search_path
@@ -88,7 +89,7 @@ class WebService:
         today = date.today().isoformat()
         label='Recovered workspace · '+self.store.path.parent.name[:8] if self.store.path.parent.parent.name=='recovered' else 'Main workspace'
         return {"version": APP_VERSION, "demo": self.demo, "workspace_label": 'Synthetic practice' if self.demo else label,
-                "profile": self.profile(), "jobs": jobs, "ai_provider": read_settings(self.store),
+                "profile": self.profile(), "jobs": jobs, "career_sections":SECTIONS,"entry_fields":SCHEMAS, "ai_provider": read_settings(self.store),
                 "resumes": self.store.list_resumes(), "letters": self.letters(),
                 "recoveries": recovery_list(self.store.path.parent/'recovered'), "stats": {
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
@@ -142,14 +143,24 @@ class WebService:
         identifier = self.store.save(snapshot, data["title"], data["company"], data.get("source_url", ""))
         return self.job(identifier)
 
+    def career_entry(self,data):
+        require(data,('fact',),('fact',))
+        # Validate in the existing whole-profile contract, without writing or inference.
+        item=data['fact'];base={k:'' for k in ('name','headline','email','phone','location','links','summary')};base.update(name='Entry preview',facts=[item])
+        profile_snapshot(json.dumps(base,ensure_ascii=True).encode())
+        return {'fact':item,'text':fact_text(item)}
+
     def save_profile(self, data):
-        require(data, ("profile", "confirmed"), ("profile", "confirmed"))
+        require(data, ("profile", "confirmed", "expected_active_sha256"), ("profile", "confirmed"))
         confirmed(data)
         snapshot = json.dumps(data["profile"], ensure_ascii=False).encode()
         active = self.store.active_profile()
+        expected=data.get('expected_active_sha256')
+        if expected is not None and (not isinstance(expected,str) or expected!=(active['snapshot_sha256'] if active else '')):
+            raise ValueError('The active profile changed in another window. Keep your draft and reload the current profile before saving.')
         if active and active["profile"] == data["profile"]:
             return self.profile()
-        self.store.save_profile(snapshot)
+        self.store.save_profile(snapshot, expected_active_sha256=expected)
         return self.profile()
 
     def preview_resume_import(self, data):
