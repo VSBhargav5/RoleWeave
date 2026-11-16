@@ -38,7 +38,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Named scheduled discovery/agent queue | Missing | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Explicit requirement/evidence links; no equivalent AI scored ranking |
 | Reviewed tailored resume and PDF letter | Implemented | Source-bound reviewed provider workflow; real quality unverified |
-| Full refinement chat and undo | Partial | Explicit revised proposals and saved drafts; no full chat/unit-level undo |
+| Full refinement chat and undo | Partial | **Expanded in v0.30:** explicit revisions/saved drafts plus bounded local review Undo/Redo and per-field reset, with renewed accuracy review; no persisted full chat or older-proposal browser. Area remains partial. |
 | AI provider/model settings and local models | Partial | **Implemented in v0.26:** selected models, OpenAI/Anthropic/Mistral, Ollama/LM Studio numeric loopback; fixed hosts, no arbitrary remote URL; live quality unverified |
 | Application email composer and mail-client handoff | Missing | **Implemented in v0.24:** reviewed local EML, exact PDFs, reopen/copy/download; no automated sending |
 | Connected Gmail sending | Missing | No account integration or sends |

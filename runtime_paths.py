@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 
-APP_VERSION = "0.29.0"
+APP_VERSION = "0.30.0"
 RESOURCE_ROOT = Path(__file__).resolve().parent
 
 
