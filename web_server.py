@@ -245,7 +245,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            routes = {"/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),

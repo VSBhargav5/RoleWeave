@@ -13,6 +13,10 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.27: 11 implemented, 7 partial, 7 missing.**
 **With v0.28: 12 implemented, 6 partial, 7 missing.**
 **With v0.31: 13 implemented, 5 partial, 7 missing.**
+**With v0.32: 14 implemented, 4 partial, 7 missing.**
+Retained full request/proposal turns and older-proposal browsing close the scoped
+refinement area, alongside existing local Undo/Redo/reset. Keystroke autosave,
+durable Undo stacks, every Dossier interaction and live model quality are not claimed.
 Structured career sections close the scoped profile-area gap: ten typed sections,
 browser edit/order/removal/review, selected documents/evidence, privacy and recovery.
 No photo/arbitrary rich text, personal acceptance or complete Dossier parity claim.
@@ -42,7 +46,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Named scheduled discovery/agent queue | Missing | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Explicit requirement/evidence links; no equivalent AI scored ranking |
 | Reviewed tailored resume and PDF letter | Implemented | Source-bound reviewed provider workflow; real quality unverified |
-| Full refinement chat and undo | Partial | **Expanded in v0.30:** explicit revisions/saved drafts plus bounded local review Undo/Redo and per-field reset, with renewed accuracy review; no persisted full chat or older-proposal browser. Area remains partial. |
+| Full refinement chat and undo | Implemented | **Implemented in v0.32:** opt-in retained instruction/request/proposal turns, immutable edited-parent branches, exact-source older-proposal browser/reopen, fresh review, local Undo/Redo/reset, explicit removal and managed recovery; no keystroke autosave or durable Undo stack. |
 | AI provider/model settings and local models | Partial | **Implemented in v0.26:** selected models, OpenAI/Anthropic/Mistral, Ollama/LM Studio numeric loopback; fixed hosts, no arbitrary remote URL; live quality unverified |
 | Application email composer and mail-client handoff | Missing | **Implemented in v0.24:** reviewed local EML, exact PDFs, reopen/copy/download; no automated sending |
 | Connected Gmail sending | Missing | No account integration or sends |

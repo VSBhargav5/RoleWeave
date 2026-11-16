@@ -485,3 +485,5 @@ dialog.ai-modal{width:1180px;max-width:calc(100vw - 32px)}
 
 #profile-form .split{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}#profile-form .panel{min-width:0}#profile-form .panel-head{flex-wrap:wrap}
 @media(max-width:1200px){#profile-form .split{grid-template-columns:minmax(0,1fr)}}
+
+.conversation-list{display:grid;gap:14px;margin:22px 0}.conversation-turn{border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px;min-width:0}.conversation-turn p{white-space:pre-wrap;overflow-wrap:anywhere}.conversation-turn small{color:var(--muted);overflow-wrap:anywhere}.conversation-turn .btn{justify-self:start}
