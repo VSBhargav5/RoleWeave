@@ -109,3 +109,12 @@ if __name__ == "__main__":
     print(json.dumps({"job": record["job_context"]["title"], "company": record["job_context"]["company"],
                       "questions": len(record["answers"]), "nonblank_drafts": sum(bool(row["answer"].strip()) for row in record["answers"]),
                       "elapsed_seconds": record["elapsed_seconds"], "learning_verified": False}, indent=2))
+
+
+def bound_rehearsal(store, record):
+    """Require the complete embedded review to match its immutable shelf record."""
+    validate_rehearsal(record)
+    item = store.load(record["job_context"]["id"])
+    if job_context(item) != record["job_context"]:
+        raise ValueError("Rehearsal belongs to another exact saved review")
+    return item

@@ -26,6 +26,10 @@ databases are neither moved nor merged automatically. To open an older source
 workspace in the browser, use `python desktop.py --db private/jobs.db`. Check
 Settings for the actual workspace location before importing or restoring data.
 
+V0.23 adds [browser interview rehearsal](browser-rehearsal.md): selected source
+questions, private answer versions and managed recovery. Earlier rehearsal
+comparison/import/timer/pack screens remain unmigrated.
+
 The browser supports discovery, saved applications, profile/import, documents,
 reviewed AI drafts, contact helper and recovery. Native-only employer-board
 management, Google Calendar setup, audit and rehearsal screens still need browser

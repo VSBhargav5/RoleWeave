@@ -22,6 +22,8 @@ from resume_render import resume_text
 from resume_versions import decoded, make_resume_version
 from resume_import import extract_in_worker, document_name, MAX_FILE
 from roleweave import MAX_BYTES, MARKETS, review_snapshot
+from rehearsal_cards import practice_cards
+from rehearsal_journal import make_rehearsal, rehearsal_snapshot, bound_rehearsal, MAX_REHEARSAL_BYTES
 from runtime_paths import APP_VERSION
 from safe_export import publish_bytes
 from source_links import source_link
@@ -90,7 +92,8 @@ class WebService:
         return {key: item[key] for key in ("id", "title", "company", "source_url", "market", "captured_at", "input_sha256")} | {
             "posting": data["posting"], "review_data": data, "review": item["review"],
             "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier),
-            "letters": self.letters(identifier), "drafts": list_drafts(self.store,identifier)}
+            "letters": self.letters(identifier), "drafts": list_drafts(self.store,identifier),
+            "practice_cards": practice_cards(item), "rehearsals": self.rehearsals(identifier)}
 
     def save_job(self, data):
         require(data, ("title", "company", "source_url", "market", "posting"), ("title", "company", "market", "posting"))
@@ -263,12 +266,62 @@ class WebService:
         review["requirements"].append({"id": uuid4().hex, "quote": data["quote"], "fact_ids": [fact["id"] for fact in facts]})
         return self.save_review({"id": original["id"], "review": review, "confirmed": True})
 
+    def rehearsal(self, identifier, job_id=None):
+        path = self._artifact("rehearsals", identifier)
+        with path.open("rb") as source:
+            snapshot = source.read(MAX_REHEARSAL_BYTES + 1)
+        record, digest = rehearsal_snapshot(snapshot)
+        bound_rehearsal(self.store, record)
+        if job_id is not None and record["job_context"]["id"] != job_id:
+            raise ValueError("Rehearsal belongs to another exact saved review")
+        return {"id": identifier, "sha256": digest, "record": record}
+
+    def rehearsals(self, job_id):
+        directory = self.artifacts / "rehearsals"
+        no_link(self.artifacts); no_link(directory)
+        if not directory.exists():
+            return []
+        result = []; total = 0
+        for index, path in enumerate(directory.iterdir()):
+            no_link(path)
+            if index >= 1000 or not re.fullmatch(r"[a-f0-9]{32}\.json", path.name):
+                raise ValueError("Unsupported or excessive rehearsal files")
+            total += path.stat().st_size
+            if total > 64 * 1024 * 1024:
+                raise ValueError("Rehearsal collection exceeds 64 MiB")
+            saved = self.rehearsal(path.stem)
+            record = saved["record"]
+            if record["job_context"]["id"] == job_id:
+                result.append({"id": path.stem, "recorded_at": record["recorded_at"],
+                               "questions": len(record["answers"]), "sha256": saved["sha256"]})
+        return sorted(result, key=lambda row: (row["recorded_at"], row["id"]), reverse=True)
+
+    def save_rehearsal(self, data):
+        require(data, ("job_id", "answers", "confirmed"), ("job_id", "answers", "confirmed"))
+        confirmed(data)
+        item = self.store.load(data["job_id"])
+        snapshot = make_rehearsal(item, data["answers"], confirmed=True)
+        with self.lock:
+            directory = self.artifacts / "rehearsals"
+            no_link(self.artifacts); no_link(directory)
+            count = 0; total = len(snapshot)
+            if directory.exists():
+                for path in directory.iterdir():
+                    no_link(path)
+                    count += 1; total += path.stat().st_size
+                    if count >= 1000 or total > 64 * 1024 * 1024:
+                        raise ValueError("Rehearsal capacity reached; no new version was written")
+            identifier = uuid4().hex
+            publish_bytes(self._artifact("rehearsals", identifier), snapshot)
+        return {"id": identifier, "learning_verified": False}
+
     def _artifact(self, kind, identifier):
-        if kind not in ("letters", "packets") or not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
+        if kind not in ("letters", "packets", "rehearsals") or not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
             raise ValueError("Invalid saved artifact identity")
         directory = self.artifacts / kind
+        no_link(self.artifacts); no_link(directory)
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / (identifier + (".json" if kind == "letters" else ".zip"))
+        path = directory / (identifier + (".zip" if kind == "packets" else ".json"))
         if path.is_symlink():
             raise ValueError("Linked artifacts are unsupported")
         return path
@@ -392,6 +445,11 @@ class WebService:
             return {"added": added, "skipped": skipped}
 
     def download(self, kind, identifier, format="pdf"):
+        if kind == "rehearsal":
+            with self._artifact("rehearsals", identifier).open("rb") as source:
+                snapshot = source.read(MAX_REHEARSAL_BYTES + 1)
+            bound_rehearsal(self.store, rehearsal_snapshot(snapshot)[0])
+            return snapshot, "application/json", "private-rehearsal.json"
         if kind == "resume":
             record = self.store.load_resume(identifier)["resume"]
             if format == "txt":
