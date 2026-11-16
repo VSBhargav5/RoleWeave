@@ -4,8 +4,6 @@ permissions:
   contents: read
 jobs:
   test:
-    env:
-      ROLEWEAVE_TEST_NATIVE_ARCHIVE: "1"
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -21,7 +19,13 @@ jobs:
             requirements.txt
             requirements-test.txt
       - run: python -m pip install -r requirements-test.txt
-      - run: python -m unittest discover -s tests -v
+      - name: Run headless domain and browser-service regressions
+        run: python -m unittest discover -s tests -v
+      - name: Run archived native cases in isolated Windows processes
+        if: runner.os == 'Windows'
+        env:
+          ROLEWEAVE_TEST_NATIVE_ARCHIVE: "1"
+        run: python tests/run_native_archive.py
       - run: python roleweave.py examples/synthetic.json
       - run: python desktop.py --web-self-test out/source-web-smoke
   browser-workflow:
