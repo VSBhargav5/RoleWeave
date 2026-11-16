@@ -9,6 +9,15 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## Interview rehearsal in the browser
+
+Saved job → **Interview rehearsal**: choose exact requirement questions, reveal
+linked evidence, write your own answers/reflections and confirm a new private
+version. Reopen versions or download their original private JSON. Workspace
+recovery includes managed journals and checks their exact saved-review identity.
+No generated answers, grading or learning-completion claim.
+[Rehearsal guide](docs/browser-rehearsal.md).
+
 ## One interface: the browser workspace
 
 Use **Launch-RoleWeave.cmd** in this repository or the complete v0.22 portable
@@ -72,7 +81,7 @@ stops it, but finding an older host is no longer required to open the new app.
 
 ## Release status
 
-V0.22 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.23 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
