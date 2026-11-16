@@ -466,3 +466,11 @@ are refused. Existing compatible shelves are reopened without header rewrites.
 Do not edit schema markers to bypass refusal or replace the original database.
 Unexpected UI callback failures display a private, non-persistent error code;
 review saved state before repeating an interrupted action.
+
+### Structured career entries (v0.31)
+
+Ten typed career sections now feed reviewed documents and evidence, with immutable
+profile versions and stale-editor protection. See [workflow and checks](docs/structured-career-profile.md).
+Reference contacts require explicit entry selection to print; structured reference
+email/phone are excluded from AI context. Whole-entry review remains your assertion,
+not independent verification. Other partial/missing parity areas remain open.

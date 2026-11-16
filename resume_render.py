@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 
 from career_profile import SECTIONS, validate_profile
+from career_entries import fact_text, fact_heading
 
 try:
     import reportlab
@@ -46,15 +47,23 @@ def selected_facts(profile, identifiers):
     return [facts[identifier] for identifier in identifiers]
 
 
+def fact_groups(facts):
+    groups=[]
+    for section in SECTIONS:
+        section_groups={}
+        for fact in facts:
+            if fact['section']==section:section_groups.setdefault(fact_heading(fact),[]).append(fact)
+        groups.extend(section_groups.items())
+    return groups
+
+
 def resume_text(profile, identifiers):
     facts = selected_facts(profile, identifiers)
     lines = [profile["name"], profile["headline"],
              " | ".join(profile[key] for key in ("email", "phone", "location") if profile[key]),
              profile["links"], "", profile["summary"]]
-    for section in SECTIONS:
-        items = [fact["claim"] for fact in facts if fact["section"] == section]
-        if items:
-            lines.extend(["", section, *("- " + claim for claim in items)])
+    for section,items in fact_groups(facts):
+        lines.extend(["", section, *("- " + fact_text(fact) for fact in items)])
     return "\n".join(lines)
 
 
@@ -88,12 +97,10 @@ def resume_html(profile, identifiers, theme="classic"):
         parts.append('<p class="contact">' + escaped(profile["links"]) + '</p>')
     if profile["summary"]:
         parts.append('<h2>Summary</h2><p>' + escaped(profile["summary"]) + '</p>')
-    for section in SECTIONS:
-        items = [fact for fact in facts if fact["section"] == section]
-        if items:
-            parts.append('<section><h2>' + section + '</h2><ul>')
-            parts.extend('<li>' + escaped(fact["claim"]) + '</li>' for fact in items)
-            parts.append('</ul></section>')
+    for section,items in fact_groups(facts):
+        parts.append('<section><h2>' + escaped(section) + '</h2><ul>')
+        parts.extend('<li>' + escaped(fact_text(fact)) + '</li>' for fact in items)
+        parts.append('</ul></section>')
     parts.append('</main></body></html>')
     payload = "\n".join(parts).encode("utf-8")
     if len(payload) > MAX_RESUME_BYTES:
@@ -145,11 +152,9 @@ def resume_pdf(profile, identifiers, theme="classic"):
     story.append(Spacer(1, 4))
     if profile["summary"]:
         story.extend([paragraph("Summary", section_style), paragraph(profile["summary"], body)])
-    for section in SECTIONS:
-        items = [fact for fact in facts if fact["section"] == section]
-        if items:
-            story.append(paragraph(section, section_style))
-            story.extend(paragraph("- " + fact["claim"], bullet) for fact in items)
+    for section,items in fact_groups(facts):
+        story.append(paragraph(section, section_style))
+        story.extend(paragraph("- " + fact_text(fact), bullet) for fact in items)
     def footer(canvas, document):
         canvas.saveState()
         canvas.setFont("RoleWeaveVera", 8)

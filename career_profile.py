@@ -3,8 +3,9 @@ import hashlib
 import json
 
 from roleweave import MAX_BYTES, text
+from career_entries import validate_details, fact_text
 
-SECTIONS = ("Experience", "Projects", "Education", "Skills", "Additional")
+SECTIONS = ("Experience", "Volunteering", "Projects", "Education", "Certifications", "Publications", "Skills", "Languages", "References", "Additional")
 PROFILE_FIELDS = ("name", "headline", "email", "phone", "location", "links", "summary")
 OPTIONAL_PROFILE_FIELDS = ("first_name", "last_name", "linkedin", "website")
 
@@ -22,15 +23,19 @@ def validate_profile(data):
         value.encode("utf-8")
     if not isinstance(data["facts"], list):
         raise ValueError("Career facts must be a list")
-    seen = set()
+    seen = set(); structured_count=0
     for fact in data["facts"]:
-        if not isinstance(fact, dict) or set(fact) != {"id", "claim", "source", "reviewed", "section"}:
+        if not isinstance(fact, dict) or not {"id", "claim", "source", "reviewed", "section"}<=set(fact) or set(fact)-{"id", "claim", "source", "reviewed", "section", "details"}:
             raise ValueError("Invalid career fact fields")
         identifier = text(fact["id"], "Fact ID")
         if identifier in seen:
             raise ValueError("Duplicate career fact ID")
         seen.add(identifier)
-        text(fact["claim"], "Claim")
+        if 'details' in fact:
+            validate_details(fact['details'],fact['section']);structured_count+=1
+            if structured_count>200:raise ValueError('At most200 structured career entries per profile')
+            if not isinstance(fact['claim'],str) or len(fact['claim'])>4000:raise ValueError('Entry accomplishment text exceeds4000 characters')
+        else:text(fact["claim"], "Claim")
         text(fact["source"], "Source")
         for key in ("claim", "source"):
             fact[key].encode("utf-8")
@@ -76,6 +81,6 @@ def imported_career_facts(profile, selected_ids):
         if identifier not in facts or not facts[identifier]["reviewed"]:
             raise ValueError("Select existing reviewed career facts only")
         fact = facts[identifier]
-        result.append({"id": f"career:{profile['id']}:{identifier}", "claim": fact["claim"],
+        result.append({"id": f"career:{profile['id']}:{identifier}", "claim": fact_text(fact),
                        "source": f"{fact['source']}\nCareer profile {profile['id']}, fact {identifier}", "reviewed": True})
     return result

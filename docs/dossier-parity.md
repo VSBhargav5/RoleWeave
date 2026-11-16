@@ -12,6 +12,10 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.26: 10 implemented, 8 partial, 7 missing.**
 **With v0.27: 11 implemented, 7 partial, 7 missing.**
 **With v0.28: 12 implemented, 6 partial, 7 missing.**
+**With v0.31: 13 implemented, 5 partial, 7 missing.**
+Structured career sections close the scoped profile-area gap: ten typed sections,
+browser edit/order/removal/review, selected documents/evidence, privacy and recovery.
+No photo/arbitrary rich text, personal acceptance or complete Dossier parity claim.
 Theme builder/import/export closes the local styling area; three presets remain,
 not a claim to reproduce Dossier's twelve designs or arbitrary CSS.
 The dashboard area now has explicit stage-observation bars, weekly activity and a
@@ -28,7 +32,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Capability | v0.23 baseline | Current shipped / remaining detail |
 | --- | --- | --- |
 | Shared reviewed career profile | Implemented | Same; source review is a human assertion |
-| Rich structured career sections | Partial | Generic facts/sections, fewer dedicated fields than Dossier |
+| Career profile and rich sections | Implemented | **Implemented in v0.31:** ten typed human-authored sections with browser edit/reorder/remove/review, selected TXT/HTML/PDF/letters/evidence reuse, contact-aware AI context and managed recovery; no inferred qualifications. |
 | Existing resume import | Partial | **Implemented in v0.25:** text PDF/DOCX/TXT/Markdown with explicit excerpt review; no scanned OCR |
 | Resume editing/preview/PDF export | Implemented | Reviewed selections, exact preview and frozen document |
 | Themes and theme builder | Partial | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
