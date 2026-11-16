@@ -160,6 +160,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/job":
             require(params, ("id",), ("id",))
             self.reply(200, service.job(params["id"]))
+        elif path == "/api/email":
+            require(params, ("id", "job_id"), ("id", "job_id"))
+            self.reply(200, service.get_email(params["id"], params["job_id"]))
         elif path == "/api/rehearsal":
             require(params, ("id", "job_id"), ("id", "job_id"))
             self.reply(200, service.rehearsal(params["id"], params["job_id"]))
@@ -219,7 +222,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/rehearsal": service.save_rehearsal, "/api/tailoring/preview": service.tailoring.preview, "/api/tailoring/send": service.tailoring.send,
+            routes = {"/api/email/preview": service.email,
+                      "/api/email": lambda value: service.email(value, freeze=True),
+                      "/api/rehearsal": service.save_rehearsal, "/api/tailoring/preview": service.tailoring.preview, "/api/tailoring/send": service.tailoring.send,
                       "/api/tailoring/status": service.tailoring.status, "/api/tailoring/cancel": service.tailoring.cancel,
                       "/api/tailoring/accept": service.tailoring.accept, "/api/jobs": service.save_job, "/api/profile": service.save_profile,
                       "/api/resume-import/preview": service.preview_resume_import,

@@ -11,6 +11,7 @@ import time
 from uuid import uuid4
 
 from application_draft import list_drafts, load_draft
+from application_email import FIELDS as EMAIL_FIELDS, MAX_EMAIL_SNAPSHOT, email_snapshot, make_email_snapshot, replay_email, preview_fingerprint
 from application_dossier import build_dossier
 from career_profile import imported_career_facts, profile_snapshot, SECTIONS
 from cover_letter import make_letter, letter_snapshot
@@ -93,7 +94,8 @@ class WebService:
             "posting": data["posting"], "review_data": data, "review": item["review"],
             "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier),
             "letters": self.letters(identifier), "drafts": list_drafts(self.store,identifier),
-            "practice_cards": practice_cards(item), "rehearsals": self.rehearsals(identifier)}
+            "practice_cards": practice_cards(item), "rehearsals": self.rehearsals(identifier),
+            "email_drafts": self.email_drafts(identifier)}
 
     def save_job(self, data):
         require(data, ("title", "company", "source_url", "market", "posting"), ("title", "company", "market", "posting"))
@@ -266,6 +268,56 @@ class WebService:
         review["requirements"].append({"id": uuid4().hex, "quote": data["quote"], "fact_ids": [fact["id"] for fact in facts]})
         return self.save_review({"id": original["id"], "review": review, "confirmed": True})
 
+    def email_drafts(self, job_id):
+        directory = self.artifacts / "emails"
+        no_link(self.artifacts); no_link(directory)
+        if not directory.exists(): return []
+        items = []; total = 0
+        for index, path in enumerate(directory.iterdir()):
+            no_link(path)
+            if index >= 1000 or not re.fullmatch(r"[a-f0-9]{32}\.json", path.name):
+                raise ValueError("Unsupported or excessive email draft files")
+            total += path.stat().st_size
+            if total > 64 * 1024 * 1024: raise ValueError("Email draft collection exceeds 64 MiB")
+            with path.open("rb") as source: record = email_snapshot(source.read(MAX_EMAIL_SNAPSHOT + 1))
+            if record["values"]["job_id"] == job_id:
+                items.append({"id": path.stem, "subject": record["values"]["subject"], "created_at": record["created_at"]})
+        return sorted(items, key=lambda row: (row["created_at"], row["id"]), reverse=True)
+
+    def get_email(self, identifier, job_id=None):
+        with self._artifact("emails", identifier).open("rb") as source: snapshot = source.read(MAX_EMAIL_SNAPSHOT + 1)
+        record, payload, attachments = replay_email(self.store, snapshot)
+        if job_id is not None and record["values"]["job_id"] != job_id:
+            raise ValueError("Email draft belongs to another exact saved review")
+        return {"id": identifier, "values": record["values"], "attachments": attachments,
+                "eml_sha256": record["eml_sha256"], "sent": False}
+
+    def email(self, data, freeze=False):
+        require(data, EMAIL_FIELDS | {"preview_sha256", "confirmed"}, EMAIL_FIELDS - {"letter_id"})
+        values = {key: data.get(key, "") for key in EMAIL_FIELDS}
+        letter = self._letter_bytes(values["letter_id"]) if values["letter_id"] else b""
+        snapshot = make_email_snapshot(self.store, values, letter)
+        record, payload, attachments = replay_email(self.store, snapshot)
+        fingerprint = preview_fingerprint(record)
+        if not freeze:
+            return {"values": values, "attachments": attachments, "preview_sha256": fingerprint,
+                    "eml_sha256": record["eml_sha256"], "bytes": len(payload), "sent": False}
+        confirmed(data)
+        if data.get("preview_sha256") != fingerprint:
+            raise ValueError("Email or attachments changed; preview and review again")
+        with self.lock:
+            directory = self.artifacts / "emails"
+            no_link(self.artifacts); no_link(directory)
+            count = 0; total = len(snapshot)
+            if directory.exists():
+                for path in directory.iterdir():
+                    no_link(path); count += 1; total += path.stat().st_size
+                    if count >= 1000 or total > 64 * 1024 * 1024:
+                        raise ValueError("Email draft capacity reached; no draft was written")
+            identifier = uuid4().hex
+            publish_bytes(self._artifact("emails", identifier), snapshot)
+        return {"id": identifier, "sent": False}
+
     def rehearsal(self, identifier, job_id=None):
         path = self._artifact("rehearsals", identifier)
         with path.open("rb") as source:
@@ -316,7 +368,7 @@ class WebService:
         return {"id": identifier, "learning_verified": False}
 
     def _artifact(self, kind, identifier):
-        if kind not in ("letters", "packets", "rehearsals") or not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
+        if kind not in ("letters", "packets", "rehearsals", "emails") or not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
             raise ValueError("Invalid saved artifact identity")
         directory = self.artifacts / kind
         no_link(self.artifacts); no_link(directory)
@@ -445,6 +497,11 @@ class WebService:
             return {"added": added, "skipped": skipped}
 
     def download(self, kind, identifier, format="pdf"):
+        if kind == "email":
+            with self._artifact("emails", identifier).open("rb") as source:
+                snapshot = source.read(MAX_EMAIL_SNAPSHOT + 1)
+            record, payload, attachments = replay_email(self.store, snapshot)
+            return payload, "message/rfc822", "application-draft.eml"
         if kind == "rehearsal":
             with self._artifact("rehearsals", identifier).open("rb") as source:
                 snapshot = source.read(MAX_REHEARSAL_BYTES + 1)
