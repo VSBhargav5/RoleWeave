@@ -21,7 +21,7 @@ from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
-ASSETS = {"/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
+ASSETS = {"/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
 
@@ -227,7 +227,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            routes = {"/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),

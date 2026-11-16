@@ -11,6 +11,9 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.25: 9 implemented, 9 partial, 7 missing.**
 **With v0.26: 10 implemented, 8 partial, 7 missing.**
 **With v0.27: 11 implemented, 7 partial, 7 missing.**
+**With v0.28: 12 implemented, 6 partial, 7 missing.**
+Theme builder/import/export closes the local styling area; three presets remain,
+not a claim to reproduce Dossier's twelve designs or arbitrary CSS.
 The dashboard area now has explicit stage-observation bars, weekly activity and a
 follow-up month calendar; interview-event/account sync remains in Calendar partial.
 Provider selection closes the scoped provider/model/local-server area; arbitrary
@@ -28,7 +31,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Rich structured career sections | Partial | Generic facts/sections, fewer dedicated fields than Dossier |
 | Existing resume import | Partial | **Implemented in v0.25:** text PDF/DOCX/TXT/Markdown with explicit excerpt review; no scanned OCR |
 | Resume editing/preview/PDF export | Implemented | Reviewed selections, exact preview and frozen document |
-| Themes and theme builder | Partial | Three themes; Dossier documents twelve plus builder/sharing |
+| Themes and theme builder | Partial | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
 | Pasted posting and saved applications | Implemented | Manual capture and immutable review versions |
 | Multi-source role/location discovery | Partial | FreeHire browser search; existing employer boards not browser-migrated; no JSearch/Adzuna |
 | YC/Hacker News startup discovery | Missing | Not implemented |

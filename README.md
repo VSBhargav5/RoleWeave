@@ -1,5 +1,14 @@
 # RoleWeave
 
+## Resume theme builder (v0.28)
+
+Build a bounded custom resume style alongside the three existing presets: dark
+accent, typography size, margins, Sans/Serif and A4/Letter. Share styling-only JSON,
+review a fresh preview after changes, and freeze the exact configuration and bytes.
+Old preset rendering and saved documents remain compatible.
+[Guide, font limits and runnable checks](docs/resume-theme-builder.md).
+
+
 ## Workspace insights (v0.27)
 
 The new Insights page adds current/ever-recorded stage bars, twelve UTC weeks of
@@ -45,8 +54,8 @@ No OCR or inferred employment/profile write is added.
 
 ## Dossier comparison and application email
 
-[Current 25-area parity checklist](docs/dossier-parity.md): v0.27 has 11 implemented,
-7 partial and 7 missing areas. These are scoped workflow counts, not an overall
+[Current 25-area parity checklist](docs/dossier-parity.md): v0.28 has 12 implemented,
+6 partial and 7 missing areas. These are scoped workflow counts, not an overall
 completion percentage or production acceptance. Live accounts, employer forms and
 personal usefulness remain separate gates.
 

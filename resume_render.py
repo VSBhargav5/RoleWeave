@@ -1,5 +1,6 @@
 """Render only explicitly selected reviewed claims; no rewriting or inference."""
 import html
+from resume_theme import validate_theme
 from io import BytesIO
 from pathlib import Path
 
@@ -9,7 +10,7 @@ try:
     import reportlab
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_LEFT
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, letter
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.pdfbase import pdfmetrics
@@ -26,6 +27,7 @@ THEMES = {"classic": {"accent": "#334d66", "name_size": 21, "body_size": 10},
 
 
 def checked_theme(theme):
+    if isinstance(theme,dict):return validate_theme(theme)
     if not isinstance(theme, str) or theme not in THEMES:
         raise ValueError("Choose Classic, Slate or Editorial layout")
     return THEMES[theme]
@@ -58,6 +60,12 @@ def resume_text(profile, identifiers):
 
 def resume_html(profile, identifiers, theme="classic"):
     palette = checked_theme(theme)
+    custom=isinstance(theme,dict)
+    custom_css=''
+    if custom:
+        family='Georgia,Times New Roman,serif' if palette['font']=='serif' else 'Arial,sans-serif'
+        width=(215.9 if palette['page']=='Letter' else 210)-2*palette['margin_mm']
+        custom_css='@page{size:'+palette['page']+';margin:'+str(palette['margin_mm'])+'mm}body{font:'+str(palette['body_size'])+'pt/1.4 '+family+';max-width:'+str(width)+'mm}h1{font-size:'+str(palette['name_size'])+'pt}'
     facts = selected_facts(profile, identifiers)
     def escaped(value):
         return html.escape(value, quote=True).replace("\n", "<br>")
@@ -69,7 +77,7 @@ def resume_html(profile, identifiers, theme="classic"):
              'h1{font-size:23pt;margin:0 0 4px}h2{font-size:12pt;border-bottom:1px solid #ccd4dc;padding-bottom:4px;margin-top:20px;break-after:avoid}',
              '.headline{font-size:13pt;color:#334d66}.contact{font-size:10pt;color:#334155}p{margin:7px 0}li{margin:6px 0;overflow-wrap:anywhere}',
              '.screen-only{background:#eef3f8;padding:10px;font:10pt Arial;margin-bottom:20px}@media print{body{padding:0}.screen-only{display:none}}',
-             ('' if theme == 'classic' else 'h1{font-size:'+str(palette['name_size']+2)+'pt;color:'+palette['accent']+'}h2{color:'+palette['accent']+';border-bottom:2px solid '+palette['accent']+'}.headline{color:'+palette['accent']+'}') +
+             ('' if theme == 'classic' else 'h1{font-size:'+str(palette['name_size']+2)+'pt;color:'+palette['accent']+'}h2{color:'+palette['accent']+';border-bottom:2px solid '+palette['accent']+'}.headline{color:'+palette['accent']+'}') +custom_css+
              '</style></head><body><aside class="screen-only">Review this document before use. Print with your browser menu or Ctrl+P. No external resources are loaded.</aside>',
              '<main><h1>' + escaped(profile["name"]) + '</h1>']
     if profile["headline"]:
@@ -112,6 +120,18 @@ def resume_pdf(profile, identifiers, theme="classic"):
         name_style.textColor = colors.HexColor(palette["accent"])
         headline.textColor = colors.HexColor(palette["accent"])
         section_style.textColor = colors.HexColor(palette["accent"])
+    custom=isinstance(theme,dict)
+    page_size=letter if custom and palette['page']=='Letter' else A4
+    margin=palette['margin_mm'] if custom else 18
+    if custom:
+        if palette['font']=='serif':
+            try:resume_text(profile,identifiers).encode('cp1252')
+            except UnicodeEncodeError:raise ValueError('Serif PDF font supports Windows-1252 text only; choose Sans for this content') from None
+        normal='Times-Roman' if palette['font']=='serif' else 'RoleWeaveVera'
+        bold='Times-Bold' if palette['font']=='serif' else 'RoleWeaveVeraBold'
+        for style in (body,bullet):style.fontName=normal;style.fontSize=palette['body_size'];style.leading=palette['body_size']*1.4
+        for style in (headline,contact_style):style.fontName=normal
+        for style in (name_style,section_style):style.fontName=bold
     def paragraph(value, style):
         return Paragraph(html.escape(value).replace("\n", "<br/>"), style)
     story = [paragraph(profile["name"], name_style)]
@@ -134,11 +154,11 @@ def resume_pdf(profile, identifiers, theme="classic"):
         canvas.saveState()
         canvas.setFont("RoleWeaveVera", 8)
         canvas.setFillColor(colors.HexColor("#64748b"))
-        canvas.drawRightString(A4[0] - 18 * mm, 10 * mm, str(document.page))
+        canvas.drawRightString(page_size[0] - margin * mm, 10 * mm, str(document.page))
         canvas.restoreState()
     output = BytesIO()
-    document = SimpleDocTemplate(output, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
-                                 topMargin=17 * mm, bottomMargin=18 * mm, title=profile["name"] + " - Resume",
+    document = SimpleDocTemplate(output, pagesize=page_size, leftMargin=margin * mm, rightMargin=margin * mm,
+                                 topMargin=(margin if custom else 17) * mm, bottomMargin=margin * mm, title=profile["name"] + " - Resume",
                                  author=profile["name"], subject="Resume", pageCompression=1, invariant=1)
     document.build(story, onFirstPage=footer, onLaterPages=footer)
     payload = output.getvalue()
