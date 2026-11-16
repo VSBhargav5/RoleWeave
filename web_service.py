@@ -2,6 +2,7 @@
 from datetime import date
 from discovery_store import DiscoveryStore
 from model_preferences import read_settings, save_settings
+from workflow_insights import insights
 import base64
 import hashlib
 import json
@@ -90,6 +91,10 @@ class WebService:
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
+
+    def workflow_insights(self, data):
+        require(data, ('month', 'market'))
+        return insights(self.store, data.get('month'), data.get('market','all'))
 
     def save_model_settings(self, data):
         require(data, ('config', 'expected_sha256'), ('config', 'expected_sha256'))
