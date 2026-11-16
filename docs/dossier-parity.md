@@ -8,21 +8,25 @@ inspection. No upstream source/assets/history copied. This checklist measures
 
 **Baseline v0.23: 7 implemented, 9 partial, 9 missing.**
 **With v0.24: 8 implemented, 9 partial, 8 missing.**
+**With v0.25: 9 implemented, 9 partial, 7 missing.**
+Markdown closes the stated import-format gap; saved manual searches/review queue
+move the agent area from missing to partial. Scheduler/scoring/automatic drafts
+remain absent; the other partial areas are not claimed complete.
 Implemented means the stated local workflow exists and is offline tested; it does
 not mean every Dossier detail, live provider quality or personal acceptance passed.
 Partial includes native-only work unavailable in the sole supported browser UI.
 
-| Capability | v0.23 | v0.24 / remaining detail |
+| Capability | v0.23 baseline | Current shipped / remaining detail |
 | --- | --- | --- |
 | Shared reviewed career profile | Implemented | Same; source review is a human assertion |
 | Rich structured career sections | Partial | Generic facts/sections, fewer dedicated fields than Dossier |
-| Existing resume import | Partial | Text PDF/DOCX/TXT; no Markdown import or scanned OCR |
+| Existing resume import | Partial | **Implemented in v0.25:** text PDF/DOCX/TXT/Markdown with explicit excerpt review; no scanned OCR |
 | Resume editing/preview/PDF export | Implemented | Reviewed selections, exact preview and frozen document |
 | Themes and theme builder | Partial | Three themes; Dossier documents twelve plus builder/sharing |
 | Pasted posting and saved applications | Implemented | Manual capture and immutable review versions |
 | Multi-source role/location discovery | Partial | FreeHire browser search; existing employer boards not browser-migrated; no JSearch/Adzuna |
 | YC/Hacker News startup discovery | Missing | Not implemented |
-| Named scheduled discovery/agent queue | Missing | No saved recurring agent, source budget or automatic draft queue |
+| Named scheduled discovery/agent queue | Missing | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Explicit requirement/evidence links; no equivalent AI scored ranking |
 | Reviewed tailored resume and PDF letter | Implemented | One source-bound OpenAI workflow; real quality unverified |
 | Full refinement chat and undo | Partial | Explicit revised proposals and saved drafts; no full chat/unit-level undo |
@@ -57,8 +61,8 @@ or truth; this comparison does not endorse Dossier's absolute reliability wordin
 ## Implementation order
 
 1. v0.24 local application email composer/handoff, without requiring accounts.
-2. Saved discovery searches and explicit run/review queue; inspect source terms
-   before any scheduler or background requests.
+2. v0.25 saved manual searches/review queue and Markdown import. Scheduler/AI
+   agent work remains separate; inspect source terms before background requests.
 3. Broader AI provider settings, with reviewed local-model contracts and consent.
 4. Browser Calendar and manual reply review; connected Gmail/two-way sync require
    separate access/setup and authorized live validation.

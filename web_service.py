@@ -1,10 +1,12 @@
 """Local web application operations; reuses the existing validated domain models."""
 from datetime import date
+from discovery_store import DiscoveryStore
 import base64
 import hashlib
 import json
 from pathlib import Path
 import re
+import sqlite3
 import tempfile
 import threading
 import time
@@ -68,6 +70,7 @@ class WebService:
         self.pending_recovery = None
         self.tailoring = TailoringSession(self.store,demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
+        self.discovery = DiscoveryStore(self.store.path.with_suffix(".discovery.db"))
 
     def profile(self):
         item = self.store.active_profile()
@@ -174,6 +177,77 @@ class WebService:
         identifier = self.store.save(snapshot, original["title"], original["company"], original["source_url"])
         return self.job(identifier)
 
+    def save_discovery_search(self, data):
+        fields = {"id", "name", "query", "location", "country", "remote", "market", "archived"}
+        require(data, fields | {"expected_revision"}, fields - {"id"} | {"expected_revision"})
+        return self.discovery.save_search({k: v for k, v in data.items() if k in fields}, data["expected_revision"])
+
+    def _archive_search_source(self, result):
+        digest = result.get("source_sha256")
+        if not digest: return
+        snapshot = self.searcher.snapshots.get(digest)
+        if snapshot is None or hashlib.sha256(snapshot).hexdigest() != digest:
+            raise ValueError("Original source evidence expired; repeat the search")
+        directory = self.artifacts / "sources"
+        no_link(self.artifacts); no_link(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        destination = directory / (digest + ".json")
+        no_link(destination)
+        if destination.exists():
+            if destination.read_bytes() != snapshot: raise ValueError("Existing source evidence does not match")
+        else: publish_bytes(destination, snapshot)
+
+    def _existing_observation(self, row, market):
+        for saved in self.store.list_jobs():
+            if saved["source_url"] == row["url"] and saved["market"] == market and saved["title"] == row["title"] and saved["company"] == row["company"]:
+                item = self.store.load(saved["id"])
+                if json.loads(item["snapshot"])["posting"] == row["posting"]: return saved["id"]
+        return ""
+
+    def run_discovery(self, data):
+        require(data, ("id", "expected_revision", "confirmed"), ("id", "expected_revision", "confirmed")); confirmed(data)
+        run = self.discovery.begin_run(data["id"], data["expected_revision"])
+        try:
+            saved = run["search"]
+            if self.demo:
+                rows = [{"id": "practice-" + str(i), "title": "Practice " + saved["query"].title() + " " + str(i),
+                         "company": "Synthetic discovery employer", "posting": "Python required. Synthetic saved-search practice only; no live opportunity.",
+                         "url": "https://example.invalid/discovery/" + str(i), "location": saved["location"] or "Synthetic location",
+                         "work_mode": "remote" if saved["remote"] else "Not stated", "posted_at": "Synthetic fixture", "source": "Synthetic preview"} for i in (1, 2)]
+                result = {"jobs": rows, "excluded": [], "page": {"has_next": False}, "source": "Synthetic preview"}
+            else:
+                result = self.search({key: saved[key] for key in ("query", "location", "country", "remote")})
+            self._archive_search_source(result)
+            return self.discovery.finish_run(run["id"], result)
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            message = str(exc) if isinstance(exc, ValueError) else "Discovery could not complete; existing queue preserved"
+            current = self.discovery.read()
+            if any(r["id"] == run["id"] and r["status"] == "running" for r in current["runs"]):
+                self.discovery.finish_run(run["id"], error=message)
+            raise ValueError(message) from None
+
+    def discovery_decision(self, data):
+        require(data, ("id", "action", "expected_revision", "confirmed"), ("id", "action", "expected_revision", "confirmed")); confirmed(data)
+        if data["action"] == "interrupt": return self.discovery.interrupt(data["id"], data["expected_revision"])
+        if data["action"] == "forget": return self.discovery.forget(data["id"], data["expected_revision"])
+        if data["action"] != "save":
+            actions = {"keep": "kept", "dismiss": "dismissed", "reopen": "pending"}
+            if data["action"] not in actions: raise ValueError("Unsupported queue action")
+            return self.discovery.decide(data["id"], actions[data["action"]], data["expected_revision"])
+        with self.discovery.edit(data["expected_revision"]) as state:
+            item = next((c for c in state["candidates"] if c["id"] == data["id"]), None)
+            if item is None: raise ValueError("Queue observation unavailable")
+            if item["status"] == "saved":
+                self.store.load(item["saved_job_id"])
+            else:
+                row, market = item["row"], item["market"]
+                job_id = self._existing_observation(row, market)
+                if not job_id:
+                    snapshot = json.dumps({"market": market, "posting": row["posting"], "facts": [], "requirements": []}, ensure_ascii=False).encode()
+                    job_id = self.store.save(snapshot, row["title"], row["company"], row["url"])
+                item.update(status="saved", saved_job_id=job_id)
+        return self.discovery.read()
+
     def search(self, data):
         require(data, ("query", "location", "country", "remote", "offset"), ("query",))
         search_path(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
@@ -212,18 +286,7 @@ class WebService:
         for old in self.store.list_jobs():
             if old["source_url"] == row["url"] and old["market"] == data["market"] and self.job(old["id"])["posting"] == row["posting"]:
                 return self.job(old["id"])
-        if result.get("source_sha256"):
-            snapshot = self.searcher.snapshots.get(result["source_sha256"])
-            if snapshot is None:
-                raise ValueError("Original source evidence expired; repeat the search")
-            directory = self.artifacts / "sources"
-            directory.mkdir(parents=True, exist_ok=True)
-            destination = directory / (result["source_sha256"] + ".json")
-            if destination.exists():
-                if destination.is_symlink() or hashlib.sha256(destination.read_bytes()).hexdigest() != result["source_sha256"]:
-                    raise ValueError("Existing source evidence does not match")
-            else:
-                publish_bytes(destination, snapshot)
+        self._archive_search_source(result)
         return self.save_job({"title": row["title"], "company": row["company"], "source_url": row["url"], "market": data["market"], "posting": row["posting"]})
 
     def resume(self, data, freeze=False):

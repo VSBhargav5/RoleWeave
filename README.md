@@ -9,10 +9,24 @@ evidence, manual application tracking, follow-ups and preparation packs.
 See [v0.6 readiness tools and recovery](docs/readiness-workflow.md) for search,
 ordering, private exports, evidence rehearsal and safer build/export publication.
 
+## Saved discovery searches and a review queue
+
+Save named filters without a request. **Saved searches → Run now** explicitly reads
+one page, retains source evidence, deduplicates exact observations and preserves
+keep/dismiss/save decisions. Reviewed imports create application records, never
+submission events. Failed/empty runs preserve the queue. Managed recovery includes
+configuration, queue, run history and original-byte evidence.
+[Saved discovery guide and limits](docs/saved-discovery.md).
+
+Existing-resume import now accepts UTF-8 Markdown (`.md`/`.markdown`) as literal
+text for human-selected excerpts, alongside text PDF/DOCX/TXT. Markup is never
+executed or remotely fetched; original bytes join managed recovery after confirmation.
+No OCR or inferred employment/profile write is added.
+
 ## Dossier comparison and application email
 
-[Current 25-area parity checklist](docs/dossier-parity.md): v0.24 has 8 implemented,
-9 partial and 8 missing areas. These are scoped workflow counts, not an overall
+[Current 25-area parity checklist](docs/dossier-parity.md): v0.25 has 9 implemented,
+9 partial and 7 missing areas. These are scoped workflow counts, not an overall
 completion percentage or production acceptance. Live accounts, employer forms and
 personal usefulness remain separate gates.
 
@@ -94,7 +108,7 @@ stops it, but finding an older host is no longer required to open the new app.
 
 ## Release status
 
-V0.24 is an unsigned Windows x64 **controlled beta**, not a verified production
+V0.25 is an unsigned Windows x64 **controlled beta**, not a verified production
 release. The local workflows are implemented and offline tested; personal
 acceptance, unusual display scaling, signing and optional live account/model
 behavior are recorded separately. The agreed v1 scope is the local Windows
