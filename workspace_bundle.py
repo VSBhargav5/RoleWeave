@@ -1,6 +1,8 @@
 """Verified recovery of the shelf and all managed web artifacts into a new workspace."""
 from application_email import email_snapshot, replay_email
 from collections import Counter
+from board_workspace import verify_imports, parse_receipt
+from discovery_archive import parse_archive
 from model_preferences import stored_settings, parse_settings, save_settings
 from discovery_store import DiscoveryStore, parse_snapshot as parse_discovery, verify_bindings as verify_discovery
 import hashlib
@@ -23,7 +25,7 @@ from safe_export import publish_bytes
 
 LIMIT=64*1024*1024
 FORMAT='roleweave-workspace-v1'
-PATTERNS={'emails':r'[a-f0-9]{32}\.json', 'rehearsals':r'[a-f0-9]{32}\.json', 'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
+PATTERNS={'board-imports':r'[a-f0-9-]{36}\.json','board-observations':r'[a-f0-9]{64}\.json','emails':r'[a-f0-9]{32}\.json', 'rehearsals':r'[a-f0-9]{32}\.json', 'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
           'sources':r'[a-f0-9]{64}\.json', 'resume-imports':r'[a-f0-9]{64}\.(pdf|docx|txt|md|markdown)'}
 
 
@@ -80,7 +82,12 @@ def validate_artifact(name,payload):
         parse_settings(payload); return
     if name == 'discovery.json':
         parse_discovery(payload); return
-    if name.startswith('web-artifacts/emails/'):
+    if name.startswith('web-artifacts/board-imports/'):
+        parse_receipt(payload)
+    elif name.startswith('web-artifacts/board-observations/'):
+        if hashlib.sha256(payload).hexdigest()!=Path(name).stem:raise ValueError('Board archive filename fingerprint differs')
+        parse_archive(payload)
+    elif name.startswith('web-artifacts/emails/'):
         email_snapshot(payload)
     elif name.startswith('web-artifacts/rehearsals/'):
         rehearsal_snapshot(payload)
@@ -108,6 +115,7 @@ def export_bundle(store, artifacts):
     if discovery is not None:
         parts['discovery.json']=discovery
         verify_discovery(parse_discovery(discovery),store,parts)
+    verify_imports(store,parts)
     for name,data in captured.items():
         if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
         if name.startswith('web-artifacts/rehearsals/'):bound_rehearsal(store,rehearsal_snapshot(data)[0])
@@ -157,6 +165,7 @@ def inspect_bundle(payload):
                 if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
                 if name.startswith('web-artifacts/rehearsals/'):bound_rehearsal(store,rehearsal_snapshot(data)[0])
                 if name.startswith('web-artifacts/emails/'):replay_email(store,data)
+            verify_imports(store,parts)
             if 'discovery.json' in parts: verify_discovery(parse_discovery(parts['discovery.json']),store,parts)
             summary={'jobs':len(store.list_jobs()),'profiles':len(store.list_profiles()),'resumes':len(store.list_resumes()),
                      'artifacts':dict(Counter(name.split('/')[1] for name in parts if name not in ('shelf.json','discovery.json','model-settings.json'))),

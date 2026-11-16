@@ -33,7 +33,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Resume editing/preview/PDF export | Implemented | Reviewed selections, exact preview and frozen document |
 | Themes and theme builder | Partial | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
 | Pasted posting and saved applications | Implemented | Manual capture and immutable review versions |
-| Multi-source role/location discovery | Partial | FreeHire browser search; existing employer boards not browser-migrated; no JSearch/Adzuna |
+| Multi-source role/location discovery | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; no JSearch/Adzuna/startup sources. Area remains partial. |
 | YC/Hacker News startup discovery | Missing | Not implemented |
 | Named scheduled discovery/agent queue | Missing | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Explicit requirement/evidence links; no equivalent AI scored ranking |

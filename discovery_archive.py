@@ -34,6 +34,11 @@ def export_archive(feed, destination):
 def load_archive(source):
     with Path(source).open("rb") as handle:
         snapshot = handle.read(MAX_ARCHIVE_BYTES + 1)
+    return parse_archive(snapshot)
+
+
+def parse_archive(snapshot):
+    if not isinstance(snapshot,bytes):raise ValueError('Discovery archive must be bytes')
     if len(snapshot) > MAX_ARCHIVE_BYTES:
         raise ValueError("Discovery archive exceeds 12 MiB")
     data = json_object(snapshot)
