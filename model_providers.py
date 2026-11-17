@@ -66,10 +66,18 @@ def validate_key(config, key, demo=False):
     if config["kind"] not in LOCAL and not key: raise ValueError("This cloud provider needs a one-request API key")
 
 
-def parse_provider_response(payload, facts, config):
+def structured_response(payload, config):
     validate_config(config)
     if not isinstance(payload, bytes) or len(payload) > 1024 * 1024: raise ValueError("Model response exceeds 1 MiB")
-    if config["kind"] == "openai": return parse_response(payload, facts)
+    if config["kind"] == "openai":
+        result=json_object(payload)
+        if not isinstance(result,dict) or result.get('status')!='completed':raise ValueError('Model response incomplete or refused')
+        output=result.get('output')
+        if not isinstance(output,list) or len(output)!=1 or not isinstance(output[0],dict):raise ValueError('Unsupported model output')
+        message=output[0];content=message.get('content')
+        if message.get('type')!='message' or message.get('role')!='assistant' or message.get('status')!='completed' or not isinstance(content,list) or len(content)!=1 or not isinstance(content[0],dict) or content[0].get('type')!='output_text' or not isinstance(content[0].get('text'),str):
+            raise ValueError('Unsupported model message')
+        return json_object(content[0]['text'].encode())
     result = json_object(payload)
     if not isinstance(result, dict): raise ValueError("Unsupported model response")
     kind = config["kind"]
@@ -90,7 +98,11 @@ def parse_provider_response(payload, facts, config):
         if not isinstance(message, dict) or message.get("role") != "assistant" or message.get("tool_calls") or message.get("refusal"): raise ValueError("Unsupported model message")
         value = message.get("content")
     if not isinstance(value, str): raise ValueError("Model did not return JSON text")
-    return validate_draft(json_object(value.encode()), facts)
+    return json_object(value.encode())
+
+
+def parse_provider_response(payload, facts, config):
+    return validate_draft(structured_response(payload,config),facts)
 
 
 def request_model(config, payload, key, cancel):

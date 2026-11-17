@@ -1,4 +1,5 @@
 """Verified recovery of the shelf and all managed web artifacts into a new workspace."""
+import job_assessment
 import refinement_history
 from application_email import email_snapshot, replay_email
 from collections import Counter
@@ -26,7 +27,7 @@ from safe_export import publish_bytes
 
 LIMIT=64*1024*1024
 FORMAT='roleweave-workspace-v1'
-PATTERNS={'refinements':r'[a-f0-9]{32}\.json','board-imports':r'[a-f0-9-]{36}\.json','board-observations':r'[a-f0-9]{64}\.json','emails':r'[a-f0-9]{32}\.json', 'rehearsals':r'[a-f0-9]{32}\.json', 'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
+PATTERNS={'assessments':r'[a-f0-9]{32}\.json','refinements':r'[a-f0-9]{32}\.json','board-imports':r'[a-f0-9-]{36}\.json','board-observations':r'[a-f0-9]{64}\.json','emails':r'[a-f0-9]{32}\.json', 'rehearsals':r'[a-f0-9]{32}\.json', 'drafts':r'[a-f0-9]{32}\.json', 'letters':r'[a-f0-9]{32}\.json', 'packets':r'[a-f0-9]{32}\.zip',
           'sources':r'[a-f0-9]{64}\.json', 'resume-imports':r'[a-f0-9]{64}\.(pdf|docx|txt|md|markdown)'}
 
 
@@ -92,6 +93,8 @@ def validate_artifact(name,payload):
         email_snapshot(payload)
     elif name.startswith('web-artifacts/rehearsals/'):
         rehearsal_snapshot(payload)
+    elif name.startswith('web-artifacts/assessments/'):
+        job_assessment.snapshot(payload)
     elif name.startswith('web-artifacts/refinements/'):
         refinement_history.snapshot(payload)
     elif name.startswith('web-artifacts/drafts/'):
@@ -121,6 +124,9 @@ def export_bundle(store, artifacts):
     verify_imports(store,parts)
     refinement_history.verify_bundle(store,parts)
     for name,data in captured.items():
+        if name.startswith('web-artifacts/assessments/'):
+            r,_p,_j=job_assessment.replay(store,data)
+            if Path(name).stem!=r['id']:raise ValueError('Assessment filename and identity differ')
         if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
         if name.startswith('web-artifacts/rehearsals/'):bound_rehearsal(store,rehearsal_snapshot(data)[0])
         if name.startswith('web-artifacts/emails/'):replay_email(store,data)
@@ -166,6 +172,9 @@ def inspect_bundle(payload):
             path=Path(folder)/'shelf.json';path.write_bytes(parts['shelf.json'])
             store=JobStore(Path(folder)/'jobs.db');store.restore(path)
             for name,data in parts.items():
+                if name.startswith('web-artifacts/assessments/'):
+                    r,_p,_j=job_assessment.replay(store,data)
+                    if Path(name).stem!=r['id']:raise ValueError('Assessment filename and identity differ')
                 if name.startswith('web-artifacts/drafts/'):bound_profile(store,draft_snapshot(data)[0])
                 if name.startswith('web-artifacts/rehearsals/'):bound_rehearsal(store,rehearsal_snapshot(data)[0])
                 if name.startswith('web-artifacts/emails/'):replay_email(store,data)

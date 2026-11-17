@@ -21,7 +21,7 @@ from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
-ASSETS = {"/career-profile.js": ("career-profile.js", "application/javascript"), "/review-history.js": ("review-history.mjs", "application/javascript"), "/boards.js": ("boards.js", "application/javascript"), "/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
+ASSETS = {"/assessment.js": ("assessment.js", "application/javascript"), "/career-profile.js": ("career-profile.js", "application/javascript"), "/review-history.js": ("review-history.mjs", "application/javascript"), "/boards.js": ("boards.js", "application/javascript"), "/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
 
@@ -245,7 +245,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            routes = {"/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),
@@ -287,6 +287,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if data["confirmed"] is not True:
                     raise ValueError("Confirm closing the local app")
                 service.tailoring.shutdown()
+                service.assessment.shutdown()
                 service.boards.shutdown()
                 self.reply(200, {"closed": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()

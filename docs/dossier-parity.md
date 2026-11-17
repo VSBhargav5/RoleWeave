@@ -14,6 +14,11 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.28: 12 implemented, 6 partial, 7 missing.**
 **With v0.31: 13 implemented, 5 partial, 7 missing.**
 **With v0.32: 14 implemented, 4 partial, 7 missing.**
+**With v0.33: 15 implemented, 3 partial, 7 missing.**
+Source-bound advisory assessment, corrected reviews, like-for-like rankings and
+per-job version history close the assessment area; score quality/calibration and
+real suitability remain unverified. Current status is now explicit in the table;
+the v0.23 baseline column stays historical.
 Retained full request/proposal turns and older-proposal browsing close the scoped
 refinement area, alongside existing local Undo/Redo/reset. Keystroke autosave,
 durable Undo stacks, every Dossier interaction and live model quality are not claimed.
@@ -33,33 +38,33 @@ Implemented means the stated local workflow exists and is offline tested; it doe
 not mean every Dossier detail, live provider quality or personal acceptance passed.
 Partial includes native-only work unavailable in the sole supported browser UI.
 
-| Capability | v0.23 baseline | Current shipped / remaining detail |
-| --- | --- | --- |
-| Shared reviewed career profile | Implemented | Same; source review is a human assertion |
-| Career profile and rich sections | Implemented | **Implemented in v0.31:** ten typed human-authored sections with browser edit/reorder/remove/review, selected TXT/HTML/PDF/letters/evidence reuse, contact-aware AI context and managed recovery; no inferred qualifications. |
-| Existing resume import | Partial | **Implemented in v0.25:** text PDF/DOCX/TXT/Markdown with explicit excerpt review; no scanned OCR |
-| Resume editing/preview/PDF export | Implemented | Reviewed selections, exact preview and frozen document |
-| Themes and theme builder | Partial | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
-| Pasted posting and saved applications | Implemented | Manual capture and immutable review versions |
-| Multi-source role/location discovery | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; no JSearch/Adzuna/startup sources. Area remains partial. |
-| YC/Hacker News startup discovery | Missing | Not implemented |
-| Named scheduled discovery/agent queue | Missing | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
-| Profile-to-posting assessment | Partial | Explicit requirement/evidence links; no equivalent AI scored ranking |
-| Reviewed tailored resume and PDF letter | Implemented | Source-bound reviewed provider workflow; real quality unverified |
-| Full refinement chat and undo | Implemented | **Implemented in v0.32:** opt-in retained instruction/request/proposal turns, immutable edited-parent branches, exact-source older-proposal browser/reopen, fresh review, local Undo/Redo/reset, explicit removal and managed recovery; no keystroke autosave or durable Undo stack. |
-| AI provider/model settings and local models | Partial | **Implemented in v0.26:** selected models, OpenAI/Anthropic/Mistral, Ollama/LM Studio numeric loopback; fixed hosts, no arbitrary remote URL; live quality unverified |
-| Application email composer and mail-client handoff | Missing | **Implemented in v0.24:** reviewed local EML, exact PDFs, reopen/copy/download; no automated sending |
-| Connected Gmail sending | Missing | No account integration or sends |
-| Mailbox reply reading and AI responses | Missing | Native manual local excerpt review is not browser inbox/AI reply handling |
-| Google Calendar integration | Partial | Narrow native-only follow-up contract; no browser/two-way interview calendar |
-| Application board/table/stage tracking | Implemented | Manual observations, reminders and conflict guards |
-| Dashboard funnel/charts/calendar | Partial | **Implemented in v0.27:** current/ever-recorded bars,12UTC weeks, market-filtered follow-up month/agenda; no inferred conversion rates or verified outcome claims |
-| Managed data export/import/recovery | Implemented | Managed ZIP plus DB backup; explicitly scoped exclusions |
-| Nightly automatic backups | Missing | Explicit manual recovery only |
-| External MCP connector | Missing | Not implemented |
-| Local Windows package/installer | Implemented | Offline runtime/lifecycle tested; unsigned, personal acceptance open |
-| Remote self-hosting and password sign-in | Missing | Deliberately loopback-only Windows app; no supported remote hosting/authentication |
-| Locale-aware document labels/dates | Missing | User-written content is possible; no equivalent 21-language document-localization system |
+| Capability | v0.23 baseline | Current status | Shipped scope / remaining detail |
+| --- | --- | --- | --- |
+| Shared reviewed career profile | Implemented | Implemented | Same; source review is a human assertion |
+| Career profile and rich sections | Partial | Implemented | **Implemented in v0.31:** ten typed human-authored sections with browser edit/reorder/remove/review, selected TXT/HTML/PDF/letters/evidence reuse, contact-aware AI context and managed recovery; no inferred qualifications. |
+| Existing resume import | Partial | Implemented | **Implemented in v0.25:** text PDF/DOCX/TXT/Markdown with explicit excerpt review; no scanned OCR |
+| Resume editing/preview/PDF export | Implemented | Implemented | Reviewed selections, exact preview and frozen document |
+| Themes and theme builder | Partial | Implemented | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
+| Pasted posting and saved applications | Implemented | Implemented | Manual capture and immutable review versions |
+| Multi-source role/location discovery | Partial | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; no JSearch/Adzuna/startup sources. Area remains partial. |
+| YC/Hacker News startup discovery | Missing | Missing | Not implemented |
+| Named scheduled discovery/agent queue | Missing | Partial | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
+| Profile-to-posting assessment | Partial | Implemented | **Implemented in v0.33:** exact-quote/advisory-score proposals, human evidence/status/opinion correction, same-source/model group rankings, market filters, per-job version history, byte-replayed requests and managed recovery. No calibrated fit/eligibility/hiring probability claim. |
+| Reviewed tailored resume and PDF letter | Implemented | Implemented | Source-bound reviewed provider workflow; real quality unverified |
+| Full refinement chat and undo | Partial | Implemented | **Implemented in v0.32:** opt-in retained instruction/request/proposal turns, immutable edited-parent branches, exact-source older-proposal browser/reopen, fresh review, local Undo/Redo/reset, explicit removal and managed recovery; no keystroke autosave or durable Undo stack. |
+| AI provider/model settings and local models | Partial | Implemented | **Implemented in v0.26:** selected models, OpenAI/Anthropic/Mistral, Ollama/LM Studio numeric loopback; fixed hosts, no arbitrary remote URL; live quality unverified |
+| Application email composer and mail-client handoff | Missing | Implemented | **Implemented in v0.24:** reviewed local EML, exact PDFs, reopen/copy/download; no automated sending |
+| Connected Gmail sending | Missing | Missing | No account integration or sends |
+| Mailbox reply reading and AI responses | Missing | Missing | Native manual local excerpt review is not browser inbox/AI reply handling |
+| Google Calendar integration | Partial | Partial | Narrow native-only follow-up contract; no browser/two-way interview calendar |
+| Application board/table/stage tracking | Implemented | Implemented | Manual observations, reminders and conflict guards |
+| Dashboard funnel/charts/calendar | Partial | Implemented | **Implemented in v0.27:** current/ever-recorded bars,12UTC weeks, market-filtered follow-up month/agenda; no inferred conversion rates or verified outcome claims |
+| Managed data export/import/recovery | Implemented | Implemented | Managed ZIP plus DB backup; explicitly scoped exclusions |
+| Nightly automatic backups | Missing | Missing | Explicit manual recovery only |
+| External MCP connector | Missing | Missing | Not implemented |
+| Local Windows package/installer | Implemented | Implemented | Offline runtime/lifecycle tested; unsigned, personal acceptance open |
+| Remote self-hosting and password sign-in | Missing | Missing | Deliberately loopback-only Windows app; no supported remote hosting/authentication |
+| Locale-aware document labels/dates | Missing | Missing | User-written content is possible; no equivalent 21-language document-localization system |
 
 Extra RoleWeave features, such as separate India/relocation markets, exact-review
 journals and audited source recovery, are useful but do not cancel missing parity

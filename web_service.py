@@ -5,6 +5,7 @@ from discovery_store import DiscoveryStore
 from model_preferences import read_settings, save_settings
 from workflow_insights import insights
 from resume_theme import parse_theme, validate_theme
+import job_assessment
 import base64
 import hashlib
 import json
@@ -75,6 +76,7 @@ class WebService:
         self.imports = {}
         self.pending_recovery = None
         self.tailoring = TailoringSession(self.store,demo=self.demo)
+        self.assessment = job_assessment.AssessmentSession(self.store,demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
         self.discovery = DiscoveryStore(self.store.path.with_suffix(".discovery.db"))
 
@@ -123,6 +125,17 @@ class WebService:
         if not isinstance(data['expected_sha256'], str) or not re.fullmatch('[a-f0-9]{64}', data['expected_sha256']):
             raise ValueError('Refresh provider preferences before saving')
         return save_settings(self.store, data['config'], data['expected_sha256'])
+
+    def assessment_list(self,data):
+        require(data,('job_id','group','offset','market'))
+        return job_assessment.listing(self.store,data.get('job_id'),data.get('group'),data.get('offset',0),data.get('market'))
+
+    def assessment_load(self,data):
+        require(data,('id',),('id',))
+        record,profile,job=job_assessment.load(self.store,data['id'])
+        return {'record':record,'coverage':job_assessment.coverage(record['reviewed']),
+                'profile':{k:profile[k] for k in ('id','snapshot_sha256','profile')},
+                'job':{k:job[k] for k in ('id','title','company','posting')}}
 
     def job(self, identifier):
         item = self.store.load(identifier)
