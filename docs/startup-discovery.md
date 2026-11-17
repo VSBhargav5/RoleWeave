@@ -34,6 +34,15 @@ posting text or destination creates a fresh review without inherited Applied sta
 different markets remain separate. Mutable votes/unrelated added API fields do not
 manufacture new posting revisions.
 
+## Close/replay ownership (v0.36.1)
+
+Closing a source invalidates its in-flight page load, including a metadata read
+already started before closure. Selecting an archive also supersedes an earlier
+page read. A controlled browser regression holds the old page metadata and the
+later correcting refresh: the closed card must never reappear between them.
+Ten repeated close/replay cycles and safe route-only failure diagnostics accompany
+this check. No source mutation or application write is automatically retried.
+
 ## Evidence, replay and recovery
 
 The bounded composite source snapshot contains the original index bytes and each
