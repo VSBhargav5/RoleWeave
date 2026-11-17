@@ -1,0 +1,13 @@
+{
+  "observed_on": "2026-11-17",
+  "source": "https://hacker-news.firebaseio.com/v0/jobstories.json",
+  "index_entries": 31,
+  "requested_notices": 10,
+  "accepted_notices": 10,
+  "excluded_notices": 0,
+  "composite_sha256": "68504f88bb2e1911e884b6729d5e7ef7e819f16b53354692dc94b667e742e73b",
+  "profile_or_search_data_sent": false,
+  "employer_pages_fetched": false,
+  "real_notice_text_committed": false,
+  "limits": "One point-in-time public contract sample; not coverage, freshness, eligibility, authenticity or usefulness proof."
+}

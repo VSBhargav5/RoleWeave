@@ -1,5 +1,13 @@
 # RoleWeave
 
+## Startup notices (v0.36)
+
+Browse Hacker News startup job notices with no company URL, account or API key.
+Explicit bounded batches, local filters, employer/market review and exact source
+archives join the existing application/recovery workflow. Notices may be short;
+this is not the full YC directory or verified eligibility.
+[Workflow, live sample and limits](docs/startup-discovery.md).
+
 ## Automatic local recovery (v0.35)
 
 Opt in from Settings & backup: nightly snapshots while the local host runs,

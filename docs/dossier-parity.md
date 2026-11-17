@@ -15,6 +15,12 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.31: 13 implemented, 5 partial, 7 missing.**
 **With v0.32: 14 implemented, 4 partial, 7 missing.**
 **With v0.33: 15 implemented, 3 partial, 7 missing.**
+**With v0.36: 17 implemented,3 partial,5 missing.** The scoped startup-discovery
+area now has public HN-listed startup notices, bounded explicit batches, local
+filters, reviewed imports, exact archives/receipts and recovery. No complete YC
+directory, Who is hiring threads, membership/eligibility or personal acceptance
+claim. [Workflow and evidence](startup-discovery.md).
+
 **With v0.35: 16 implemented,3 partial,6 missing.** Automatic local recovery closes
 the scoped nightly-backup area: opt-in host scheduling/catch-up, verified snapshots,
 bounded retention and separate restore. No task while the host is closed or cloud
@@ -56,8 +62,8 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Resume editing/preview/PDF export | Implemented | Implemented | Reviewed selections, exact preview and frozen document |
 | Themes and theme builder | Partial | Implemented | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
 | Pasted posting and saved applications | Implemented | Implemented | Manual capture and immutable review versions |
-| Multi-source role/location discovery | Partial | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; optional experimental JSearch cursor observations/recovery shipped in v0.34, with live compatibility still open; no Adzuna/startup sources. Area remains partial. |
-| YC/Hacker News startup discovery | Missing | Missing | Not implemented |
+| Multi-source role/location discovery | Partial | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; optional experimental JSearch cursor observations/recovery shipped in v0.34, with live compatibility still open; HN startup notices added in v0.36; Adzuna/full-directory coverage remains absent. Area remains partial. |
+| YC/Hacker News startup discovery | Missing | Implemented | **Implemented in v0.36:** the HN-listed YC-startup notice subset via official public API, bounded explicit batches, local filters, checked employer/market imports, source archives/receipts and recovery. No complete YC directory, Who is hiring threads or independent YC/eligibility verification. |
 | Named scheduled discovery/agent queue | Missing | Partial | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Implemented | **Implemented in v0.33:** exact-quote/advisory-score proposals, human evidence/status/opinion correction, same-source/model group rankings, market filters, per-job version history, byte-replayed requests and managed recovery. No calibrated fit/eligibility/hiring probability claim. |
 | Reviewed tailored resume and PDF letter | Implemented | Implemented | Source-bound reviewed provider workflow; real quality unverified |

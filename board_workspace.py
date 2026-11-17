@@ -5,6 +5,7 @@ import re
 import threading
 import time
 from uuid import uuid4
+from startup_source import synthetic_snapshot
 from discovery_archive import archive_bytes, parse_archive, MAX_ARCHIVE_BYTES
 from provider_boards import source_endpoint, fetch_source, parse_source
 from discovery import discovered_snapshot
@@ -84,7 +85,8 @@ class BoardWorkspace:
             try:
                 if self.demo:
                     record={'id':'synthetic-board-job','text':'Synthetic board Data Engineer','hostedUrl':'https://example.invalid/board/job','categories':{'location':'Remote, eligibility not verified'},'descriptionPlain':'Python and SQL required. Synthetic practice only, not a live vacancy.'}
-                    if provider in ('lever','lever-eu'):raw=json.dumps([record]).encode()
+                    if provider == 'hackernews':raw=synthetic_snapshot(token)
+                    elif provider in ('lever','lever-eu'):raw=json.dumps([record]).encode()
                     elif provider=='ashby':raw=json.dumps({'apiVersion':'1','jobs':[{'title':record['text'],'jobUrl':record['hostedUrl'],'location':'Synthetic location','isListed':True,'isRemote':True,'descriptionPlain':record['descriptionPlain'],'publishedAt':'2026-11-16T00:00:00Z'}]}).encode()
                     else:raw=json.dumps({'jobs':[{'id':1,'internal_job_id':1,'title':record['text'],'absolute_url':record['hostedUrl'],'updated_at':'2026-11-16T00:00:00Z','location':{'name':'Synthetic location'},'content':'<p>'+record['descriptionPlain']+'</p>'}],'meta':{'total':1}}).encode()
                     feed=parse_source(raw,provider,token)
@@ -121,7 +123,7 @@ class BoardWorkspace:
             for row in entry['feed']['jobs']:
                 text=(row['title']+' '+row['location']+(' '+row['posting'] if descriptions else '')).casefold()
                 if all(word.casefold() in text for word in query.split()) and (not exclude or exclude.casefold() not in text):rows.append(row)
-            return {'id':identifier,'total':len(rows),'offset':offset,'items':[{k:str(row[k]) for k in ('id','title','url','location','updated_at')} for row in rows[offset:offset+20]],'has_next':offset+20<len(rows)}
+            return {'startup_scope':({k:entry['feed'][k] for k in ('index_count','index_offset','returned','excluded','has_more_index','synthetic')} if entry['provider']=='hackernews' else None),'id':identifier,'total':len(rows),'offset':offset,'items':[{k:str(row[k]) for k in ('id','title','url','location','updated_at')} for row in rows[offset:offset+20]],'has_next':offset+20<len(rows)}
 
     def row(self,identifier,row_id):
         with self.lock:

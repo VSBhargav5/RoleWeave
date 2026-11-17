@@ -1,4 +1,5 @@
 """Explicit public employer boards, with bounded offline replay and source identity."""
+from startup_source import offset_for, parse_snapshot as parse_startup, fetch_snapshot as fetch_startup
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -10,10 +11,13 @@ from network_io import json_object, request_bytes
 from roleweave import text
 from source_links import source_link
 
-PROVIDERS = ("greenhouse", "lever", "lever-eu", "ashby")
+PROVIDERS = ("greenhouse", "lever", "lever-eu", "ashby", "hackernews")
 
 
 def source_endpoint(provider, token):
+    if provider == "hackernews":
+        offset_for(token)
+        return "hacker-news.firebaseio.com", "/v0/jobstories.json"
     board_path(token)  # shared conservative token grammar, never arbitrary URLs
     if provider == "greenhouse":
         return "boards-api.greenhouse.io", board_path(token)
@@ -108,6 +112,8 @@ def parse_ashby(snapshot, token):
 
 
 def parse_source(snapshot, provider, token):
+    if provider == "hackernews":
+        return parse_startup(snapshot, token)
     source_endpoint(provider, token)
     if len(snapshot) > MAX_FEED_BYTES:
         raise ValueError("Board exceeds 8 MiB")
@@ -155,6 +161,8 @@ def parse_source(snapshot, provider, token):
 
 def fetch_source(provider, token, cancel=None):
     host, path = source_endpoint(provider, token)
+    if provider == "hackernews":
+        return parse_startup(fetch_startup(token, cancel), token)
     return parse_source(request_bytes(host, path, cancel=cancel, limit=MAX_FEED_BYTES), provider, token)
 
 
