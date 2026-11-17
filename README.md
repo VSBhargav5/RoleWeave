@@ -482,3 +482,11 @@ without a model call, branch revisions and recover or remove a whole conversatio
 [Workflow, limits and practice](docs/refinement-conversations.md). Credential fields
 are excluded; manually typed private text is not scrubbed. Fresh review/consent
 remain required. Other partial/missing parity areas stay open.
+
+### Reviewed job-evidence assessments (v0.33)
+
+Inspect and correct model opinions against exact posting quotes and selected facts.
+Compare same-source/model groups, filter markets and reopen per-job review versions.
+[Workflow, limits and practice](docs/job-assessment.md). Scores are uncalibrated
+opinions; coverage concerns quoted rows only. No eligibility or hiring claim.
+Managed recovery replays the exact request from its bound sources.
