@@ -1,6 +1,7 @@
 """Deterministic reviewed cover-letter versions, without generated career claims."""
 import hashlib
 import json
+from document_locale import checked_locale, letter_labels
 from pathlib import Path
 
 from career_profile import profile_snapshot, unique_json
@@ -14,19 +15,21 @@ from safe_export import publish_bytes
 MAX_LETTER_BYTES = 4 * 1024 * 1024
 
 
-def render_letter(profile, identifiers, context, motivation, closing):
+def render_letter(profile, identifiers, context, motivation, closing, locale="en"):
+    checked_locale(locale)
     checked_context(context)
     facts = selected_facts(profile, identifiers)
     for value, label, limit in ((motivation, "Your introduction", 6000), (closing, "Your closing", 2000)):
         text(value, label)
         if len(value) > limit:
             raise ValueError(label + " exceeds its length limit")
+    salutation,application,examples=letter_labels(context,locale)
     lines = [profile["name"], " | ".join(profile[key] for key in ("email", "phone") if profile[key]), "",
-             "Dear hiring team,", "",
-             f"I am applying for the {context['title']} role at {context['company']}.", "",
-             motivation, "", "Selected examples from my reviewed record:", ""]
+             salutation, "",
+             application, "",
+             motivation, "", examples, ""]
     for fact in facts:
-        lines.extend([fact_heading(fact) + ": " + fact_text(fact), ""])
+        lines.extend([fact_heading(fact,locale) + ": " + fact_text(fact,locale=locale), ""])
     lines.extend([closing, "", profile["name"], ""])
     payload = "\n".join(lines).encode("utf-8")
     if len(payload) > 65536:
@@ -34,7 +37,8 @@ def render_letter(profile, identifiers, context, motivation, closing):
     return payload
 
 
-def make_letter(profile_item, identifiers, job, motivation, closing, *, confirmed=False, include_pdf=False):
+def make_letter(profile_item, identifiers, job, motivation, closing, *, confirmed=False, include_pdf=False, locale="en"):
+    checked_locale(locale)
     if type(include_pdf) is not bool:
         raise ValueError("Choose whether to include PDF")
     if confirmed is not True:
@@ -43,14 +47,15 @@ def make_letter(profile_item, identifiers, job, motivation, closing, *, confirme
     if digest != profile_item["snapshot_sha256"]:
         raise ValueError("Career profile fingerprint mismatch")
     context = checked_context(job_context(job))
-    payload = render_letter(profile, identifiers, context, motivation, closing)
+    payload = render_letter(profile, identifiers, context, motivation, closing,locale)
     record = {"format": "roleweave-letter-v1", "profile_id": profile_item["id"],
               "profile_sha256": digest, "profile_snapshot_base64": encoded(profile_item["snapshot"]),
               "job_context": context, "selected_fact_ids": identifiers, "motivation": motivation,
               "closing": closing, "text": payload.decode("utf-8"), "text_sha256": hashlib.sha256(payload).hexdigest()}
     if include_pdf:
-        pdf = letter_pdf(profile["name"], record["text"])
+        pdf = letter_pdf(profile["name"], record["text"],locale)
         record.update(format="roleweave-letter-v2", pdf_base64=encoded(pdf), pdf_sha256=hashlib.sha256(pdf).hexdigest())
+    if locale != "en":record.update(format="roleweave-letter-v3",locale=locale)
     snapshot = json.dumps(record, ensure_ascii=True, indent=2).encode()
     letter_snapshot(snapshot)
     return snapshot
@@ -67,18 +72,21 @@ def letter_snapshot(snapshot):
             "selected_fact_ids", "motivation", "closing", "text", "text_sha256"}
     if isinstance(record, dict) and record.get("format") == "roleweave-letter-v2":
         keys.update(("pdf_base64", "pdf_sha256"))
-    if not isinstance(record, dict) or set(record) != keys or record["format"] not in ("roleweave-letter-v1", "roleweave-letter-v2"):
+    if isinstance(record,dict) and record.get("format")=="roleweave-letter-v3":
+        keys.add("locale")
+        if "pdf_base64" in record:keys.update(("pdf_base64","pdf_sha256"))
+    if not isinstance(record, dict) or set(record) != keys or record["format"] not in ("roleweave-letter-v1", "roleweave-letter-v2", "roleweave-letter-v3"):
         raise ValueError("Unsupported cover-letter version")
     text(record["profile_id"], "Profile version ID")
     profile, digest = profile_snapshot(decoded(record["profile_snapshot_base64"], MAX_BYTES))
     if digest != record["profile_sha256"]:
         raise ValueError("Cover-letter profile fingerprint mismatch")
-    payload = render_letter(profile, record["selected_fact_ids"], record["job_context"], record["motivation"], record["closing"])
+    payload = render_letter(profile, record["selected_fact_ids"], record["job_context"], record["motivation"], record["closing"],record.get("locale","en"))
     if record["text"] != payload.decode("utf-8") or record["text_sha256"] != hashlib.sha256(payload).hexdigest():
         raise ValueError("Cover letter does not replay from its reviewed sources")
-    if record["format"] == "roleweave-letter-v2":
+    if "pdf_base64" in record:
         pdf = decoded(record["pdf_base64"], 2*1024*1024)
-        if hashlib.sha256(pdf).hexdigest() != record["pdf_sha256"] or pdf != letter_pdf(profile["name"], record["text"]):
+        if hashlib.sha256(pdf).hexdigest() != record["pdf_sha256"] or pdf != letter_pdf(profile["name"], record["text"],record.get("locale","en")):
             raise ValueError("Cover-letter PDF does not replay from reviewed text")
     return record, hashlib.sha256(snapshot).hexdigest()
 
