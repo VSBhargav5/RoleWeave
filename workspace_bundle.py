@@ -1,4 +1,5 @@
 """Verified recovery of the shelf and all managed web artifacts into a new workspace."""
+from jsearch_source import FORMAT as JSEARCH_FORMAT, parse_source as parse_jsearch_source
 import job_assessment
 import refinement_history
 from application_email import email_snapshot, replay_email
@@ -104,6 +105,8 @@ def validate_artifact(name,payload):
     elif name.startswith(('web-artifacts/sources/','web-artifacts/resume-imports/')):
         if hashlib.sha256(payload).hexdigest()!=Path(name).stem:
             raise ValueError('Original source filename and byte fingerprint disagree')
+        if name.startswith('web-artifacts/sources/') and isinstance((source_record:=json.loads(payload,object_pairs_hook=unique_json)),dict) and source_record.get('format')==JSEARCH_FORMAT:
+            parse_jsearch_source(payload)
 
 
 def export_bundle(store, artifacts):

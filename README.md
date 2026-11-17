@@ -1,12 +1,24 @@
 # RoleWeave
 
+## Optional reviewed JSearch discovery (v0.34)
+
+The browser now offers a separate experimental JSearch source alongside FreeHire.
+Review the exact public request, enter a one-request key and consent to one cursor
+page. Provider credits may apply. Cached previous pages need no new request.
+Original response bytes and filters join managed recovery on import. No live API
+call was performed; compatibility remains an explicit gate.
+[Workflow, synthetic exercise and limits](docs/jsearch-discovery.md).
+
+Reviewed assessments/rankings shipped in [v0.33](docs/job-assessment.md); structured
+career profiles and retained refinement conversations are also implemented.
+
 ## Review edits with undo (v0.30)
 
 AI wording review now has local Undo/Redo for wording and selected suggestions,
 plus per-field Reset to proposal. These controls reset accuracy consent and make
 no model request. Each new proposal starts a fresh bounded history; accepted drafts
 keep existing source/provenance guards. [Guide and checks](docs/review-undo.md).
-Persisted full refinement chat remains pending.
+Full request/proposal refinement history shipped in v0.32; see [the retained conversation guide](docs/refinement-conversations.md).
 
 
 ## Employer boards in the browser (v0.29)
