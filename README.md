@@ -1,5 +1,13 @@
 # RoleWeave
 
+## Reviewed document languages (v0.37)
+
+Choose document labels and structured month dates in the browser resume/letter
+studio: English (original/UK/US), German, Spanish, French, Italian, Brazilian
+Portuguese and Dutch. Your claims and writing are unchanged. Preview, freeze,
+recipient exports and managed recovery bind the selected language.
+[Workflow, compatibility and limits](docs/document-localization.md).
+
 ## Startup notices (v0.36)
 
 Browse Hacker News startup job notices with no company URL, account or API key.

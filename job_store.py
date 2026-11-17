@@ -139,12 +139,12 @@ class JobStore:
         with closing(sqlite3.connect(self.path)) as db, db:
             initialize_schema(db)
 
-    def create_resume(self, profile_id, identifiers, label, job_id=None, include_pdf=True, confirmed=False, theme="classic"):
+    def create_resume(self, profile_id, identifiers, label, job_id=None, include_pdf=True, confirmed=False, theme="classic", locale="en"):
         if confirmed is not True:
             raise ValueError("Review and explicitly approve the resume content before saving")
         profile = self.load_profile(profile_id)
         job = self.load(job_id) if job_id is not None else None
-        snapshot = make_resume_version(profile, identifiers, label, job, include_pdf, theme)
+        snapshot = make_resume_version(profile, identifiers, label, job, include_pdf, theme,locale)
         _record, digest = resume_snapshot(snapshot)
         identifier = str(uuid4())
         with closing(sqlite3.connect(self.path)) as db, db:
@@ -182,7 +182,7 @@ class JobStore:
             if job_id is not None and (context is None or context["id"] != job_id):
                 continue
             result.append({"id": row[0], "created_at": item["created_at"], "label": item["resume"]["label"],
-                           "has_pdf": bool(item["resume"]["pdf_base64"])})
+                           "locale": item["resume"].get("locale","en"), "has_pdf": bool(item["resume"]["pdf_base64"])})
         return result
 
     def export_resume(self, identifier, destination, format):
@@ -196,7 +196,7 @@ class JobStore:
             raise ValueError("This saved version is HTML-only; print the HTML from your browser")
         if format == "txt":
             profile, _digest = profile_snapshot(decoded(record["profile_snapshot_base64"], MAX_BYTES))
-            payload = resume_text(profile, record["selected_fact_ids"]).encode("utf-8")
+            payload = resume_text(profile, record["selected_fact_ids"],record.get("locale","en")).encode("utf-8")
         else:
             payload = decoded(record[format + "_base64"], 8 * 1024 * 1024)
         publish_bytes(destination, payload)

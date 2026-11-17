@@ -2,6 +2,7 @@
 from datetime import date
 import re
 from source_links import source_link
+from document_locale import checked_locale, label, month
 
 # name, label, control, required. These definitions also drive the browser form.
 TIMELINE=(('started','Started','month',False),('ended','Ended','month',False),('current','Current / ongoing','bool',False))
@@ -57,24 +58,26 @@ def public_context(fact):
     return {k:v for k,v in details['fields'].items() if k not in ('email','phone') and v not in ('',False)}
 
 
-def entry_lines(fact,for_model=False):
+def entry_lines(fact,for_model=False,locale="en"):
+    checked_locale(locale)
     if 'details' not in fact:return []
     d=validate_details(fact['details'],fact['section'])['fields']
     title=d['title'];organization=d.get('organization','')
     lines=[title+(' - '+organization if organization else '')]
-    period=' - '.join(v for v in (d.get('started',''), 'Present' if d.get('current') else d.get('ended','')) if v)
+    period=' - '.join(month(v,locale) if v != 'Present' else label('Present',locale) for v in (d.get('started',''), 'Present' if d.get('current') else d.get('ended','')) if v)
     if period:lines.append(period)
     if d.get('location'):lines.append(d['location'])
     if d.get('about'):lines.append(d['about'])
-    for key,label in (('skills','Skills'),('group','Group'),('level','Self-described level'),('credential_id','Credential'),('relationship','Relationship'),('url','Link'),('email','Email'),('phone','Phone')):
-        if d.get(key) and not (for_model and key in ('email','phone')):lines.append(label+': '+d[key])
+    for key,caption in (('skills','Skills'),('group','Group'),('level','Self-described level'),('credential_id','Credential'),('relationship','Relationship'),('url','Link'),('email','Email'),('phone','Phone')):
+        if d.get(key) and not (for_model and key in ('email','phone')):lines.append(label(caption,locale)+': '+d[key])
     return lines
 
 
-def fact_text(fact,for_model=False):
-    return '\n'.join([*entry_lines(fact,for_model),*([fact['claim']] if fact['claim'] else [])])
+def fact_text(fact,for_model=False,locale="en"):
+    return '\n'.join([*entry_lines(fact,for_model,locale),*([fact['claim']] if fact['claim'] else [])])
 
 
-def fact_heading(fact):
+def fact_heading(fact,locale="en"):
+    checked_locale(locale)
     if fact['section']=='Additional' and fact.get('details',{}).get('fields',{}).get('heading'):return fact['details']['fields']['heading']
-    return fact['section']
+    return label(fact['section'],locale)

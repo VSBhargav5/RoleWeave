@@ -153,7 +153,7 @@ class ResumeBuilder(tk.Toplevel):
             item = self.store.load_resume(self.rows[self.versions.curselection()[0]]["id"])
             record = item["resume"]
             profile, _digest = profile_snapshot(decoded(record["profile_snapshot_base64"], 1024 * 1024))
-            self.set_preview(self.saved_preview, resume_text(profile, record["selected_fact_ids"]))
+            self.set_preview(self.saved_preview, resume_text(profile, record["selected_fact_ids"],record.get("locale","en")))
             self.current_version = item["id"]
             self.saved_provenance.set(f"Saved version {item['id'][:8]} - {record['label']}\n"
                                       f"Frozen identity: {profile['name']} - profile {record['profile_id'][:8]}")

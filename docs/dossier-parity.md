@@ -15,6 +15,12 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.31: 13 implemented, 5 partial, 7 missing.**
 **With v0.32: 14 implemented, 4 partial, 7 missing.**
 **With v0.33: 15 implemented, 3 partial, 7 missing.**
+**With v0.37: 17 implemented,4 partial,4 missing.** Document localization is now
+partial: nine choices across seven languages for fixed labels, structured dates,
+letter scaffolds and metadata, with locale-bound preview/frozen exports/recovery.
+Human-authored content is unchanged. No full21-language/app translation or reviewed
+translation quality claim. [Workflow](document-localization.md).
+
 **With v0.36: 17 implemented,3 partial,5 missing.** The scoped startup-discovery
 area now has public HN-listed startup notices, bounded explicit batches, local
 filters, reviewed imports, exact archives/receipts and recovery. No complete YC
@@ -80,7 +86,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | External MCP connector | Missing | Missing | Not implemented |
 | Local Windows package/installer | Implemented | Implemented | Offline runtime/lifecycle tested; unsigned, personal acceptance open |
 | Remote self-hosting and password sign-in | Missing | Missing | Deliberately loopback-only Windows app; no supported remote hosting/authentication |
-| Locale-aware document labels/dates | Missing | Missing | User-written content is possible; no equivalent 21-language document-localization system |
+| Locale-aware document labels/dates | Missing | Partial | **Partial in v0.37:** nine choices across seven languages, fixed labels/structured dates/scaffold/metadata, exact preview/frozen exports/recovery; no content translation,21-language system, arbitrary Unicode PDF or native-speaker acceptance. |
 
 Extra RoleWeave features, such as separate India/relocation markets, exact-review
 journals and audited source recovery, are useful but do not cancel missing parity

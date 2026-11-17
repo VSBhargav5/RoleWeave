@@ -1,5 +1,6 @@
 """Render only explicitly selected reviewed claims; no rewriting or inference."""
 import html
+from document_locale import checked_locale, label
 from resume_theme import validate_theme
 from io import BytesIO
 from pathlib import Path
@@ -47,27 +48,29 @@ def selected_facts(profile, identifiers):
     return [facts[identifier] for identifier in identifiers]
 
 
-def fact_groups(facts):
+def fact_groups(facts,locale="en"):
     groups=[]
     for section in SECTIONS:
         section_groups={}
         for fact in facts:
-            if fact['section']==section:section_groups.setdefault(fact_heading(fact),[]).append(fact)
+            if fact['section']==section:section_groups.setdefault(fact_heading(fact,locale),[]).append(fact)
         groups.extend(section_groups.items())
     return groups
 
 
-def resume_text(profile, identifiers):
+def resume_text(profile, identifiers, locale="en"):
+    checked_locale(locale)
     facts = selected_facts(profile, identifiers)
     lines = [profile["name"], profile["headline"],
              " | ".join(profile[key] for key in ("email", "phone", "location") if profile[key]),
              profile["links"], "", profile["summary"]]
-    for section,items in fact_groups(facts):
-        lines.extend(["", section, *("- " + fact_text(fact) for fact in items)])
+    for section,items in fact_groups(facts,locale):
+        lines.extend(["", section, *("- " + fact_text(fact,locale=locale) for fact in items)])
     return "\n".join(lines)
 
 
-def resume_html(profile, identifiers, theme="classic"):
+def resume_html(profile, identifiers, theme="classic", locale="en"):
+    checked_locale(locale)
     palette = checked_theme(theme)
     custom=isinstance(theme,dict)
     custom_css=''
@@ -79,9 +82,9 @@ def resume_html(profile, identifiers, theme="classic"):
     def escaped(value):
         return html.escape(value, quote=True).replace("\n", "<br>")
     contact = " | ".join(profile[key] for key in ("email", "phone", "location") if profile[key])
-    parts = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
+    parts = ['<!doctype html><html lang="'+locale+'"><head><meta charset="utf-8">',
              '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'">',
-             '<title>' + escaped(profile["name"]) + ' - Resume</title>',
+             '<title>' + escaped(profile["name"]) + ' - '+escaped(label('Resume',locale))+'</title>',
              '<style>@page{size:A4;margin:18mm}*{box-sizing:border-box}body{font:11pt/1.45 Arial,sans-serif;color:#17212b;margin:0 auto;max-width:180mm;padding:24px}',
              'h1{font-size:23pt;margin:0 0 4px}h2{font-size:12pt;border-bottom:1px solid #ccd4dc;padding-bottom:4px;margin-top:20px;break-after:avoid}',
              '.headline{font-size:13pt;color:#334d66}.contact{font-size:10pt;color:#334155}p{margin:7px 0}li{margin:6px 0;overflow-wrap:anywhere}',
@@ -96,10 +99,10 @@ def resume_html(profile, identifiers, theme="classic"):
     if profile["links"]:
         parts.append('<p class="contact">' + escaped(profile["links"]) + '</p>')
     if profile["summary"]:
-        parts.append('<h2>Summary</h2><p>' + escaped(profile["summary"]) + '</p>')
-    for section,items in fact_groups(facts):
+        parts.append('<h2>'+escaped(label('Summary',locale))+'</h2><p>' + escaped(profile["summary"]) + '</p>')
+    for section,items in fact_groups(facts,locale):
         parts.append('<section><h2>' + escaped(section) + '</h2><ul>')
-        parts.extend('<li>' + escaped(fact_text(fact)) + '</li>' for fact in items)
+        parts.extend('<li>' + escaped(fact_text(fact,locale=locale)) + '</li>' for fact in items)
         parts.append('</ul></section>')
     parts.append('</main></body></html>')
     payload = "\n".join(parts).encode("utf-8")
@@ -108,12 +111,13 @@ def resume_html(profile, identifiers, theme="classic"):
     return payload
 
 
-def resume_pdf(profile, identifiers, theme="classic"):
+def resume_pdf(profile, identifiers, theme="classic", locale="en"):
+    checked_locale(locale)
     palette = checked_theme(theme)
     if not PDF_AVAILABLE:
         raise ValueError("PDF support is missing. Run Setup-RoleWeave.cmd or choose HTML-only.")
     facts = selected_facts(profile, identifiers)
-    prepare_pdf_fonts(resume_text(profile, identifiers))
+    prepare_pdf_fonts(resume_text(profile, identifiers,locale)+label("Summary",locale)+label("Resume",locale))
     body = ParagraphStyle("Body", fontName="RoleWeaveVera", fontSize=10, leading=14, spaceAfter=6, alignment=TA_LEFT)
     name_style = ParagraphStyle("Name", parent=body, fontName="RoleWeaveVeraBold", fontSize=21, leading=26, spaceAfter=4)
     headline = ParagraphStyle("Headline", parent=body, fontSize=12, leading=16, textColor=colors.HexColor("#334d66"))
@@ -132,7 +136,7 @@ def resume_pdf(profile, identifiers, theme="classic"):
     margin=palette['margin_mm'] if custom else 18
     if custom:
         if palette['font']=='serif':
-            try:resume_text(profile,identifiers).encode('cp1252')
+            try:resume_text(profile,identifiers,locale).encode('cp1252')
             except UnicodeEncodeError:raise ValueError('Serif PDF font supports Windows-1252 text only; choose Sans for this content') from None
         normal='Times-Roman' if palette['font']=='serif' else 'RoleWeaveVera'
         bold='Times-Bold' if palette['font']=='serif' else 'RoleWeaveVeraBold'
@@ -151,10 +155,10 @@ def resume_pdf(profile, identifiers, theme="classic"):
         story.append(paragraph(profile["links"], contact_style))
     story.append(Spacer(1, 4))
     if profile["summary"]:
-        story.extend([paragraph("Summary", section_style), paragraph(profile["summary"], body)])
-    for section,items in fact_groups(facts):
+        story.extend([paragraph(label("Summary",locale), section_style), paragraph(profile["summary"], body)])
+    for section,items in fact_groups(facts,locale):
         story.append(paragraph(section, section_style))
-        story.extend(paragraph("- " + fact_text(fact), bullet) for fact in items)
+        story.extend(paragraph("- " + fact_text(fact,locale=locale), bullet) for fact in items)
     def footer(canvas, document):
         canvas.saveState()
         canvas.setFont("RoleWeaveVera", 8)
@@ -163,8 +167,8 @@ def resume_pdf(profile, identifiers, theme="classic"):
         canvas.restoreState()
     output = BytesIO()
     document = SimpleDocTemplate(output, pagesize=page_size, leftMargin=margin * mm, rightMargin=margin * mm,
-                                 topMargin=(margin if custom else 17) * mm, bottomMargin=margin * mm, title=profile["name"] + " - Resume",
-                                 author=profile["name"], subject="Resume", pageCompression=1, invariant=1)
+                                 topMargin=(margin if custom else 17) * mm, bottomMargin=margin * mm, title=profile["name"] + " - " + label("Resume",locale),
+                                 author=profile["name"], subject=label("Resume",locale), pageCompression=1, invariant=1)
     document.build(story, onFirstPage=footer, onLaterPages=footer)
     payload = output.getvalue()
     if len(payload) > MAX_RESUME_BYTES:
