@@ -489,3 +489,6 @@ dialog.ai-modal{width:1180px;max-width:calc(100vw - 32px)}
 .conversation-list{display:grid;gap:14px;margin:22px 0}.conversation-turn{border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px;min-width:0}.conversation-turn p{white-space:pre-wrap;overflow-wrap:anywhere}.conversation-turn small{color:var(--muted);overflow-wrap:anywhere}.conversation-turn .btn{justify-self:start}
 
 .assessment-requirements{display:grid;gap:18px;margin:24px 0}.assessment-requirement{padding:20px;border:1px solid var(--line);border-radius:14px;background:#18211c;display:grid;gap:16px}.assessment-requirement strong{line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}.assessment-sources{margin:20px 0}.assessment-sources blockquote{padding:14px;border-left:2px solid var(--accent);margin:14px 0}.assessment-sources small{overflow-wrap:anywhere}.assessment-score{font-size:28px;font-weight:700;color:var(--accent)}.assessment-score small{font-size:10px;margin-left:8px;color:var(--muted)}#assessment-root{display:grid;gap:16px}#assessment-root h3{font-size:24px;letter-spacing:-.025em}#assessment-filter-form{margin-top:20px}
+
+#automatic-backups-root [data-backup-status] p{overflow-wrap:anywhere}
+#automatic-backups-root .file-card{flex-wrap:wrap;gap:12px}
