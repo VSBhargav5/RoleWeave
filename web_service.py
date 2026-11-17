@@ -1,4 +1,5 @@
 """Local web application operations; reuses the existing validated domain models."""
+from automatic_backups import AutomaticBackups
 from datetime import date
 from board_workspace import BoardWorkspace, PREFIX as BOARD_PREFIX
 from discovery_store import DiscoveryStore
@@ -81,6 +82,7 @@ class WebService:
         self.jsearch = JSearchSession(demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
         self.discovery = DiscoveryStore(self.store.path.with_suffix(".discovery.db"))
+        self.automatic_backups = AutomaticBackups(self.store, self.artifacts)
 
     def profile(self):
         item = self.store.active_profile()
@@ -95,7 +97,7 @@ class WebService:
         return {"version": APP_VERSION, "demo": self.demo, "workspace_label": 'Synthetic practice' if self.demo else label,
                 "profile": self.profile(), "jobs": jobs, "career_sections":SECTIONS,"entry_fields":SCHEMAS, "ai_provider": read_settings(self.store),
                 "resumes": self.store.list_resumes(), "letters": self.letters(),
-                "recoveries": recovery_list(self.store.path.parent/'recovered'), "stats": {
+                "automatic_backups": self.automatic_backups.status(), "recoveries": recovery_list(self.store.path.parent/'recovered'), "stats": {
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
@@ -605,6 +607,10 @@ class WebService:
 
     def workspace_bundle(self):
         return export_bundle(self.store,self.artifacts)
+
+    def preview_automatic_backup(self, data):
+        require(data, ('id',), ('id',))
+        return self.preview_recovery(self.automatic_backups.payload(data['id']))
 
     def preview_recovery(self, payload):
         _,summary=inspect_bundle(payload)

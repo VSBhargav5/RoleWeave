@@ -21,7 +21,7 @@ from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
 
-ASSETS = {"/jsearch.js": ("jsearch.js", "application/javascript"), "/assessment.js": ("assessment.js", "application/javascript"), "/career-profile.js": ("career-profile.js", "application/javascript"), "/review-history.js": ("review-history.mjs", "application/javascript"), "/boards.js": ("boards.js", "application/javascript"), "/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
+ASSETS = {"/automatic-backups.js": ("automatic-backups.js", "application/javascript"), "/jsearch.js": ("jsearch.js", "application/javascript"), "/assessment.js": ("assessment.js", "application/javascript"), "/career-profile.js": ("career-profile.js", "application/javascript"), "/review-history.js": ("review-history.mjs", "application/javascript"), "/boards.js": ("boards.js", "application/javascript"), "/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
 
@@ -155,6 +155,15 @@ class RequestHandler(BaseHTTPRequestHandler):
         if not self.authorized():
             return
         service = self.server.service
+        if path == "/api/automatic-backups/download":
+            require(params, ('id',), ('id',))
+            payload = service.automatic_backups.payload(params['id'])
+            self.reply(200, payload, "application/zip", "RoleWeave-recovery-snapshot.zip")
+            return
+        if path == "/api/automatic-backups":
+            require(params, ())
+            self.reply(200, service.automatic_backups.status())
+            return
         if path == "/api/bootstrap":
             self.reply(200, service.bootstrap())
         elif path == "/api/job":
@@ -245,7 +254,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/jsearch/preview": service.jsearch.preview, "/api/jsearch/send": service.jsearch.send, "/api/jsearch/status": service.jsearch_status, "/api/jsearch/cancel": service.jsearch.cancel, "/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            routes = {"/api/automatic-backups/configure": service.automatic_backups.configure, "/api/automatic-backups/create": service.automatic_backups.request, "/api/automatic-backups/preview": service.preview_automatic_backup, "/api/jsearch/preview": service.jsearch.preview, "/api/jsearch/send": service.jsearch.send, "/api/jsearch/status": service.jsearch_status, "/api/jsearch/cancel": service.jsearch.cancel, "/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),
@@ -286,6 +295,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 require(data, ("confirmed",), ("confirmed",))
                 if data["confirmed"] is not True:
                     raise ValueError("Confirm closing the local app")
+                service.automatic_backups.shutdown()
                 service.tailoring.shutdown()
                 service.assessment.shutdown()
                 service.jsearch.shutdown()
@@ -360,7 +370,9 @@ def run_application(path=None, demo=False, port=8765, open_browser=True):
             webbrowser.open(server.origin)
         else:
             print(server.origin, flush=True)
+        service.automatic_backups.start()
         server.serve_forever(poll_interval=.2)
     finally:
+        service.automatic_backups.shutdown()
         server.server_close()
     return 0

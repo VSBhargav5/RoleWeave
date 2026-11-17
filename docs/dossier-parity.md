@@ -15,6 +15,11 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.31: 13 implemented, 5 partial, 7 missing.**
 **With v0.32: 14 implemented, 4 partial, 7 missing.**
 **With v0.33: 15 implemented, 3 partial, 7 missing.**
+**With v0.35: 16 implemented,3 partial,6 missing.** Automatic local recovery closes
+the scoped nightly-backup area: opt-in host scheduling/catch-up, verified snapshots,
+bounded retention and separate restore. No task while the host is closed or cloud
+backup claim. See [the recovery workflow](automatic-backups.md).
+
 **With v0.34: still15 implemented,3 partial,7 missing.** Optional reviewed JSearch
 adds one experimental aggregator; live compatibility, additional sources, scheduled
 and scored discovery, broader browser integrations and the seven missing areas
@@ -51,7 +56,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Resume editing/preview/PDF export | Implemented | Implemented | Reviewed selections, exact preview and frozen document |
 | Themes and theme builder | Partial | Implemented | **Implemented in v0.28:** three unchanged presets plus bounded color/font/size/margin/paper builder and strict styling-only JSON sharing; no arbitrary CSS/remote fonts |
 | Pasted posting and saved applications | Implemented | Implemented | Manual capture and immutable review versions |
-| Multi-source role/location discovery | Partial | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; no JSearch/Adzuna/startup sources. Area remains partial. |
+| Multi-source role/location discovery | Partial | Partial | **Expanded in v0.29:** FreeHire role/location search plus browser Greenhouse/Lever global/Lever EU/Ashby, local filtering/import/archive replay/comparison and source-bound recovery; optional experimental JSearch cursor observations/recovery shipped in v0.34, with live compatibility still open; no Adzuna/startup sources. Area remains partial. |
 | YC/Hacker News startup discovery | Missing | Missing | Not implemented |
 | Named scheduled discovery/agent queue | Missing | Partial | **Partial in v0.25:** named manual runs, local budget, dedupe/review queue/recovery; no scheduler/AI score/auto-drafts |
 | Profile-to-posting assessment | Partial | Implemented | **Implemented in v0.33:** exact-quote/advisory-score proposals, human evidence/status/opinion correction, same-source/model group rankings, market filters, per-job version history, byte-replayed requests and managed recovery. No calibrated fit/eligibility/hiring probability claim. |
@@ -65,7 +70,7 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | Application board/table/stage tracking | Implemented | Implemented | Manual observations, reminders and conflict guards |
 | Dashboard funnel/charts/calendar | Partial | Implemented | **Implemented in v0.27:** current/ever-recorded bars,12UTC weeks, market-filtered follow-up month/agenda; no inferred conversion rates or verified outcome claims |
 | Managed data export/import/recovery | Implemented | Implemented | Managed ZIP plus DB backup; explicitly scoped exclusions |
-| Nightly automatic backups | Missing | Missing | Explicit manual recovery only |
+| Nightly automatic backups | Missing | Implemented | **Implemented in v0.35:** opt-in local-host nightly/catch-up snapshots, exact managed ZIP verification, seven-file retention, status and separate restore. Host must run; same-device/unencrypted, no OS task/cloud backup or power-loss guarantee. |
 | External MCP connector | Missing | Missing | Not implemented |
 | Local Windows package/installer | Implemented | Implemented | Offline runtime/lifecycle tested; unsigned, personal acceptance open |
 | Remote self-hosting and password sign-in | Missing | Missing | Deliberately loopback-only Windows app; no supported remote hosting/authentication |

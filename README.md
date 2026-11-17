@@ -1,5 +1,13 @@
 # RoleWeave
 
+## Automatic local recovery (v0.35)
+
+Opt in from Settings & backup: nightly snapshots while the local host runs,
+catch-up on next open, seven-snapshot retention, and verified inspection/restore
+into a separate workspace. Existing manual exports remain available. Backups are
+unencrypted and same-device; no OS task or cloud account.
+[Workflow, safety limits and practice](docs/automatic-backups.md).
+
 ## Optional reviewed JSearch discovery (v0.34)
 
 The browser now offers a separate experimental JSearch source alongside FreeHire.
