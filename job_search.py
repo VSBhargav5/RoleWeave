@@ -7,6 +7,7 @@ import time
 from urllib.parse import urlencode
 
 from network_io import json_object, request_bytes
+from jsearch_source import FORMAT as JSEARCH_FORMAT, parse_source as parse_jsearch_source
 from source_links import source_link
 from roleweave import text
 
@@ -36,6 +37,7 @@ def parse_search(snapshot, offset=0):
     if type(offset) is not int or offset < 0 or offset > 9980 or offset % 20:
         raise ValueError("Unsupported search offset")
     data = json_object(snapshot)
+    if isinstance(data,dict) and data.get('format')==JSEARCH_FORMAT:return parse_jsearch_source(snapshot)
     if not isinstance(data, dict) or not isinstance(data.get("data"), list) or len(data["data"]) > 20:
         raise ValueError("The search provider returned an unsupported response")
     meta = data.get("meta", {})

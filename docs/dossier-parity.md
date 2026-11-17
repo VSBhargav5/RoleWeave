@@ -15,6 +15,11 @@ inspection. No upstream source/assets/history copied. This checklist measures
 **With v0.31: 13 implemented, 5 partial, 7 missing.**
 **With v0.32: 14 implemented, 4 partial, 7 missing.**
 **With v0.33: 15 implemented, 3 partial, 7 missing.**
+**With v0.34: still15 implemented,3 partial,7 missing.** Optional reviewed JSearch
+adds one experimental aggregator; live compatibility, additional sources, scheduled
+and scored discovery, broader browser integrations and the seven missing areas
+remain open. See [the JSearch contract](jsearch-discovery.md).
+
 Source-bound advisory assessment, corrected reviews, like-for-like rankings and
 per-job version history close the assessment area; score quality/calibration and
 real suitability remain unverified. Current status is now explicit in the table;

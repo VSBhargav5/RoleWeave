@@ -5,6 +5,7 @@ from discovery_store import DiscoveryStore
 from model_preferences import read_settings, save_settings
 from workflow_insights import insights
 from resume_theme import parse_theme, validate_theme
+from jsearch_session import JSearchSession
 import job_assessment
 import base64
 import hashlib
@@ -77,6 +78,7 @@ class WebService:
         self.pending_recovery = None
         self.tailoring = TailoringSession(self.store,demo=self.demo)
         self.assessment = job_assessment.AssessmentSession(self.store,demo=self.demo)
+        self.jsearch = JSearchSession(demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
         self.discovery = DiscoveryStore(self.store.path.with_suffix(".discovery.db"))
 
@@ -245,10 +247,19 @@ class WebService:
         require(data, fields | {"expected_revision"}, fields - {"id"} | {"expected_revision"})
         return self.discovery.save_search({k: v for k, v in data.items() if k in fields}, data["expected_revision"])
 
+    def jsearch_status(self,data):
+        result=self.jsearch.status(data)
+        if result['status']=='completed':
+            with self.lock:
+                if len(self.searches)>=30:self.searches.clear()
+                self.searches[result['id']]=result['result']
+        return result
+
     def _archive_search_source(self, result):
         digest = result.get("source_sha256")
         if not digest: return
         snapshot = self.searcher.snapshots.get(digest)
+        if snapshot is None:snapshot=self.jsearch.snapshot_for(digest)
         if snapshot is None or hashlib.sha256(snapshot).hexdigest() != digest:
             raise ValueError("Original source evidence expired; repeat the search")
         directory = self.artifacts / "sources"
@@ -347,7 +358,7 @@ class WebService:
             raise ValueError("That job does not belong to the reviewed search result")
         # The application destination comes from the observed provider record, never a pasted board URL.
         for old in self.store.list_jobs():
-            if old["source_url"] == row["url"] and old["market"] == data["market"] and self.job(old["id"])["posting"] == row["posting"]:
+            if old["source_url"] == row["url"] and old["market"] == data["market"] and old["title"]==row["title"] and old["company"]==row["company"] and self.job(old["id"])["posting"] == row["posting"]:
                 return self.job(old["id"])
         self._archive_search_source(result)
         return self.save_job({"title": row["title"], "company": row["company"], "source_url": row["url"], "market": data["market"], "posting": row["posting"]})
