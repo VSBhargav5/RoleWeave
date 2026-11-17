@@ -1,4 +1,6 @@
-"""Bounded HTTPS for two explicit providers; no redirects, proxies or retries."""
+"""Bounded HTTPS for explicit fixed providers; no redirects, proxies or retries."""
+import re
+import math
 import http.client
 import json
 import time
@@ -9,9 +11,11 @@ class Cancelled(ValueError):
     pass
 
 
-def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 1024):
-    if host not in ("boards-api.greenhouse.io", "api.openai.com", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com", "freehire.me") or not path.startswith("/"):
+def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 1024, deadline=None):
+    if host not in ("boards-api.greenhouse.io", "api.openai.com", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com", "freehire.me", "hacker-news.firebaseio.com") or not path.startswith("/"):
         raise ValueError("Unsupported provider endpoint")
+    if host == "hacker-news.firebaseio.com" and not re.fullmatch(r"/v0/(?:jobstories|item/[1-9][0-9]{0,11})\.json", path):
+        raise ValueError("Only public HN job-index and numeric item reads are supported")
     if host != "api.openai.com" and (key is not None or body is not None):
         raise ValueError("Public job-board requests must be unauthenticated GET requests")
     if any(ord(c) < 33 or ord(c) > 126 for c in path) or path.startswith("//"):
@@ -28,7 +32,11 @@ def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 
     if body is not None:
         headers["Content-Type"] = "application/json"
     connection = None
-    deadline = time.monotonic() + 60
+    if deadline is not None and (type(deadline) not in (int, float) or not math.isfinite(deadline)):
+        raise ValueError("Unsupported provider deadline")
+    deadline = min(time.monotonic() + 60, deadline) if deadline is not None else time.monotonic() + 60
+    if time.monotonic() >= deadline:
+        raise ValueError("Provider request exceeded the local deadline")
     try:
         try:
             connection = http.client.HTTPSConnection(host, timeout=5)
@@ -56,6 +64,8 @@ def request_bytes(host, path, *, body=None, key=None, cancel=None, limit=1024 * 
             size += len(part)
             if size > limit:
                 raise ValueError("Provider response exceeds the size limit")
+        if getattr(response, "length", None) not in (None, 0):
+            raise ValueError("Provider response ended before its declared length")
         return b"".join(parts)
     except (OSError, http.client.HTTPException) as exc:
         # Never propagate provider response bodies, keys or arbitrary error text.
