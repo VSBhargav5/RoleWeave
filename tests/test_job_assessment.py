@@ -18,6 +18,8 @@ class JobAssessmentTests(unittest.TestCase):
         self.root=Path(self.temp.name);path=self.root/'jobs.db';seed_web_demo(path)
         self.service=WebService(path,demo=True);self.addCleanup(self.service.assessment.shutdown)
         self.store=self.service.store;self.session=self.service.assessment
+        from model_preferences import save_settings
+        save_settings(self.store,{'kind':'openai','model':'gpt-4.1-mini','port':0})
         p=self.service.profile();self.job=self.service.save_job({'title':'Synthetic engineer','company':'Practice Co','market':'india_remote','posting':'Python required. SQL useful.'})
         self.args={'profile_id':p['id'],'profile_sha256':p['snapshot_sha256'],'job_id':self.job['id'],'fact_ids':['project-python']}
         self.facts=[p['profile']['facts'][0]]

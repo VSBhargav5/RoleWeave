@@ -2,11 +2,14 @@
 
 V0.26 adds non-secret model preferences for application drafting. Open Settings &
 backup, choose a provider and enter the exact model identifier available to you.
-Saving makes no network request. Existing shelves default to OpenAI gpt-4.1-mini.
+Saving makes no network request. V0.39 defaults to OpenRouter free when no provider
+preference exists; previously saved selections are preserved. The free preset
+switches an existing configuration explicitly. See [setup and limits](resume-import-and-free-models.md).
 Other models are not recommended by cost or claimed compatible without your trial.
 
 | Selection | Fixed destination / contract |
 | --- | --- |
+| OpenRouter free | HTTPS openrouter.ai/api/v1/chat/completions; openrouter/free or :free IDs only, zero price caps, JSON-schema support required, provider fallback disabled |
 | OpenAI | HTTPS api.openai.com/v1/responses; selected model, store=false |
 | Anthropic | HTTPS api.anthropic.com/v1/messages; 2026-10-21 API, Bearer key, output_config JSON schema |
 | Mistral | HTTPS api.mistral.ai/v1/chat/completions; response_format JSON schema |

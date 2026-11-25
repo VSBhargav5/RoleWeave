@@ -8,7 +8,7 @@ from document_locale import checked_locale, label, month
 TIMELINE=(('started','Started','month',False),('ended','Ended','month',False),('current','Current / ongoing','bool',False))
 TITLE=('title','Title / role','text',True)
 ORG=('organization','Organization','text',True)
-ABOUT=('about','About / context','long',False)
+ABOUT=('about','Description / responsibilities (prints on resume)','long',False)
 SKILLS=('skills','Skills used','text',False)
 URL=('url','HTTPS link','url',False)
 SCHEMAS={

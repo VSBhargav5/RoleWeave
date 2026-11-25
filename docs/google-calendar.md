@@ -1,5 +1,11 @@
 # Google Calendar follow-up sync (v0.11)
 
+V0.38 makes this existing one-way contract available in the supported browser
+workspace: open a saved job, then **Google Calendar follow-up** in its Follow-up
+card. See [browser controls and verification](browser-follow-ups.md). The native
+tab instructions below describe the original interface and are historical.
+Browser sessions expire after ten minutes; closing the dialog disconnects locally.
+
 Optional, explicit and one-way: one saved review's active follow-up becomes one
 all-day reminder in a secondary calendar created by this OAuth app. There is
 no background sweep, primary-calendar access, invitation, automatic deletion,

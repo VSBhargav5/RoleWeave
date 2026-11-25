@@ -5,3 +5,16 @@ h1{font-size:23pt;margin:0 0 4px;line-height:1.2}h2{font-size:12pt;border-bottom
 .headline{font-size:13pt;color:#334d66}.contact{font-size:10pt;color:#334155}p{margin:7px 0}li{margin:6px 0}ul{padding-left:20px}
 .slate h1{font-size:26pt;color:#175b63}.slate h2{color:#175b63;border-bottom:2px solid #175b63}.slate .headline{color:#175b63}
 .editorial h1{font-size:28pt;color:#593b73}.editorial h2{color:#593b73;border-bottom:2px solid #593b73}.editorial .headline{color:#593b73}
+
+/* Jake Gutierrez-inspired hierarchy; all wording remains selected profile content. */
+.jake{font:10.5pt/1.15 Georgia,"Times New Roman",serif;color:#000;padding:12.7mm}
+.jake h1{text-align:center;font-size:24pt;color:#000}.jake .headline,.jake .contact{text-align:center;color:#000;font-size:10pt}
+.jake h2{font-variant:small-caps;font-size:12pt;color:#000;border-bottom:1px solid #000;padding-bottom:2px;margin:12px 0 5px}
+.entry-heading,.entry-subheading{display:flex;justify-content:space-between;gap:12px;margin:3px 0}.entry-heading span:last-child,.entry-subheading span:last-child{text-align:right}.entry-subheading{font-style:italic}
+.jake ul{margin:4px 0 7px;padding-left:18px}.jake li{margin:2px 0}.entry-note{font-size:10pt;margin:3px 0 7px}
+
+.jake2{font:10.5pt/1.15 "Times New Roman",serif;color:#000;padding:12.7mm}
+.jake2 h1{text-align:center;font-size:24pt;color:#000}.jake2 .headline,.jake2 .contact{text-align:center;color:#000;font-size:10pt}
+.jake2 h2{font-variant:small-caps;font-size:12pt;color:#000;border-bottom:1px solid #000;padding-bottom:2px;margin:12px 0 5px}
+.entry-heading,.entry-subheading{display:flex;justify-content:space-between;gap:12px;margin:3px 0}.entry-heading span:last-child,.entry-subheading span:last-child{text-align:right}.entry-subheading{font-style:italic}
+.jake2 ul{margin:4px 0 7px;padding-left:18px}.jake2 li{margin:2px 0}.entry-note{font-size:10pt;margin:3px 0 7px}

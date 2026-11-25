@@ -13,6 +13,7 @@ from career_profile import unique_json
 from job_search import search_path, parse_search
 from roleweave import MARKETS, text
 from source_links import source_link
+from job_fit_filters import preferences, filter_result
 
 MAX_BYTES = 16 * 1024 * 1024
 APPLICATION_ID = 0x52574453
@@ -39,7 +40,8 @@ def identifier(value, size=32):
 
 
 def config(value):
-    if not isinstance(value, dict) or set(value) != CONFIG_FIELDS: raise ValueError("Invalid saved search")
+    if not isinstance(value, dict) or not CONFIG_FIELDS<=set(value) or set(value)-CONFIG_FIELDS-{'preferences'}: raise ValueError('Invalid saved search')
+    if 'preferences' in value:preferences(value['preferences'])
     identifier(value["id"])
     if type(value["revision"]) is not int or value["revision"] < 1: raise ValueError("Invalid saved-search revision")
     text(value["name"], "Search name")
@@ -168,14 +170,19 @@ class DiscoveryStore:
             else: state["searches"].append(value)
         return self.read()
 
-    def begin_run(self, search_id, expected_revision):
+    def begin_run(self, search_id, expected_revision, selection=None):
         with self.edit(expected_revision) as state:
             saved = next((s for s in state["searches"] if s["id"] == search_id and not s["archived"]), None)
             if saved is None: raise ValueError("Choose an active saved search")
+            effective=copy.deepcopy(saved)
+            if selection is not None:
+                selection=preferences(selection)
+                if 'preferences' in saved and saved['preferences']!=selection:raise ValueError('Saved filters changed; edit and review the search before running')
+                effective['preferences']=selection
             if any(r["status"] == "running" for r in state["runs"]): raise ValueError("A discovery run is active; wait or explicitly mark an interrupted run")
             cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
             if sum(timestamp(r["started_at"]) > cutoff for r in state["runs"]) >= 3: raise ValueError("Saved discovery allows three run attempts per rolling 24 hours, including failures")
-            run = {"id": uuid4().hex, "search": copy.deepcopy(saved), "started_at": now(), "finished_at": "", "status": "running", "found": 0, "added": 0, "repeated": 0, "excluded": 0, "has_next": False, "error": "", "source_sha256": ""}
+            run = {"id": uuid4().hex, "search": effective, "started_at": now(), "finished_at": "", "status": "running", "found": 0, "added": 0, "repeated": 0, "excluded": 0, "has_next": False, "error": "", "source_sha256": ""}
             state["runs"] = (state["runs"] + [run])[-100:]
         return run
 
@@ -251,5 +258,5 @@ def verify_bindings(state, store, parts):
                 raise ValueError("Queue reference differs from its exact saved application")
     for run in state["runs"]:
         if run["source_sha256"]:
-            result = evidence(run["source_sha256"])
+            result = filter_result(evidence(run["source_sha256"]),run["search"].get("preferences"),run["search"]["remote"])
             if run["status"] != "succeeded" or run["found"] != len(result["jobs"]) or run["excluded"] != len(result["excluded"]) or run["has_next"] != result["page"]["has_next"]: raise ValueError("Run summary differs from its original observation")

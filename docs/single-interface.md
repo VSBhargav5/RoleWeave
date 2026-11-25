@@ -2,7 +2,7 @@
 
 The supported app interface is the browser workspace. Double-click
 `Launch-RoleWeave.cmd` in the source repository, or `RoleWeave.exe` inside the
-complete `out/portable-v0.22.0/RoleWeave` folder. Keep the whole package together.
+complete `out/portable-v0.48.0/RoleWeave` folder. Keep the whole package together.
 The repository launcher selects the exact current versioned build, never a stale
 `out/portable` copy; without that build it starts current browser source.
 
@@ -31,10 +31,11 @@ questions, private answer versions and managed recovery. Earlier rehearsal
 comparison/import/timer/pack screens remain unmigrated.
 
 The browser supports discovery, saved applications, profile/import, documents,
-reviewed AI drafts, contact helper and recovery. Native-only employer-board
-management, Google Calendar setup, audit and rehearsal screens still need browser
-migration. Removing the old interface does not make these features available in
-the browser. Existing records and backups remain intact.
+reviewed AI drafts, contact helper and recovery. Employer boards and interview
+rehearsal were subsequently migrated. V0.38 adds browser local correspondence
+review, calendar-file export and optional Google follow-ups; see the
+[current workflow](browser-follow-ups.md). Audits and additional rehearsal tools
+remain unmigrated. Existing records and backups remain intact.
 
 ## Reproduce the checks
 
@@ -53,3 +54,20 @@ Browser end-to-end checks remain part of the normal release verification.
 Tradeoff: retiring the fallback gives one consistent interface, while native-only
 capabilities need migration before they can be offered again. It preserves the
 existing backend and data rather than silently rewriting or copying workspaces.
+
+
+## Publishing local builds and GitHub changes
+
+The repository root `Launch-RoleWeave.cmd` resolves the current version from
+`runtime_paths.APP_VERSION`. Rebuilding does not change already open browser tabs
+or old host processes: save work, use Settings -> Quit in that workspace, then
+reopen the root launcher to enter the current host.
+
+`build_windows.py --versioned` stages a separately named build for testing. After
+validation, `build_windows.py` also refreshes the historical stable
+`out/portable/RoleWeave/RoleWeave.exe` path, retaining the previous complete folder.
+Do not copy only an EXE into an older package; bundled assets must update with it.
+The CI upload, installer and hash paths read APP_VERSION rather than hardcoding
+an older release. Local builds are not Git commits or published GitHub releases;
+source changes need a pushed branch/PR, while packaged artifacts are produced by
+CI. A PR does not update main until it is merged.

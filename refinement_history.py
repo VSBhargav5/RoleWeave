@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from ai_tailoring import bounded, validate_draft
+from ai_tailoring import bounded, validate_draft, task_fields, task_result
 from career_profile import unique_json
 from model_providers import validate_config, request_fingerprint
 from resume_render import selected_facts
@@ -40,7 +40,15 @@ def snapshot(payload):
     if not isinstance(payload,bytes) or len(payload)>LIMIT:raise ValueError('Refinement turn exceeds1MiB')
     record=json.loads(payload,object_pairs_hook=unique_json)
     keys={'format','id','conversation_id','parent_id','created_at','job_id','job_sha256','profile_id','profile_sha256','fact_ids','instruction','previous','provider','payload','request_sha256','draft','result_sha256','offline_demo'}
-    if not isinstance(record,dict) or set(record)!=keys or record['format']!='roleweave-refinement-turn-v1':raise ValueError('Unsupported refinement turn')
+    if isinstance(record,dict) and record.get('format')=='roleweave-refinement-turn-v2':
+        keys.update(('task','application'));task_fields(record.get('task'))
+        application=record.get('application')
+        if not isinstance(application,dict) or set(application)!={'selected_fact_ids','letter'}:raise ValueError('Invalid section application context')
+        selected=application['selected_fact_ids']
+        if not isinstance(selected,list) or not 1<=len(selected)<=20 or any(not isinstance(i,str) for i in selected) or len(selected)!=len(set(selected)):raise ValueError('Invalid section resume selection')
+        if not isinstance(application['letter'],dict) or set(application['letter'])-{'letter_intro','letter_closing'}:raise ValueError('Invalid section letter context')
+        for key,value in application['letter'].items():bounded(value,key,2500 if key=='letter_intro' else 1000,False)
+    if not isinstance(record,dict) or set(record)!=keys or record['format'] not in ('roleweave-refinement-turn-v1','roleweave-refinement-turn-v2'):raise ValueError('Unsupported refinement turn')
     for key in ('id','conversation_id'):identifier(record[key])
     identifier(record['parent_id'],empty=True)
     if record['parent_id']==record['id'] or (not record['parent_id'] and record['id']!=record['conversation_id']):raise ValueError('Invalid refinement conversation root')
@@ -54,6 +62,9 @@ def snapshot(payload):
     if not isinstance(ids,list) or not 1<=len(ids)<=20 or any(not isinstance(i,str) for i in ids) or len(ids)!=len(set(ids)):raise ValueError('Invalid refinement source selection')
     facts=[{'id':i} for i in ids]
     validate_draft(record['draft'],facts)
+    if record.get('task'):
+        normalized=task_result({k:record['draft'][k] for k in (*task_fields(record['task']),'questions')},facts,record['task'])
+        if normalized!=record['draft']:raise ValueError('Section history contains wording outside its task')
     if record['previous'] is not None:validate_draft(record['previous'],facts)
     bounded(record['instruction'],'Refinement instruction',2000,False)
     validate_config(record['provider'])
@@ -68,6 +79,7 @@ def bound_sources(store,record):
     profile=store.load_profile(record['profile_id']);job=store.load(record['job_id'])
     if profile['snapshot_sha256']!=record['profile_sha256'] or job['input_sha256']!=record['job_sha256']:raise ValueError('Refinement source fingerprint differs')
     selected_facts(profile['profile'],record['fact_ids'])
+    if record.get('application'):selected_facts(profile['profile'],record['application']['selected_fact_ids'])
     return profile,dict(job,posting=json.loads(job['snapshot'])['posting'])
 
 
@@ -87,6 +99,7 @@ def verify_chain(record,read):
         seen.add(current['id'])
         if not current['parent_id']:break
         parent=read(current['parent_id'])
+        if parent.get('task')!=current.get('task'):raise ValueError('Refinement parent section differs')
         for key in ('conversation_id','job_id','job_sha256','profile_id','profile_sha256','fact_ids'):
             if parent[key]!=current[key]:raise ValueError('Refinement parent sources differ')
         current=parent
@@ -108,6 +121,9 @@ def save_turn(store,entry,offline_demo):
             'fact_ids':entry['ids'],'instruction':entry['instruction'],'previous':entry['previous'],
             'provider':entry['provider'],'payload':entry['payload'].decode(),'request_sha256':entry['sha256'],
             'draft':entry['draft'],'result_sha256':entry['result_sha256'],'offline_demo':offline_demo}
+    if entry.get('task'):
+        application=entry.get('base') or {'selected_fact_ids':[f['id'] for f in entry['profile']['profile']['facts'] if f['reviewed']][:20],'letter':{}}
+        record.update(format='roleweave-refinement-turn-v2',task=entry['task'],application={k:application[k] for k in ('selected_fact_ids','letter')})
     payload=json.dumps(record,ensure_ascii=False,indent=2).encode();snapshot(payload);bound_sources(store,record)
     verify_chain(record,lambda i:read_turn(store,i))
     folder=directory(store);folder.mkdir(parents=True,exist_ok=True)

@@ -60,6 +60,16 @@ class WebWorkspaceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 browser_profile(p)
 
+    def test_bare_contact_domains_prepare_as_https_without_changing_profile(self):
+        p=self.service.profile()['profile']|{'website':'github.com/synthetic-candidate','linkedin':'www.linkedin.com/in/synthetic-candidate'}
+        sheet=browser_profile(p)
+        self.assertEqual(sheet['fields']['website'],'https://github.com/synthetic-candidate')
+        self.assertEqual(sheet['fields']['linkedin'],'https://www.linkedin.com/in/synthetic-candidate')
+        self.assertEqual(p['website'],'github.com/synthetic-candidate')
+        for value in ('javascript:alert(1)','http://example.invalid','https://user:secret@example.invalid','bad host/path','https://example.invalid\\file'):
+            with self.subTest(value=value),self.assertRaisesRegex(ValueError,'portfolio URL'):
+                browser_profile(p|{'website':value})
+
     def test_full_review_resume_letter_packet_and_tracking(self):
         job = self.service.save_job({'title':'Synthetic engineer','company':'Fixture Co','market':'india_remote','posting':'Python required.'})
         p = self.service.profile()

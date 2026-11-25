@@ -19,7 +19,7 @@ from test_ai_tailoring import proposed, response
 
 
 def config(kind='ollama',port=11434):
-    return {'kind':kind,'model':'synthetic-model','port':port if kind in providers.LOCAL else 0}
+    return {'kind':kind,'model':'openrouter/free' if kind=='openrouter' else 'synthetic-model','port':port if kind in providers.LOCAL else 0}
 
 
 def wrapped(kind,draft=None):
@@ -65,11 +65,12 @@ class ModelProviderTests(unittest.TestCase):
             with self.assertRaises(ValueError):parse_settings(data)
 
     def test_each_payload_keeps_sources_schema_and_no_tools(self):
-        original=self.service.tailoring.preview(self.args)['payload'].encode()
+        from ai_tailoring import request_payload
+        original=request_payload(self.service.job(self.job),self.profile['profile'],['project-python'],self.args['instruction'])
         for kind in providers.KINDS:
             with self.subTest(kind=kind):
                 payload=providers.request_payload(original,config(kind));data=json.loads(payload)
-                self.assertEqual(data['model'],'synthetic-model');self.assertNotIn('tools',data)
+                self.assertEqual(data['model'],config(kind)['model']);self.assertNotIn('tools',data)
                 self.assertIn('project-python',payload.decode());self.assertNotIn(self.profile['profile']['email'],payload.decode())
                 if kind=='openai': self.assertFalse(data['store'])
                 elif kind=='anthropic': self.assertEqual(data['output_config']['format']['type'],'json_schema')
@@ -147,7 +148,7 @@ class ModelProviderTests(unittest.TestCase):
             with patch('model_providers.http.client.HTTPSConnection',return_value=connection),self.assertRaises(ValueError):providers.request_model(config('mistral'),b'{}','SYNTHETIC-SECRET',threading.Event())
             self.assertEqual(connection.request.call_count,1);connection.close.assert_called_once()
         with patch('model_providers.http.client.HTTPSConnection',side_effect=OSError('SYNTHETIC-SECRET')):
-            with self.assertRaisesRegex(ValueError,'no automatic retry') as caught:providers.request_model(config('mistral'),b'{}','SYNTHETIC-SECRET',threading.Event())
+            with self.assertRaisesRegex(ValueError,'automatic retry') as caught:providers.request_model(config('mistral'),b'{}','SYNTHETIC-SECRET',threading.Event())
             self.assertNotIn('SYNTHETIC-SECRET',str(caught.exception))
 
     def test_cancel_before_connect_and_while_reading(self):

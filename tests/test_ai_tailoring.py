@@ -78,6 +78,9 @@ class TailoringSessionTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.store=JobStore(Path(self.temp.name)/'jobs.db')
+        # These session cases specifically mock the OpenAI adapter.
+        from model_preferences import save_settings
+        save_settings(self.store,{'kind':'openai','model':'gpt-4.1-mini','port':0})
         self.profile_id=self.store.save_profile(json.dumps(synthetic_profile()).encode());self.profile=self.store.load_profile(self.profile_id)
         self.job=self.store.save((Path(__file__).parents[1]/'examples/synthetic.json').read_bytes(),'Engineer','Synthetic')
         self.session=TailoringSession(self.store);self.addCleanup(self.session.shutdown)

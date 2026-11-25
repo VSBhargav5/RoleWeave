@@ -37,7 +37,7 @@ class DocumentStudioTests(unittest.TestCase):
             self.assertLess(text.index('Second synthetic project.'),text.index('Built a synthetic Python'))
             self.assertNotIn('Synthetic project exercise, not employment',text)
             self.assertNotIn('Unreviewed draft',text)
-        self.assertEqual(len(set(pdfs)),3)
+        self.assertEqual(len(set(pdfs)),len(THEMES))
         with self.assertRaises(ValueError):resume_html(self.profile['profile'],self.ids,'<script>')
 
     def test_old_and_new_versions_replay_and_recover_with_layout_bound_to_documents(self):
@@ -52,7 +52,7 @@ class DocumentStudioTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'HTML'):resume_snapshot(json.dumps(changed).encode())
         backup=self.root/'backup.json';self.store.backup(backup)
         restored=JobStore(self.root/'restored.db');restored.restore(backup)
-        self.assertEqual(len(restored.list_resumes()),3)
+        self.assertEqual(len(restored.list_resumes()),len(THEMES))
         for row in restored.list_resumes():self.assertEqual(restored.load_resume(row['id'])['snapshot'],self.store.load_resume(row['id'])['snapshot'])
 
     def test_letter_pdf_is_frozen_replayed_and_recipient_kit_contains_only_selected_documents(self):

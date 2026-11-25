@@ -7,6 +7,51 @@ from test_profile import synthetic_profile
 
 
 class ResumeRenderTests(unittest.TestCase):
+    def test_refined_layout_removes_matching_heading_and_source_markers_only(self):
+        from test_career_entries import entry
+        from pypdf import PdfReader
+        profile=synthetic_profile()
+        fact=entry('Experience','source-one',title='Data Engineer',organization='Synthetic Labs',location='Pune',started='2023-07',ended='2024-09',
+                   about='Data Engineer | Synthetic Labs | Pune | 2023-07 to 2024-09 — Built Python pipelines; delivered SQL analytics. [source-one]')
+        profile['facts']=[fact];profile['summary']='Built reliable\nPython data platforms.'
+        old=resume_html(profile,['source-one'],'jake')
+        new=resume_html(profile,['source-one'],'jake2').decode()
+        self.assertIn('Built reliable Python data platforms.',new)
+        self.assertNotIn('[source-one]',new);self.assertNotIn('Engineer | Synthetic Labs',new)
+        self.assertIn('Built Python pipelines',new);self.assertIn('delivered SQL analytics.',new)
+        self.assertIn('[source-one]',old.decode(),'Earlier frozen layout semantics must remain unchanged')
+        pdf=PdfReader(BytesIO(resume_pdf(profile,['source-one'],'jake2')))
+        content='\n'.join(p.extract_text() for p in pdf.pages)
+        self.assertNotIn('[source-one]',content);self.assertNotIn('Engineer | Synthetic Labs',content)
+        self.assertIn('Built Python pipelines',content)
+        self.assertEqual(resume_html(profile,['source-one'],'jake'),old)
+        self.assertIn('[unknown-note]',resume_html({**profile,'summary':'Keep [unknown-note] intact.'},['source-one'],'jake2').decode())
+
+    def test_jake_structured_headings_bullets_and_all_printable_fields(self):
+        from test_career_entries import entry
+        from pypdf import PdfReader
+        profile=synthetic_profile()
+        fact=entry('Experience',title='Data Engineer <reviewed>',organization='Synthetic Labs',
+                   started='2023-07',ended='2024-09',location='Bengaluru',
+                   about='Built Python pipelines across\nmultiple sources.\n• Added SQL validation.\n• Documented monitoring.',skills='Python, SQL')
+        fact['claim']='Reduced manual checks using reviewed automation.'
+        profile['facts']=[fact]
+        output=resume_html(profile,[fact['id']],'jake').decode()
+        self.assertIn('entry-heading',output);self.assertIn('&lt;reviewed&gt;',output)
+        self.assertIn('<li>Built Python pipelines across multiple sources.</li>',output)
+        self.assertNotIn(fact['source'],output)
+        pdf=resume_pdf(profile,[fact['id']],'jake')
+        self.assertEqual(pdf,resume_pdf(profile,[fact['id']],'jake'))
+        reader=PdfReader(BytesIO(pdf));text='\n'.join(page.extract_text() for page in reader.pages)
+        for value in ('Synthetic Labs','Bengaluru','2023-07','2024-09','SQL validation','Python, SQL',fact['claim']):self.assertIn(value,text)
+        fact['claim']=('Preserved long accomplishment with concrete reviewed detail. '*55)+'FINAL JAKE END'
+        import copy
+        profile['facts']=[copy.deepcopy(fact) for _ in range(4)]
+        for i,item in enumerate(profile['facts']):item['id']='long-'+str(i)
+        long_pdf=PdfReader(BytesIO(resume_pdf(profile,[item['id'] for item in profile['facts']],'jake')))
+        self.assertGreater(len(long_pdf.pages),1)
+        self.assertIn('FINAL JAKE END','\n'.join(p.extract_text() for p in long_pdf.pages))
+
     def setUp(self):
         self.profile = synthetic_profile()
         self.selected = ["project-python"]
