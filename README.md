@@ -5,6 +5,22 @@ It selects the current versioned build. Save work and use Settings → Quit in a
 older workspace before reopening; an already open tab keeps its running version.
 [Launcher paths and build publication](docs/single-interface.md#publishing-local-builds-and-github-changes).
 
+## Retained assessments and answer capture (v0.50)
+
+Saved assessments from before the OpenRouter transport-option change reopen
+without rewriting their requests. Compatibility recognizes that exact older
+wire format; source bindings, fingerprints, schema and reviewed evidence remain
+verified. Assessment and tailoring share a local route cooldown after HTTP 429,
+respect Retry-After (60 seconds when absent), and require a fresh authorized send.
+Provider quotas still apply; there is no automatic retry or paid fallback.
+
+Helper v0.7 opens a focused answer editor with save controls and acknowledgement
+visible in a short companion window. **Save and next** advances detected questions
+without rescanning, or opens a blank question after the queue ends. **Done** returns
+to the form review. Re-scan after saving to propose answers for filling. Duplicate
+questions in the same scope are directed to the existing library entry. Answers
+remain local and can be exported as JSON; saving never fills the employer form.
+
 ## Embedded application forms (v0.49)
 
 Helper v0.6 discovers visible application frames and requests optional access to

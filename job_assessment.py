@@ -151,7 +151,15 @@ def replay(store,payload):
     r=snapshot(payload);p,j=bound(store,r);facts=selected_facts(p['profile'],r['fact_ids'])
     posting=scope_posting(j['posting'],r.get('focus'))
     expected=providers.request_payload(request_payload(j,p['profile'],r['fact_ids'],r.get('compact',False),r.get('focus')),r['provider'])
-    if expected!=r['payload'].encode():raise ValueError('Assessment request does not replay from its exact source context')
+    if expected!=r['payload'].encode():
+        # Before v0.46 OpenRouter requests had neither of these transport options.
+        # Reproduce that exact wire format; source context, schema, budget and
+        # destination must still match. Never rewrite the retained request.
+        legacy=json.loads(expected)
+        if r['provider']['kind']=='openrouter':
+            legacy.pop('reasoning',None);legacy.pop('plugins',None)
+        if r['provider']['kind']!='openrouter' or json.dumps(legacy,ensure_ascii=False,indent=2).encode()!=r['payload'].encode():
+            raise ValueError('Assessment request does not replay from its exact source context')
     validate(r['proposal'],posting,facts);validate(r['reviewed'],posting,facts)
     if r.get('compact'):validate_compact(r['proposal'],r.get('focus') is not None)
     if not r['reviewed']['requirements']:raise ValueError('Review at least one quoted requirement')
@@ -200,7 +208,9 @@ def listing(store,job_id=None,group=None,offset=0,market=None):
 
 
 class AssessmentSession:
-    def __init__(self,store,demo=False):self.store=store;self.demo=demo;self.entries={};self.lock=threading.RLock()
+    def __init__(self,store,demo=False,cooldowns=None,lock=None):
+        self.store=store;self.demo=demo;self.entries={};self.lock=lock if lock is not None else threading.RLock()
+        self.cooldowns=cooldowns if cooldowns is not None else {}
 
     def entry(self,identifier):
         if not isinstance(identifier,str) or identifier not in self.entries or time.monotonic()-self.entries[identifier]['at']>=600:raise ValueError('Assessment session expired; preview again')
@@ -225,6 +235,8 @@ class AssessmentSession:
         with self.lock:
             e=self.entry(data['id']);providers.validate_key(e['provider'],data['key'],self.demo)
             if e['status']!='preview' or e['request_sha256']!=data['sha256']:raise ValueError('Assessment preview changed or already used')
+            remaining=self.cooldowns.get((e['provider']['kind'],e['provider']['model']),0)-time.monotonic()
+            if remaining>0:raise providers.ModelError('cooldown',429,int(remaining)+1)
             if any(v.get('thread') and v['thread'].is_alive() for v in self.entries.values()):raise ValueError('Wait for the previous assessment request to finish')
             e['status']='running';thread=threading.Thread(target=self.run,args=(e,data['key']),daemon=True);e['thread']=thread;thread.start()
         return {'status':'running'}
@@ -243,6 +255,10 @@ class AssessmentSession:
                 if not e['cancel'].is_set():
                     e['status']='failed'
                     e['failure']=providers.failure_info(exc,'invalid_output' if isinstance(exc,ValueError) else 'internal')
+                    if isinstance(exc,providers.ModelError) and exc.code=='rate_limited':
+                        delay=exc.retry_after or 60
+                        e['failure']=providers.failure_info(providers.ModelError('rate_limited',exc.http_status,delay))
+                        self.cooldowns[(e['provider']['kind'],e['provider']['model'])]=time.monotonic()+delay
         finally:key=None
 
     def status(self,data):

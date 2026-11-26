@@ -77,8 +77,8 @@ class TailoringSession:
         with self.lock:
             entry=self._entry(data['id'])
             route=(entry['provider']['kind'],entry['provider']['model'])
-            remaining=int(self.cooldowns.get(route,0)-time.monotonic())
-            if remaining>0:raise model_providers.ModelError('cooldown',429,remaining+1)
+            remaining=self.cooldowns.get(route,0)-time.monotonic()
+            if remaining>0:raise model_providers.ModelError('cooldown',429,int(remaining)+1)
             if entry['parent_id']:refinement_history.load_turn(self.store,entry['parent_id'])
             model_providers.validate_key(entry['provider'],key,self.demo)
             if entry['status']!='preview' or entry['sha256']!=data['sha256']:raise ValueError('Request preview changed or was already used')
@@ -118,7 +118,7 @@ class TailoringSession:
                     entry['failure']=model_providers.failure_info(exc,'invalid_output' if isinstance(exc,ValueError) else 'internal')
                     if isinstance(exc,model_providers.ModelError) and exc.code=='rate_limited':
                         delay=exc.retry_after or 60
-                        entry['failure']['retry_after']=delay
+                        entry['failure']=model_providers.failure_info(model_providers.ModelError('rate_limited',exc.http_status,delay))
                         self.cooldowns[(entry['provider']['kind'],entry['provider']['model'])]=time.monotonic()+delay
         finally:
             key=None  # Never kept in entries, results, history or files.

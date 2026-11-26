@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RoleWeave \u00b7 Reviewed form filling",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Review contact fields and reusable professional answers. Explicit local capture and JSON export; never submits.",
   "permissions": [
     "activeTab",

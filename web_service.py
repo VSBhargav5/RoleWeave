@@ -96,7 +96,7 @@ class WebService:
         self.calendar = CalendarSession(self.store, demo=demo)
         self.pending_recovery = None
         self.tailoring = TailoringSession(self.store,demo=self.demo)
-        self.assessment = job_assessment.AssessmentSession(self.store,demo=self.demo)
+        self.assessment = job_assessment.AssessmentSession(self.store,demo=self.demo,cooldowns=self.tailoring.cooldowns,lock=self.tailoring.lock)
         self.jsearch = JSearchSession(demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
         self.discovery = DiscoveryStore(self.store.path.with_suffix(".discovery.db"))
