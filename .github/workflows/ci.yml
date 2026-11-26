@@ -42,6 +42,7 @@ jobs:
       - run: npm install --no-save --ignore-scripts playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node --test tests/review-history.test.mjs
+      - run: node tests/browser-application-workflows.cjs
       - run: node tests/browser-workflow.cjs
       - run: node tests/browser-helper-answers.cjs
       - run: node tests/browser-helper-extension.cjs

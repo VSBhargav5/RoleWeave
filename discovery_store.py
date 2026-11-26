@@ -84,7 +84,10 @@ def validate(state):
     if sum(not s["archived"] for s in state["searches"]) > 3: raise ValueError("At most three active named searches")
     seen = set()
     for item in state["candidates"]:
-        if not isinstance(item, dict) or set(item) != {"id", "row", "market", "status", "saved_job_id", "first_seen", "last_seen", "first_search", "last_search", "search_ids", "source_sha256"}: raise ValueError("Invalid queue entry")
+        keys={"id", "row", "market", "status", "saved_job_id", "first_seen", "last_seen", "first_search", "last_search", "search_ids", "source_sha256"}
+        if not isinstance(item, dict) or not keys<=set(item) or set(item)-keys-{'source_offset'}: raise ValueError("Invalid queue entry")
+        offset=item.get('source_offset',0)
+        if type(offset) is not int or not 0<=offset<=500 or offset%20:raise ValueError('Invalid queue source page')
         row(item["row"]); config(item["first_search"]); config(item["last_search"])
         if not isinstance(item["market"], str) or item["market"] not in MARKETS or item["id"] != candidate_key(item["row"], item["market"]) or item["id"] in seen: raise ValueError("Queue identity differs from its observation")
         seen.add(item["id"])
@@ -99,7 +102,11 @@ def validate(state):
     seen = set()
     for run in state["runs"]:
         keys = {"id", "search", "started_at", "finished_at", "status", "found", "added", "repeated", "excluded", "has_next", "error", "source_sha256"}
-        if not isinstance(run, dict) or set(run) != keys: raise ValueError("Invalid discovery run")
+        if not isinstance(run, dict) or not keys<=set(run) or set(run)-keys-{'offset','previous_run'}: raise ValueError("Invalid discovery run")
+        offset=run.get('offset',0)
+        if type(offset) is not int or not 0<=offset<=500 or offset%20:raise ValueError('Invalid saved-search page offset')
+        if 'previous_run' in run:identifier(run['previous_run'])
+        if bool(offset)!=bool(run.get('previous_run')):raise ValueError('Continuation needs its previous page identity')
         identifier(run["id"]); config(run["search"]); timestamp(run["started_at"])
         if run["id"] in seen or run["search"]["id"] not in search_ids: raise ValueError("Invalid run identity")
         seen.add(run["id"])
@@ -170,7 +177,7 @@ class DiscoveryStore:
             else: state["searches"].append(value)
         return self.read()
 
-    def begin_run(self, search_id, expected_revision, selection=None):
+    def begin_run(self, search_id, expected_revision, selection=None, previous_run=None):
         with self.edit(expected_revision) as state:
             saved = next((s for s in state["searches"] if s["id"] == search_id and not s["archived"]), None)
             if saved is None: raise ValueError("Choose an active saved search")
@@ -180,9 +187,18 @@ class DiscoveryStore:
                 if 'preferences' in saved and saved['preferences']!=selection:raise ValueError('Saved filters changed; edit and review the search before running')
                 effective['preferences']=selection
             if any(r["status"] == "running" for r in state["runs"]): raise ValueError("A discovery run is active; wait or explicitly mark an interrupted run")
+            offset=0
+            if previous_run is not None:
+                identifier(previous_run)
+                previous=next((r for r in state['runs'] if r['id']==previous_run),None)
+                if previous is None or previous['status']!='succeeded' or not previous['has_next'] or previous['search']!=effective:
+                    raise ValueError('Continue only a successful page with unchanged saved filters and more source results')
+                offset=previous.get('offset',0)+20
+                if offset>500:raise ValueError('Saved search reached its 26-page observation limit; start a new run')
             cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
             if sum(timestamp(r["started_at"]) > cutoff for r in state["runs"]) >= 3: raise ValueError("Saved discovery allows three run attempts per rolling 24 hours, including failures")
             run = {"id": uuid4().hex, "search": effective, "started_at": now(), "finished_at": "", "status": "running", "found": 0, "added": 0, "repeated": 0, "excluded": 0, "has_next": False, "error": "", "source_sha256": ""}
+            if previous_run is not None:run.update(offset=offset,previous_run=previous_run)
             state["runs"] = (state["runs"] + [run])[-100:]
         return run
 
@@ -191,6 +207,7 @@ class DiscoveryStore:
             run = next((r for r in state["runs"] if r["id"] == run_id), None)
             if run is None or run["status"] != "running": raise ValueError("Run was interrupted; returned results were not queued")
             run["finished_at"] = now()
+            if result is not None and result.get('page',{}).get('offset',0)!=run.get('offset',0):raise ValueError('Returned page differs from the requested saved-search page')
             if result is None:
                 run.update(status="failed", error=error[:500])
             else:
@@ -205,6 +222,7 @@ class DiscoveryStore:
                         run["repeated"] += 1
                     else:
                         state["candidates"].append({"id": key, "row": copy.deepcopy(observed), "market": run["search"]["market"], "status": "pending", "saved_job_id": "", "first_seen": run["finished_at"], "last_seen": run["finished_at"], "first_search": copy.deepcopy(run["search"]), "last_search": copy.deepcopy(run["search"]), "search_ids": [run["search"]["id"]], "source_sha256": result.get("source_sha256", "")})
+                        if run.get('offset'):state['candidates'][-1]['source_offset']=run['offset']
                         run["added"] += 1
                 run.update(status="succeeded", found=len(result["jobs"]), excluded=len(result.get("excluded", [])), has_next=result.get("page", {}).get("has_next", False), source_sha256=result.get("source_sha256", ""))
         return self.read()
@@ -242,15 +260,16 @@ def verify_bindings(state, store, parts):
     """Replay provider observations and saved application references without network access."""
     validate(state)
     parsed = {}
-    def evidence(digest):
-        if digest not in parsed:
+    def evidence(digest,offset=0):
+        key=(digest,offset)
+        if key not in parsed:
             payload = parts.get("web-artifacts/sources/" + digest + ".json")
             if payload is None or hashlib.sha256(payload).hexdigest() != digest: raise ValueError("Original discovery source is missing or differs")
-            parsed[digest] = parse_search(payload)
-        return parsed[digest]
+            parsed[key] = parse_search(payload,offset)
+        return parsed[key]
     for item in state["candidates"]:
         if item["source_sha256"]:
-            expected = next((r for r in evidence(item["source_sha256"])["jobs"] if r["id"] == item["row"]["id"]), None)
+            expected = next((r for r in evidence(item["source_sha256"],item.get('source_offset',0))["jobs"] if r["id"] == item["row"]["id"]), None)
             if expected is None or any(expected.get(k) != item["row"].get(k) for k in ROW_FIELDS | {"source_sha256", "source_url"}): raise ValueError("Queued posting differs from its original source")
         if item["status"] == "saved":
             job = store.load(item["saved_job_id"])
@@ -258,5 +277,6 @@ def verify_bindings(state, store, parts):
                 raise ValueError("Queue reference differs from its exact saved application")
     for run in state["runs"]:
         if run["source_sha256"]:
-            result = filter_result(evidence(run["source_sha256"]),run["search"].get("preferences"),run["search"]["remote"])
+            result = filter_result(evidence(run["source_sha256"],run.get('offset',0)),run["search"].get("preferences"),run["search"]["remote"])
+            if result['page']['offset']!=run.get('offset',0):raise ValueError('Saved-search page differs from its original source')
             if run["status"] != "succeeded" or run["found"] != len(result["jobs"]) or run["excluded"] != len(result["excluded"]) or run["has_next"] != result["page"]["has_next"]: raise ValueError("Run summary differs from its original observation")

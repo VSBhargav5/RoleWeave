@@ -5,6 +5,31 @@ It selects the current versioned build. Save work and use Settings → Quit in a
 older workspace before reopening; an already open tab keeps its running version.
 [Launcher paths and build publication](docs/single-interface.md#publishing-local-builds-and-github-changes).
 
+## Application workflow improvements (v0.51)
+
+- **Browser helper → Reusable application answers:** create, search, edit and
+  remove reviewed professional answers in the workspace. Recovery ZIPs include
+  the library; older bundles still restore. Download answers JSON for the helper.
+  To back up answers captured by the helper, export its library and import it
+  here. These are separate copies, with explicit review before replacing matching
+  IDs. Contact JSON remains separate. Legal, sensitive and salary answers stay
+  manual; this feature makes no model calls and never fills a form from the app.
+- **Interview rehearsal:** choose up to ten exact requirements together, optionally
+  link reviewed experience, and prepare one new review. Local suggestions exclude
+  common company-introduction/benefits text; they need human review. A Situation,
+  Task, Action, Result planning prompt helps structure your own answer. Save and
+  reopen private versions as before; no generated qualifications or grading.
+- **Saved searches:** Run now starts at page one. In Recent run observations,
+  choose **Load next source page** for a successful run that reports more results.
+  Each click fetches one page of up to twenty observations, retaining previous
+  results and decisions. Filters must remain unchanged. Each page counts toward
+  the existing three-attempt rolling-24-hour local safeguard; there is no scheduler
+  or automatic request. Original source pages are retained for recovery/replay.
+
+Helper v0.8 adds explicitly reviewed answer replacement for workspace/helper JSON
+round trips. Importing a file alone never fills employer fields. Workspace answer
+storage is local and unencrypted, as are its exports and recovery bundles.
+
 ## Retained assessments and answer capture (v0.50)
 
 Saved assessments from before the OpenRouter transport-option change reopen

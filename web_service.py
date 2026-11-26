@@ -14,6 +14,7 @@ from workflow_insights import insights
 from resume_theme import parse_theme, validate_theme
 from jsearch_session import JSearchSession
 import job_assessment
+import answer_library
 import base64
 import hashlib
 import json
@@ -41,7 +42,7 @@ from resume_import import extract_in_worker, document_name, MAX_FILE
 from resume_structure import suggest_structure
 from resume_organization import ResumeOrganization
 from roleweave import MAX_BYTES, MARKETS, review_snapshot
-from rehearsal_cards import practice_cards
+from rehearsal_cards import practice_cards, suggested_requirements
 from rehearsal_journal import make_rehearsal, rehearsal_snapshot, bound_rehearsal, MAX_REHEARSAL_BYTES
 from runtime_paths import APP_VERSION
 from safe_export import publish_bytes
@@ -194,6 +195,28 @@ class WebService:
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
 
+    def answers(self, data):
+        action=data.get('action') if isinstance(data,dict) else None
+        if action=='read':
+            require(data,('action',),('action',));return answer_library.read(self.store)
+        require(data,('action','expected_sha256','confirmed','answer','id','library','replace'),('action','expected_sha256','confirmed'));confirmed(data)
+        bank=answer_library.read(self.store)
+        if bank['sha256']!=data['expected_sha256']:raise ValueError('Answer library changed; refresh before saving')
+        rows={row['id']:row for row in bank['library']['answers']}
+        if action=='save':
+            row=data.get('answer');answer_library.encoded({'format':'roleweave-answers-v1','answers':[row]});rows[row['id']]=row
+        elif action=='delete':
+            if not isinstance(data.get('id'),str) or data['id'] not in rows:raise ValueError('Answer is no longer available')
+            del rows[data['id']]
+        elif action=='import':
+            incoming=answer_library.parse(answer_library.encoded(data.get('library')))
+            if type(data.get('replace',False)) is not bool:raise ValueError('Choose whether to replace conflicting answers')
+            for row in incoming['answers']:
+                if row['id'] in rows and rows[row['id']]!=row and not data.get('replace'):raise ValueError('Imported answer ID conflicts; review and explicitly choose replacement')
+                rows[row['id']]=row
+        else:raise ValueError('Unsupported answer-library action')
+        return answer_library.save(self.store,{'format':'roleweave-answers-v1','answers':list(rows.values())},data['expected_sha256'])
+
     def board_action(self,data):
         require(data,('action','provider','token','id','row_id','company','market','sha256','confirmed','before','after'))
         action=data.get('action')
@@ -245,7 +268,7 @@ class WebService:
             "posting": data["posting"], "review_data": data, "review": item["review"],
             "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier),
             "letters": self.letters(identifier), "drafts": list_drafts(self.store,identifier),
-            "practice_cards": practice_cards(item), "rehearsals": self.rehearsals(identifier),
+            "practice_cards": practice_cards(item), "rehearsal_suggestions": suggested_requirements(json.loads(item['snapshot'])['posting']), "rehearsals": self.rehearsals(identifier),
             "email_drafts": self.email_drafts(identifier)}
 
     def save_job(self, data):
@@ -403,18 +426,18 @@ class WebService:
         return ""
 
     def run_discovery(self, data):
-        require(data, ("id", "expected_revision", "confirmed","preferences"), ("id", "expected_revision", "confirmed")); confirmed(data)
-        run = self.discovery.begin_run(data["id"], data["expected_revision"],data.get("preferences"))
+        require(data, ("id", "expected_revision", "confirmed","preferences","previous_run"), ("id", "expected_revision", "confirmed")); confirmed(data)
+        run = self.discovery.begin_run(data["id"], data["expected_revision"],data.get("preferences"),data.get("previous_run"))
         try:
             saved = run["search"]
             if self.demo:
                 rows = [{"id": "practice-" + str(i), "title": "Practice " + saved["query"].title() + " " + str(i),
                          "company": "Synthetic discovery employer", "posting": ("1" if i==1 else "4")+" years of experience. Python required. Synthetic saved-search practice only; no live opportunity.",
                          "url": "https://example.invalid/discovery/" + str(i), "location": saved["location"] or "Synthetic location",
-                         "work_mode": "remote" if saved["remote"] else "Not stated", "posted_at": "Synthetic fixture", "source": "Synthetic preview"} for i in (1, 2)]
-                result = {"jobs": rows, "excluded": [], "page": {"has_next": False}, "source": "Synthetic preview"}
+                         "work_mode": "remote" if saved["remote"] else "Not stated", "posted_at": "Synthetic fixture", "source": "Synthetic preview"} for i in (run.get("offset",0)+1, run.get("offset",0)+2)]
+                result = {"jobs": rows, "excluded": [], "page": {"has_next": run.get("offset",0)<40, "offset":run.get("offset",0)}, "source": "Synthetic preview"}
             else:
-                result = self.search({key: saved[key] for key in ("query", "location", "country", "remote")} | ({"preferences":saved["preferences"]} if "preferences" in saved else {}))
+                result = self.search({key: saved[key] for key in ("query", "location", "country", "remote")} | ({"preferences":saved["preferences"]} if "preferences" in saved else {}) | ({"offset":run["offset"]} if "offset" in run else {}))
             if self.demo:result=filter_result(result,saved.get("preferences"),saved["remote"])
             self._archive_search_source(result)
             return self.discovery.finish_run(run["id"], result)
@@ -521,6 +544,16 @@ class WebService:
     def review_from_profile(self, data):
         require(data, ("job_id", "profile_id", "profile_sha256", "quote", "fact_ids", "confirmed"),
                 ("job_id", "profile_id", "profile_sha256", "quote", "fact_ids", "confirmed"))
+        return self._review_requirements(data,[data['quote']])
+
+    def prepare_rehearsal(self,data):
+        require(data,('job_id','profile_id','profile_sha256','quotes','fact_ids','confirmed'),('job_id','profile_id','profile_sha256','quotes','fact_ids','confirmed'))
+        quotes=data['quotes']
+        if not isinstance(quotes,list) or not 1<=len(quotes)<=10 or any(not isinstance(q,str) or not q.strip() or len(q)>2000 for q in quotes) or len(set(quotes))!=len(quotes):
+            raise ValueError('Choose 1–10 distinct exact requirements')
+        return self._review_requirements(data,quotes,reject_duplicates=True)
+
+    def _review_requirements(self,data,quotes,reject_duplicates=False):
         confirmed(data)
         profile = self.store.load_profile(data["profile_id"])
         if profile["snapshot_sha256"] != data["profile_sha256"]:
@@ -530,7 +563,9 @@ class WebService:
         review = json.loads(original["snapshot"])
         existing = {fact["id"] for fact in review["facts"]}
         review["facts"].extend(fact for fact in facts if fact["id"] not in existing)
-        review["requirements"].append({"id": uuid4().hex, "quote": data["quote"], "fact_ids": [fact["id"] for fact in facts]})
+        known={r['quote'] for r in review['requirements']}
+        if reject_duplicates and any(q in known for q in quotes):raise ValueError('A selected requirement is already linked; use its existing rehearsal card')
+        review["requirements"].extend({"id": uuid4().hex, "quote": quote, "fact_ids": [fact["id"] for fact in facts]} for quote in quotes)
         return self.save_review({"id": original["id"], "review": review, "confirmed": True})
 
     def email_drafts(self, job_id):

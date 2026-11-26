@@ -60,6 +60,14 @@ try{
  assert.equal(await popup.locator('#answer-question').inputValue(),'');assert.equal(await popup.locator('#answer-text').inputValue(),'');
  await popup.locator('#answer-question').fill('A new manually captured professional question');await popup.locator('#answer-text').fill('Do not duplicate this answer.');await popup.locator('#save-answer').click();await popup.locator('#editor-status').filter({hasText:'Not saved: This question is already saved'}).waitFor();
  await popup.locator('#close-editor').click();
+ // Workspace exports use canonical key order. Identical IDs merge without a
+ // false conflict; changed answers require explicit replacement.
+ const workspaceBank=await popup.evaluate(()=>saved.answerLibrary);
+ const canonical={format:workspaceBank.format,answers:workspaceBank.answers.map(a=>Object.fromEntries(Object.keys(a).sort().map(k=>[k,a[k]])))};
+ await popup.locator('#answers-file').setInputFiles({name:'workspace-answers.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(canonical))});await popup.locator('#status').filter({hasText:'Answers imported locally'}).waitFor();
+ canonical.answers[0].answer='An explicitly reviewed correction from the workspace.';
+ await popup.locator('#answers-file').setInputFiles({name:'workspace-answers.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(canonical))});await popup.locator('#status').filter({hasText:'conflicts with a saved answer'}).waitFor();assert.notEqual(await popup.evaluate(()=>saved.answerLibrary.answers[0].answer),canonical.answers[0].answer);
+ await popup.locator('#replace-answers').check();await popup.locator('#answers-file').setInputFiles({name:'workspace-answers.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(canonical))});await popup.locator('#status').filter({hasText:'Answers imported locally'}).waitFor();assert.equal(await popup.evaluate(()=>saved.answerLibrary.answers[0].answer),canonical.answers[0].answer);
  await fs.promises.mkdir(path.join(root,'out/web-qa'),{recursive:true});await popup.screenshot({path:path.join(root,'out/web-qa/answer-library.png'),fullPage:true});assert.deepEqual(errors,[]);console.log('PASS: ARIA contacts, exact/alias/page-scoped answers, textarea/number/select fill, ambiguity and stale rejection, explicit capture, persistent library, JSON roundtrip, unchecked professional answers and zero-field guidance; no submission.');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r))}
 })().catch(e=>{console.error(e);process.exitCode=1});

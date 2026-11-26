@@ -30,6 +30,7 @@ ASSETS = {"/automatic-backups.js": ("automatic-backups.js", "application/javascr
 
 ASSETS['/follow-up-tools.js'] = ('follow-up-tools.js', 'application/javascript')
 ASSETS['/resume-import.js'] = ('resume-import.js', 'application/javascript')
+ASSETS['/answers.js'] = ('answers.js', 'application/javascript')
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -282,7 +283,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             if path in follow_up_routes:
                 self.reply(200, follow_up_routes[path](data))
                 return
-            routes = {"/api/automatic-backups/configure": service.automatic_backups.configure, "/api/automatic-backups/create": service.automatic_backups.request, "/api/automatic-backups/preview": service.preview_automatic_backup, "/api/jsearch/preview": service.jsearch_preview, "/api/jsearch/send": service.jsearch.send, "/api/jsearch/status": service.jsearch_status, "/api/jsearch/cancel": service.jsearch.cancel, "/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            routes = {"/api/rehearsal/prepare": service.prepare_rehearsal, "/api/answers": service.answers, "/api/automatic-backups/configure": service.automatic_backups.configure, "/api/automatic-backups/create": service.automatic_backups.request, "/api/automatic-backups/preview": service.preview_automatic_backup, "/api/jsearch/preview": service.jsearch_preview, "/api/jsearch/send": service.jsearch.send, "/api/jsearch/status": service.jsearch_status, "/api/jsearch/cancel": service.jsearch.cancel, "/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),
