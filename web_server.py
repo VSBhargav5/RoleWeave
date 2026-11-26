@@ -229,7 +229,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/browser-helper":
             stream = BytesIO()
             with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
-                for filename in ("manifest.json", "popup.html", "popup.css", "popup.js", "page.js", "background.js", "README.md"):
+                for filename in ("manifest.json", "popup.html", "popup.css", "popup.js", "page.js", "frames.js", "background.js", "README.md"):
                     archive.writestr("RoleWeave-helper/" + filename, (RESOURCE_ROOT / "browser-helper" / filename).read_bytes())
             version = json.loads((RESOURCE_ROOT / "browser-helper" / "manifest.json").read_text(encoding="utf-8"))["version"]
             self.reply(200, stream.getvalue(), "application/zip", f"RoleWeave-browser-helper-{version}.zip")

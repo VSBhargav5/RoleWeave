@@ -1,5 +1,36 @@
 # RoleWeave browser companion
 
+## Embedded applications (v0.6.0)
+
+Reload/update the helper to v0.6.0, then close old companion windows and invoke
+the toolbar icon again on the employer page. The helper now discovers visible
+embedded application frames. Click Review this form; if Greenhouse or another
+embedded site needs access, click Allow embedded form on that exact hostname and
+approve the browser prompt. Review the resulting field list and the actual frame
+destination before consenting to fill. No new tab is needed for normal embeds.
+
+The helper requests optional webNavigation access to enumerate frames in the
+explicitly selected tab, together with the exact HTTPS site access, only when you
+click Allow. It registers
+no background content script or navigation listener. Browser-granted site access
+may persist; remove it through the extension details/site-access controls. No API
+keys, account connection or AI call are needed.
+
+Each preview is tied to the employer tab, frame IDs and document IDs. Every
+selected frame is checked before the first write. A navigation, reload, changed
+field or changed select options requires a new review. Values are checked after
+input/change events; unretained values are not reported as a completed fill.
+Multiple documents cannot form an atomic transaction: if a later event invalidates
+a frame after an earlier write, the helper reports the partial result explicitly.
+
+Open shadow-root controls and ARIA labels are supported. Region/navigation
+selectors outside forms are not offered as new application questions. React-select
+city/country controls require selecting a real suggestion manually; typing into
+their search input is not counted as a filled answer. Closed shadow roots,
+sandboxed/inaccessible frames and unsupported custom widgets remain manual.
+See [research, regression evidence and limits](../docs/browser-helper-frames.md).
+
+
 ## Contact fields and reusable professional answers (v0.5)
 
 Click Review this form. Under Choose fields to fill, tick the checkbox beside each
@@ -32,8 +63,8 @@ and contains contact fields only. No new extension permissions are required.
 
 Extract the downloaded ZIP. Open Chrome or Edge's extensions page, enable Developer mode, choose **Load unpacked**, and select this folder. This is a local development installation, not a store-reviewed extension. No broad host permission is requested.
 
-Helper version 0.5.0: download the updated helper ZIP and reload/reinstall this
-folder in Chrome/Edge if you previously installed an older version. The popup header must show v0.5.0.
+Helper version 0.6.0: download the updated helper ZIP and reload/reinstall this
+folder in Chrome/Edge if you previously installed an older version. The popup header must show v0.6.0.
 If it only says **Load contact sheet** and has no JSON import, it is still the old
 installation. Remove that old entry in the browser extensions page and use Load
 unpacked with the newly extracted folder; downloading a ZIP alone does not update

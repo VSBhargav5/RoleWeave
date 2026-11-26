@@ -198,7 +198,7 @@ class WebWorkspaceTests(unittest.TestCase):
         helper = Path(__file__).parents[1] / 'browser-helper'
         with zipfile.ZipFile(BytesIO(payload)) as archive:
             manifest = json.loads(archive.read('RoleWeave-helper/manifest.json'))
-            for name in ('manifest.json','popup.html','popup.css','popup.js','page.js','background.js','README.md'):
+            for name in ('manifest.json','popup.html','popup.css','popup.js','page.js','frames.js','background.js','README.md'):
                 self.assertEqual(archive.read('RoleWeave-helper/'+name),(helper/name).read_bytes())
         self.assertIn('RoleWeave-browser-helper-'+manifest['version']+'.zip',response_headers['Content-Disposition'])
         self.assertEqual(request('/api/jobs',headers|{'Content-Type':'text/plain'},'POST','{}')[0],400)

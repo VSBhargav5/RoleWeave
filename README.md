@@ -5,6 +5,20 @@ It selects the current versioned build. Save work and use Settings → Quit in a
 older workspace before reopening; an already open tab keeps its running version.
 [Launcher paths and build publication](docs/single-interface.md#publishing-local-builds-and-github-changes).
 
+## Embedded application forms (v0.49)
+
+Helper v0.6 discovers visible application frames and requests optional access to
+the exact embedded site. It binds field reviews to their actual document/frame,
+preflights selected fields before writing and verifies values are retained. It
+supports open shadow roots and excludes unrelated region controls from question
+capture. Suggestion dropdowns are identified for manual option selection.
+
+Validation now includes a real MV3 extension in full Chromium, rather than only
+mocked scripting APIs: cross-origin filling, denied access, changed values, iframe
+and document reloads, scoped answers and post-input retention checks. A read-only
+scan of the actual Samsara Greenhouse embed detected seven contact fields; no live
+employer fields were filled. [Design, source references and limits](docs/browser-helper-frames.md).
+
 ## Helper download filename correction (v0.48.1)
 
 The helper ZIP filename now comes from its bundled manifest, matching the v0.5.0

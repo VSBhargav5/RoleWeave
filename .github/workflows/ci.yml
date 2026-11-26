@@ -40,10 +40,11 @@ jobs:
           node-version: '24'
       - run: python -m pip install -r requirements-test.txt
       - run: npm install --no-save --ignore-scripts playwright@1.62.1
-      - run: npx playwright install --with-deps chromium --only-shell
+      - run: npx playwright install --with-deps chromium
       - run: node --test tests/review-history.test.mjs
       - run: node tests/browser-workflow.cjs
       - run: node tests/browser-helper-answers.cjs
+      - run: node tests/browser-helper-extension.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
