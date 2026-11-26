@@ -231,7 +231,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
                 for filename in ("manifest.json", "popup.html", "popup.css", "popup.js", "page.js", "background.js", "README.md"):
                     archive.writestr("RoleWeave-helper/" + filename, (RESOURCE_ROOT / "browser-helper" / filename).read_bytes())
-            self.reply(200, stream.getvalue(), "application/zip", "RoleWeave-browser-helper-0.4.0.zip")
+            version = json.loads((RESOURCE_ROOT / "browser-helper" / "manifest.json").read_text(encoding="utf-8"))["version"]
+            self.reply(200, stream.getvalue(), "application/zip", f"RoleWeave-browser-helper-{version}.zip")
         else:
             self.reply(404, {"error": "That application route does not exist"})
 

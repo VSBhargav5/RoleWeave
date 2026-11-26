@@ -1,4 +1,6 @@
 import hashlib
+from io import BytesIO
+import zipfile
 import http.client
 import json
 from pathlib import Path
@@ -191,7 +193,14 @@ class WebWorkspaceTests(unittest.TestCase):
         self.assertIn(server.token.encode(),root[1])
         self.assertIn("frame-ancestors 'none'",root[2]['Content-Security-Policy'])
         self.assertEqual(request('/app.js')[0],200)
-        self.assertEqual(request('/api/browser-helper',headers)[0],200)
+        status, payload, response_headers = request('/api/browser-helper',headers)
+        self.assertEqual(status,200)
+        helper = Path(__file__).parents[1] / 'browser-helper'
+        with zipfile.ZipFile(BytesIO(payload)) as archive:
+            manifest = json.loads(archive.read('RoleWeave-helper/manifest.json'))
+            for name in ('manifest.json','popup.html','popup.css','popup.js','page.js','background.js','README.md'):
+                self.assertEqual(archive.read('RoleWeave-helper/'+name),(helper/name).read_bytes())
+        self.assertIn('RoleWeave-browser-helper-'+manifest['version']+'.zip',response_headers['Content-Disposition'])
         self.assertEqual(request('/api/jobs',headers|{'Content-Type':'text/plain'},'POST','{}')[0],400)
         self.assertEqual(request('/api/jobs',headers|{'Content-Type':'application/json'},'POST','{"title":1,"title":2}')[0],400)
         status,payload,_=request('/api/workspace-bundle',headers)

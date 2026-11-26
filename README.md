@@ -5,6 +5,13 @@ It selects the current versioned build. Save work and use Settings → Quit in a
 older workspace before reopening; an already open tab keeps its running version.
 [Launcher paths and build publication](docs/single-interface.md#publishing-local-builds-and-github-changes).
 
+## Helper download filename correction (v0.48.1)
+
+The helper ZIP filename now comes from its bundled manifest, matching the v0.5.0
+contents. Older v0.48 downloads were incorrectly named v0.4.0 even though they
+contained v0.5.0. The download regression checks every bundled helper file and
+the filename against the manifest.
+
 ## Reusable application answers and visible field selection (v0.48)
 
 Helper v0.5 adds an explicit local question/answer library with approved aliases,
