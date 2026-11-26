@@ -5,6 +5,14 @@ It selects the current versioned build. Save work and use Settings → Quit in a
 older workspace before reopening; an already open tab keeps its running version.
 [Launcher paths and build publication](docs/single-interface.md#publishing-local-builds-and-github-changes).
 
+## Tracking refresh and workflow checks (v0.51.1)
+
+A completed tracking save refreshes its original job without redrawing a different
+view. Navigating to Applications while the refresh is pending no longer erases
+filter drafts. Older responses cannot replace a newer loaded tracking revision.
+The full workflow's saved-search summary assertion now includes the page number
+and continuation notice introduced in v0.51.
+
 ## Application workflow improvements (v0.51)
 
 - **Browser helper → Reusable application answers:** create, search, edit and
