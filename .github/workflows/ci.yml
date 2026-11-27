@@ -40,9 +40,12 @@ jobs:
           node-version: '24'
       - run: python -m pip install -r requirements-test.txt
       - run: npm install --no-save --ignore-scripts playwright@1.62.1
-      - run: npx playwright install --with-deps chromium --only-shell
+      - run: npx playwright install --with-deps chromium
       - run: node --test tests/review-history.test.mjs
+      - run: node tests/browser-application-workflows.cjs
       - run: node tests/browser-workflow.cjs
+      - run: node tests/browser-helper-answers.cjs
+      - run: node tests/browser-helper-extension.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -61,6 +64,13 @@ jobs:
             requirements.txt
             requirements-build.txt
       - run: python -m pip install -r requirements-build.txt
+      - name: Read release version
+        id: release
+        shell: pwsh
+        run: |
+          $releaseVersion = python -c "from runtime_paths import APP_VERSION; print(APP_VERSION)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "version=$releaseVersion" >> $env:GITHUB_OUTPUT
       - run: python build_windows.py
       - name: Verify the packaged executable using synthetic data
         shell: pwsh
@@ -87,8 +97,8 @@ jobs:
           node tests/browser-workflow.cjs
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.37.0-windows-x64
-          path: out/RoleWeave-0.37.0-windows-x64.zip
+          name: RoleWeave-${{ steps.release.outputs.version }}-windows-x64
+          path: out/RoleWeave-${{ steps.release.outputs.version }}-windows-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
@@ -107,7 +117,7 @@ jobs:
           if (Test-Path $dataRoot) { throw 'Synthetic data path must be absent' }
           New-Item -ItemType Directory -Path $dataRoot | Out-Null
           Set-Content (Join-Path $dataRoot 'preserve-me.txt') 'synthetic-preservation-marker'
-          $setup = Resolve-Path out/RoleWeave-0.37.0-windows-x64-setup.exe
+          $setup = Resolve-Path out/RoleWeave-${{ steps.release.outputs.version }}-windows-x64-setup.exe
           $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $installRoot + '"'))
           1..2 | ForEach-Object {
             $process = Start-Process $setup -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
@@ -123,14 +133,14 @@ jobs:
           if ((Get-Content (Join-Path $dataRoot 'preserve-me.txt')) -ne 'synthetic-preservation-marker') { throw 'User data changed' }
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.37.0-windows-x64-setup
-          path: out/RoleWeave-0.37.0-windows-x64-setup.exe
+          name: RoleWeave-${{ steps.release.outputs.version }}-windows-x64-setup
+          path: out/RoleWeave-${{ steps.release.outputs.version }}-windows-x64-setup.exe
           if-no-files-found: error
 
       - name: Hash the closed release artifacts
         shell: pwsh
         run: |
-          $files = @('out/RoleWeave-0.37.0-windows-x64.zip', 'out/RoleWeave-0.37.0-windows-x64-setup.exe')
+          $files = @('out/RoleWeave-${{ steps.release.outputs.version }}-windows-x64.zip', 'out/RoleWeave-${{ steps.release.outputs.version }}-windows-x64-setup.exe')
           $lines = foreach ($file in $files) {
             $item = Get-FileHash -LiteralPath $file -Algorithm SHA256
             $item.Hash.ToLowerInvariant() + '  ' + (Split-Path $file -Leaf)
@@ -138,7 +148,7 @@ jobs:
           $lines | Set-Content -LiteralPath out/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: RoleWeave-0.37.0-release-evidence
+          name: RoleWeave-${{ steps.release.outputs.version }}-release-evidence
           path: |
             out/SHA256SUMS.txt
             out/package-smoke/report.json

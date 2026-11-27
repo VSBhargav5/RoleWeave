@@ -10,6 +10,48 @@ from network_io import json_object, request_bytes
 from resume_render import selected_facts
 
 FIELDS={"headline":200,"summary":2000,"letter_intro":2500,"letter_closing":1000}
+TASK_FIELDS={'summary':('headline','summary'),'experience':('bullets',),'letter':('letter_intro','letter_closing')}
+TASK_LIMITS={'headline':120,'summary':1200,'letter_intro':900,'letter_closing':300}
+
+
+class SectionDraftError(ValueError):
+    def __init__(self,code):
+        self.code=code
+        super().__init__('The section response failed '+code+' validation')
+
+
+def task_fields(task):
+    if not isinstance(task,str) or task not in TASK_FIELDS:raise ValueError('Choose summary, experience or letter tailoring')
+    return TASK_FIELDS[task]
+
+
+def task_result(data,facts,task):
+    """Expand a small model response into the established local review contract."""
+    keys=task_fields(task)
+    if isinstance(data,dict) and set(data)=={*FIELDS,'bullets','questions'}:
+        unused=set(FIELDS)|{'bullets'};unused-=set(keys)
+        if all(data[k]==([] if k=='bullets' else {'text':'','fact_ids':[]}) for k in unused):
+            data={k:data[k] for k in (*keys,'questions')}
+    if not isinstance(data,dict) or set(data)!={*keys,'questions'}:raise SectionDraftError('shape')
+    result={key:{'text':'','fact_ids':[]} for key in FIELDS}
+    result.update(bullets=[],questions=[]);result.update(data)
+    try:validate_draft(result,facts)
+    except ValueError as exc:
+        reason=str(exc)
+        if 'source' in reason or 'reference' in reason or 'fact' in reason:raise SectionDraftError('references') from None
+        if 'text limit' in reason:raise SectionDraftError('length') from None
+        raise SectionDraftError('shape') from None
+    for key in keys:
+        if key!='bullets':
+            try:bounded(result[key]['text'],key,TASK_LIMITS[key])
+            except ValueError:raise SectionDraftError('length') from None
+    if len(result['bullets'])>3:raise SectionDraftError('shape')
+    if len(result['questions'])>3:raise SectionDraftError('shape')
+    try:
+        for row in result['bullets']:bounded(row['text'],'Section wording',700,False)
+        for question in result['questions']:bounded(question,'Section question',200,False)
+    except ValueError:raise SectionDraftError('length') from None
+    return result
 INSTRUCTIONS=("Draft concise application wording using only the supplied candidate facts. "
               "Job requirements are not candidate experience. Never invent employment, dates, metrics, credentials or eligibility. "
               "Cite supplied fact IDs for each substantive field, and each bullet's one source fact. "
@@ -54,7 +96,7 @@ def validate_draft(data,facts):
     return data
 
 
-def request_payload(job,profile,ids,instruction,previous=None):
+def request_payload(job,profile,ids,instruction,previous=None,task=None):
     facts=selected_facts(profile,ids)
     if len(facts)>20 or sum(len(f['claim']) for f in facts)>40000:
         raise ValueError('Choose at most 20 reviewed facts and 40000 claim characters')
@@ -70,7 +112,41 @@ def request_payload(job,profile,ids,instruction,previous=None):
     content={'job':{k:job[k] for k in ('title','company','posting')},
              'facts':[{'id':f['id'],'section':f['section'],'claim':f['claim'],**({'entry_context':public_context(f)} if 'details' in f else {})}for f in facts],
              'revision_instruction':instruction,'previous_draft':previous}
-    payload=json.dumps({'model':MODEL,'store':False,'max_output_tokens':4096,'instructions':INSTRUCTIONS,
+    instructions=INSTRUCTIONS
+    if task is not None:
+        keys=task_fields(task);count=3 if task=='experience' else 6
+        if len(facts)>count or sum(len(f['claim']) for f in facts)>12000:
+            raise ValueError(f'Choose at most {count} facts and 12000 claim characters for this section')
+        properties={}
+        for key in keys:
+            if key=='bullets':
+                properties[key]=copy.deepcopy(schema['properties'][key]);properties[key]['maxItems']=3
+                properties[key]['items']['properties']['text']['maxLength']=700
+                properties[key]['items']['properties']['fact_id']['enum']=list(ids)
+            else:
+                properties[key]=copy.deepcopy(cited);properties[key]['properties']['text']['maxLength']=TASK_LIMITS[key]
+                properties[key]['properties']['fact_ids'].update(maxItems=count,items={'type':'string','enum':list(ids)})
+        properties['questions']={'type':'array','maxItems':3,'items':{'type':'string','maxLength':200}}
+        schema=dict(schema,properties=properties,required=[*keys,'questions'])
+        content['task']=task
+        if previous is not None:content['previous_draft']={k:previous[k] for k in (*keys,'questions')}
+        instructions=instructions.replace('Structured entry_context is human-entered context, not permission to invent accomplishments for an empty claim. ',
+            'Reviewed claim text and entry_context.about are source evidence. An empty claim does not mean an empty entry: '
+            'you may rephrase responsibilities or achievements explicitly stated in entry_context.about. '
+            'A title, employer, date or skill alone does not establish an accomplishment. ')
+        instructions=instructions.replace('Do not rewrite structured fields or include contact details.',
+            'Do not change identity, employers, dates, locations, credentials or include contact details.')
+        instructions+=(' Generate only the requested section. Keep wording concise within the schema limits. '
+                       'Do not draft other sections or a complete resume. Return at most three brief questions. '
+                       'For experience, use short source-backed responsibility or achievement bullets within each fact text. '
+                       'Return accomplishment wording only: do not repeat title, employer, location or dates in that text. '
+                       'Keep all source IDs in fact_ids or fact_id fields only, never inside printable wording. '
+                       'This is a writing task, not an eligibility assessment. For experience, return one fact edit per selected entry with substantive claim or About text. '
+                       'Retain source wording if no useful rewrite is needed. Missing job-specific qualifications must not suppress supported experience wording. '
+                       'Describe genuine transferable experience without presenting it as unprovided job-specific expertise. '
+                       'If no wording is supported, return no wording and a brief question explaining what source information is needed.')
+        if len(json.dumps(content,ensure_ascii=False))>48000:raise ValueError('Section context is too long; select less source material')
+    payload=json.dumps({'model':MODEL,'store':False,'max_output_tokens':8192 if task else 4096,'instructions':instructions,
                         'input':[{'role':'user','content':json.dumps(content,ensure_ascii=False)}],
                         'text':{'format':{'type':'json_schema','name':'application_draft','strict':True,'schema':schema}}},
                        ensure_ascii=False,indent=2).encode()
@@ -97,7 +173,7 @@ def propose(payload,facts,key,cancel):
     return parse_response(request_bytes('api.openai.com','/v1/responses',body=payload,key=key,cancel=cancel),facts)
 
 
-def reviewed_variant(profile_item,job_id,fact_edits,fields,request_sha):
+def reviewed_variant(profile_item,job_id,fact_edits,fields,request_sha,edit_about=False):
     profile,digest=profile_snapshot(profile_item['snapshot'])
     if digest!=profile_item['snapshot_sha256']:raise ValueError('Profile fingerprint differs')
     if not isinstance(fields,dict) or set(fields)-set(FIELDS):raise ValueError('Unsupported accepted fields')
@@ -108,9 +184,12 @@ def reviewed_variant(profile_item,job_id,fact_edits,fields,request_sha):
         if not isinstance(row,dict) or set(row)!={'id','text'} or not isinstance(row['id'],str) or row['id'] in seen or row['id'] not in by_id or not by_id[row['id']]['reviewed']:
             raise ValueError('Choose distinct reviewed source facts')
         seen.add(row['id']);bounded(row['text'],'Accepted claim',2000,False)
-        fact=by_id[row['id']];original=hashlib.sha256(fact['claim'].encode()).hexdigest()
-        fact['claim']=row['text']
-        fact['source']+=f"\nHuman-reviewed AI-assisted application wording; original profile {profile_item['id']}, fact {fact['id']}, claim SHA256 {original}; job {job_id}; request SHA256 {request_sha}. References do not verify truth."
+        fact=by_id[row['id']];about=fact.get('details',{}).get('fields',{}).get('about','')
+        target_about=edit_about and not fact['claim'].strip() and bool(about.strip())
+        original=hashlib.sha256((about if target_about else fact['claim']).encode()).hexdigest()
+        if target_about:fact['details']['fields']['about']=row['text']
+        else:fact['claim']=row['text']
+        fact['source']+=f"\nHuman-reviewed AI-assisted application wording; original profile {profile_item['id']}, fact {fact['id']}, {'about' if target_about else 'claim'} SHA256 {original}; job {job_id}; request SHA256 {request_sha}. References do not verify truth."
     for key,value in fields.items():
         bounded(value,'Accepted '+key,FIELDS[key],False)
         if key in ('headline','summary'):result[key]=value

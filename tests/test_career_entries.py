@@ -125,6 +125,42 @@ class CareerEntryTests(unittest.TestCase):
         self.assertEqual(store.load_profile(identifier)['snapshot'],original['snapshot'])
         self.assertEqual(store.active_profile()['profile']['facts'],[])
 
+    def test_optional_private_note_keeps_printed_content_and_reuse_working(self):
+        f=entry('Experience',title='Synthetic engineer',organization='Synthetic employer',about='Built reviewed data pipelines.')
+        f.update(source='',claim='Added reconciliation checks.')
+        preview=self.service.career_entry({'fact':f})
+        self.assertIn('Built reviewed data pipelines.',preview['text'])
+        self.assertIn('Added reconciliation checks.',preview['text'])
+        profile_id=self.service.store.save_profile(self.snapshot([f]))
+        stored=self.service.store.load_profile(profile_id)
+        self.assertEqual(stored['profile']['facts'][0]['source'],'')
+        for rendered in (resume_text(stored['profile'],[f['id']]),resume_html(stored['profile'],[f['id']]).decode()):
+            self.assertIn('Built reviewed data pipelines.',rendered)
+            self.assertIn('Added reconciliation checks.',rendered)
+        copied=imported_career_facts(stored,[f['id']])
+        self.assertIn('Self-reported',copied[0]['source'])
+        self.assertIn('Built reviewed data pipelines.',copied[0]['claim'])
+        printed=''.join(p.extract_text() for p in PdfReader(BytesIO(resume_pdf(stored['profile'],[f['id']]))).pages)
+        self.assertIn('Built reviewed data pipelines.',printed)
+        self.assertIn('Added reconciliation checks.',printed)
+        bundle=export_bundle(self.service.store,self.service.artifacts)
+        restored=restore_bundle(bundle,self.folder/'blank-note-recovery')
+        recovered=WebService(recovered_database(self.folder/'blank-note-recovery',restored['id']))
+        self.assertEqual(recovered.profile()['profile']['facts'][0]['source'],'')
+
+    def test_private_note_never_becomes_printed_resume_content_automatically(self):
+        f=entry('Experience',about='Public responsibilities.')
+        f['source']='PRIVATE_ONLY supporting record; not an accomplishment.'
+        for rendered in (resume_text(self.profile|{'facts':[f]},[f['id']]),resume_html(self.profile|{'facts':[f]},[f['id']]).decode()):
+            self.assertIn('Public responsibilities.',rendered)
+            self.assertNotIn('PRIVATE_ONLY',rendered)
+        printed=''.join(p.extract_text() for p in PdfReader(BytesIO(resume_pdf(self.profile|{'facts':[f]},[f['id']]))).pages)
+        self.assertIn('Public responsibilities.',printed)
+        self.assertNotIn('PRIVATE_ONLY',printed)
+        for invalid in (None,[],False):
+            f['source']=invalid
+            with self.assertRaises(ValueError):profile_snapshot(self.snapshot([f]))
+
     def test_profile_save_rejects_stale_active_version_without_writing(self):
         old=self.service.profile();first=copy.deepcopy(old['profile']);first['headline']='New synthetic headline'
         self.service.save_profile({'profile':first,'confirmed':True,'expected_active_sha256':old['snapshot_sha256']})

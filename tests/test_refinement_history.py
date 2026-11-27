@@ -16,6 +16,8 @@ class RefinementHistoryTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name);path=self.root/'jobs.db';seed_web_demo(path)
         self.service=WebService(path,demo=True);self.store=self.service.store
+        from model_preferences import save_settings
+        save_settings(self.store,{'kind':'openai','model':'gpt-4.1-mini','port':0})
         self.session=self.service.tailoring;self.addCleanup(self.session.shutdown)
         p=self.service.profile();self.job=self.store.list_jobs()[0]['id']
         self.args={'profile_id':p['id'],'profile_sha256':p['snapshot_sha256'],'job_id':self.job,

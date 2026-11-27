@@ -1,5 +1,212 @@
 # RoleWeave
 
+The stable repository entry point is **Launch-RoleWeave.cmd** in this folder.
+It selects the current versioned build. Save work and use Settings → Quit in an
+older workspace before reopening; an already open tab keeps its running version.
+[Launcher paths and build publication](docs/single-interface.md#publishing-local-builds-and-github-changes).
+
+## Tracking refresh and workflow checks (v0.51.1)
+
+A completed tracking save refreshes its original job without redrawing a different
+view. Navigating to Applications while the refresh is pending no longer erases
+filter drafts. Older responses cannot replace a newer loaded tracking revision.
+The full workflow's saved-search summary assertion now includes the page number
+and continuation notice introduced in v0.51.
+
+## Application workflow improvements (v0.51)
+
+- **Browser helper → Reusable application answers:** create, search, edit and
+  remove reviewed professional answers in the workspace. Recovery ZIPs include
+  the library; older bundles still restore. Download answers JSON for the helper.
+  To back up answers captured by the helper, export its library and import it
+  here. These are separate copies, with explicit review before replacing matching
+  IDs. Contact JSON remains separate. Legal, sensitive and salary answers stay
+  manual; this feature makes no model calls and never fills a form from the app.
+- **Interview rehearsal:** choose up to ten exact requirements together, optionally
+  link reviewed experience, and prepare one new review. Local suggestions exclude
+  common company-introduction/benefits text; they need human review. A Situation,
+  Task, Action, Result planning prompt helps structure your own answer. Save and
+  reopen private versions as before; no generated qualifications or grading.
+- **Saved searches:** Run now starts at page one. In Recent run observations,
+  choose **Load next source page** for a successful run that reports more results.
+  Each click fetches one page of up to twenty observations, retaining previous
+  results and decisions. Filters must remain unchanged. Each page counts toward
+  the existing three-attempt rolling-24-hour local safeguard; there is no scheduler
+  or automatic request. Original source pages are retained for recovery/replay.
+
+Helper v0.8 adds explicitly reviewed answer replacement for workspace/helper JSON
+round trips. Importing a file alone never fills employer fields. Workspace answer
+storage is local and unencrypted, as are its exports and recovery bundles.
+
+## Retained assessments and answer capture (v0.50)
+
+Saved assessments from before the OpenRouter transport-option change reopen
+without rewriting their requests. Compatibility recognizes that exact older
+wire format; source bindings, fingerprints, schema and reviewed evidence remain
+verified. Assessment and tailoring share a local route cooldown after HTTP 429,
+respect Retry-After (60 seconds when absent), and require a fresh authorized send.
+Provider quotas still apply; there is no automatic retry or paid fallback.
+
+Helper v0.7 opens a focused answer editor with save controls and acknowledgement
+visible in a short companion window. **Save and next** advances detected questions
+without rescanning, or opens a blank question after the queue ends. **Done** returns
+to the form review. Re-scan after saving to propose answers for filling. Duplicate
+questions in the same scope are directed to the existing library entry. Answers
+remain local and can be exported as JSON; saving never fills the employer form.
+
+## Embedded application forms (v0.49)
+
+Helper v0.6 discovers visible application frames and requests optional access to
+the exact embedded site. It binds field reviews to their actual document/frame,
+preflights selected fields before writing and verifies values are retained. It
+supports open shadow roots and excludes unrelated region controls from question
+capture. Suggestion dropdowns are identified for manual option selection.
+
+Validation now includes a real MV3 extension in full Chromium, rather than only
+mocked scripting APIs: cross-origin filling, denied access, changed values, iframe
+and document reloads, scoped answers and post-input retention checks. A read-only
+scan of the actual Samsara Greenhouse embed detected seven contact fields; no live
+employer fields were filled. [Design, source references and limits](docs/browser-helper-frames.md).
+
+## Helper download filename correction (v0.48.1)
+
+The helper ZIP filename now comes from its bundled manifest, matching the v0.5.0
+contents. Older v0.48 downloads were incorrectly named v0.4.0 even though they
+contained v0.5.0. The download regression checks every bundled helper file and
+the filename against the manifest.
+
+## Reusable application answers and visible field selection (v0.48)
+
+Helper v0.5 adds an explicit local question/answer library with approved aliases,
+page/site/all-site scope, edit/delete and JSON import/export. It proposes saved
+professional answers for labelled text, textarea, numeric and native select
+controls. Answers start unchecked; nothing is captured in the background.
+Contact JSON stays compatible. Empty previews disable filling and explain
+embedded-form/manual-control limitations; ARIA-labelled contact inputs work too.
+The library lives in extension storage, separately from workspace recovery.
+See [helper workflow and storage](browser-helper/README.md). Reload the existing
+unpacked helper folder to v0.5.0; restarting RoleWeave alone does not update it.
+
+## Contact handoff and refined resume layout (v0.47)
+
+Contact preparation accepts bare domain links such as `github.com/name`, creates
+a validated HTTPS contact-sheet value, and leaves the saved profile unchanged.
+The helper page shows preparation status and enables JSON download only for a
+prepared current profile. Helper v0.4.0 remains the installed companion.
+
+New Jake-inspired previews join imported line wraps, align dates within section
+rules, and remove exact duplicate structured headings and known internal source
+markers from printable wording. Older saved layouts keep their original rendering.
+AI section requests tolerate empty unused canonical fields, allow a 1200-character
+summary and distinguish shape, reference and length failures. Claims still require
+review; neither provider availability nor live output quality is guaranteed.
+
+## Free AI requests and persistent browser companion (v0.46)
+
+Section tailoring now previews an8192-token output budget, minimal reasoning and
+OpenRouter's free JSON response-healing plugin. Provider429 delays are surfaced,
+and immediate same-route tailoring sends are held locally during the cooldown.
+Malformed JSON has a separate diagnostic; truncated or invalid-source drafts stay
+unaccepted. Free provider capacity and quality remain outside the app's control.
+
+Helper v0.4.0 opens a persistent window bound to the originating application tab,
+so native file selection does not depend on a transient toolbar popup. On employer
+pages, import the contact JSON downloaded from RoleWeave; Load prepared sheet is
+for the local RoleWeave tab only. No additional host permissions. See
+[AI diagnostics](docs/ai-request-failures.md) and [helper usage](browser-helper/README.md).
+
+## Search coverage, Jake-inspired resumes and rehearsal setup (v0.45)
+
+Role-title matching now separates relevant titles from body-keyword/skill searches.
+Discover jobs labels counts as page matches and can load another FreeHire page
+without discarding previous matches (up to five pages, then Next page continues).
+Markdown experience labels such as `*Experience:* 5 Years` are recognized in new
+searches; v1 observation replay stays unchanged. Provider coverage remains finite.
+
+The resume studio defaults to a Jake-inspired serif layout with aligned dates,
+structured role headings and individual achievement bullets. Previous saved layouts
+remain readable. Rehearsal can prepare an exact requirement directly in its panel;
+no prior manual evidence link or model call is needed. Helper v0.3.0 shows its
+version, imports contact JSON and recognizes Location (City). **An older installed
+extension must be updated separately**; downloading the new app does not update it.
+See [workflow and upgrade steps](docs/resume-assessment-helper.md).
+
+## Advertised experience and remote residence (v0.44)
+
+Discover jobs, named searches and the review queue now have 0-2 / 3-5 / 6+
+advertised-experience bands and a separate remote-residence country. Known foreign
+remote restrictions are excluded; unclear requirements are hidden by default and
+can be shown for review. Source bytes and prior decisions remain intact. All v0.43
+features are included for the combined trial. [Usage and limitations](docs/experience-location-filters.md).
+
+## Reviewed drafts, focused assessment and helper handoff (v0.43)
+
+Build resume and Create resume now reopen the latest reviewed application draft,
+with an automatic preview of its wording. A separate Start from master profile
+option starts fresh. Tailoring also continues from the latest application version.
+Assessment defaults to three key requirements, optionally using an exact JD excerpt,
+with a reviewed 8192-token output cap. Older records remain readable. Helper 0.2.0
+can import a prepared contact JSON on the employer tab and recognizes exact Preferred
+First/Last Name labels. See [the workflow guide](docs/resume-assessment-helper.md).
+
+## About-only experience and empty proposals (v0.42.1)
+
+Section tailoring now explicitly treats reviewed About text as source evidence even
+when the separate accomplishment claim is blank. Accepted About-only experience
+wording replaces the About text in the application copy, avoiding duplicate output.
+Identity fields and the master profile stay unchanged. An empty model proposal now
+shows **No wording proposed** with source-review actions instead of a blank editor.
+
+## Section-by-section AI tailoring (v0.42)
+
+AI now drafts a headline/summary, experience wording, or cover-letter wording in
+separate bounded requests. Continue from the resume builder to add another section
+to the same application draft. Accepted sections persist; a failed later request
+does not erase them. Assessment uses up to six key requirements and six selected
+facts. PDFs are assembled locally, with the master profile unchanged.
+
+See [the workflow and limits](docs/section-tailoring.md). Free-only routing, source
+validation and one-request credential handling remain enforced. Real provider
+availability and generation quality are not established by offline tests.
+
+## Useful AI failures and bounded waits (v0.41)
+
+OpenRouter generation now uses the remaining 60-second request budget after
+connection. Safe HTTP/error categories survive worker failures, including error
+bodies returned with HTTP 200. Failed requests stop the loading screen and show
+a useful terminal message; stalled local calls and generation waits are bounded.
+New attempts require a fresh preview, key and consent. No automatic retry,
+paid fallback, raw provider diagnostics or relaxed source checks.
+[Error codes, recovery and verification limits](docs/ai-request-failures.md).
+
+## Optional private notes and discoverable AI (v0.40)
+
+Career entries can be saved without a private source note. Printed description/
+accomplishment fields are clearly labelled, private notes stay excluded, and an
+explicit copy action helps recover achievements entered in the wrong field.
+Settings now launches all three AI workflows, the resume studio links directly
+to AI tailoring, and request previews keep masked API-key fields visible.
+[Field mapping and exact API-key steps](docs/private-notes-and-ai-start.md).
+
+## Organized resume import and free AI (v0.39)
+
+Resume import now suggests grouped career entries and separate contact/summary
+fields, with optional source-ID-only AI organization. New workspaces default to
+OpenRouter free routes; saved preferences are preserved. Settings explains keys
+and hides local-port controls for cloud providers. Employer boards accept supported
+board URLs, Documents shows original imports plus a guided creation workflow, and
+empty assessments offer clear next actions.
+[Workflow, free-model setup and limitations](docs/resume-import-and-free-models.md).
+
+## Browser follow-ups and reply review (v0.38)
+
+Saved opportunities now offer local `.eml` excerpt review, private `.ics` reminder
+downloads and the existing optional Google follow-up workflow in the browser.
+Correspondence requires exact-source review and current history. Google uses
+session-only consent, separately confirmed operations and one-shot plans with
+existing ownership/revision/ETag checks. Offline practice never connects to Google.
+[Workflow, setup and remaining limits](docs/browser-follow-ups.md).
+
 ## Reviewed document languages (v0.37)
 
 Choose document labels and structured month dates in the browser resume/letter
@@ -227,8 +434,9 @@ No company-board URL is required for this discovery path.
 [Browser workspace, helper setup and complete walkthrough](docs/browser-workspace.md).
 
 The new default uses browser-rendered CSS/SVG and the existing Python/SQLite core.
-The native interface is retired; employer-board management, Calendar setup,
-audits and rehearsal screens await browser migration. Original shelf paths and
+The native interface is retired; employer boards, Calendar follow-ups, local reply
+review and interview rehearsal now have browser workflows. Audits and additional
+rehearsal tools remain unmigrated. Original shelf paths and
 immutable document/history contracts remain.
 The helper does not submit, upload, overwrite existing values or answer sensitive
 questions. Custom widgets and iframes remain manual; real ATS acceptance is pending.

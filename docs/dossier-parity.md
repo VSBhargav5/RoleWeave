@@ -21,6 +21,11 @@ letter scaffolds and metadata, with locale-bound preview/frozen exports/recovery
 Human-authored content is unchanged. No full21-language/app translation or reviewed
 translation quality claim. [Workflow](document-localization.md).
 
+**With v0.38: still 17 implemented, 4 partial, 4 missing.** Existing one-way Google
+follow-ups and local email-excerpt review now work in the browser, alongside `.ics`
+downloads. No two-way interview calendar, connected inbox, AI reply or Gmail send
+is claimed. [Workflow and limits](browser-follow-ups.md).
+
 **With v0.36: 17 implemented,3 partial,5 missing.** The scoped startup-discovery
 area now has public HN-listed startup notices, bounded explicit batches, local
 filters, reviewed imports, exact archives/receipts and recovery. No complete YC
@@ -77,8 +82,8 @@ Partial includes native-only work unavailable in the sole supported browser UI.
 | AI provider/model settings and local models | Partial | Implemented | **Implemented in v0.26:** selected models, OpenAI/Anthropic/Mistral, Ollama/LM Studio numeric loopback; fixed hosts, no arbitrary remote URL; live quality unverified |
 | Application email composer and mail-client handoff | Missing | Implemented | **Implemented in v0.24:** reviewed local EML, exact PDFs, reopen/copy/download; no automated sending |
 | Connected Gmail sending | Missing | Missing | No account integration or sends |
-| Mailbox reply reading and AI responses | Missing | Missing | Native manual local excerpt review is not browser inbox/AI reply handling |
-| Google Calendar integration | Partial | Partial | Narrow native-only follow-up contract; no browser/two-way interview calendar |
+| Mailbox reply reading and AI responses | Missing | Missing | V0.38 migrates manual local `.eml` excerpt review to the browser; connected inbox/AI reply handling remains absent. |
+| Google Calendar integration | Partial | Partial | V0.38 browser one-way follow-ups with session consent, reviewed plans, stale/ownership/ETag checks and `.ics` downloads; no two-way interview calendar. |
 | Application board/table/stage tracking | Implemented | Implemented | Manual observations, reminders and conflict guards |
 | Dashboard funnel/charts/calendar | Partial | Implemented | **Implemented in v0.27:** current/ever-recorded bars,12UTC weeks, market-filtered follow-up month/agenda; no inferred conversion rates or verified outcome claims |
 | Managed data export/import/recovery | Implemented | Implemented | Managed ZIP plus DB backup; explicitly scoped exclusions |

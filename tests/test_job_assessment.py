@@ -18,6 +18,8 @@ class JobAssessmentTests(unittest.TestCase):
         self.root=Path(self.temp.name);path=self.root/'jobs.db';seed_web_demo(path)
         self.service=WebService(path,demo=True);self.addCleanup(self.service.assessment.shutdown)
         self.store=self.service.store;self.session=self.service.assessment
+        from model_preferences import save_settings
+        save_settings(self.store,{'kind':'openai','model':'gpt-4.1-mini','port':0})
         p=self.service.profile();self.job=self.service.save_job({'title':'Synthetic engineer','company':'Practice Co','market':'india_remote','posting':'Python required. SQL useful.'})
         self.args={'profile_id':p['id'],'profile_sha256':p['snapshot_sha256'],'job_id':self.job['id'],'fact_ids':['project-python']}
         self.facts=[p['profile']['facts'][0]]
@@ -154,6 +156,52 @@ class JobAssessmentTests(unittest.TestCase):
         path.write_text(json.dumps(r),encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'exact source context'):assessment.load(self.store,saved['id'])
         with self.assertRaises(ValueError):export_bundle(self.store,self.service.artifacts)
+
+    def test_legacy_openrouter_transport_options_reopen_without_rewriting_records(self):
+        from job_store import JobStore
+        save_settings(self.store,{'kind':'openrouter','model':'openrouter/free','port':0})
+        for options in ({},{'compact':True},{'compact':True,'focus':''}):
+            saved=self.save(self.args|options);path=assessment.folder(self.store)/(saved['id']+'.json')
+            r=json.loads(path.read_bytes());wire=json.loads(r['payload'])
+            wire.pop('reasoning');wire.pop('plugins')
+            r['payload']=json.dumps(wire,ensure_ascii=False,indent=2)
+            r['request_sha256']=assessment.providers.request_fingerprint(r['payload'].encode(),r['provider'])
+            original=json.dumps(r,ensure_ascii=False,indent=2).encode();path.write_bytes(original)
+            reopened=JobStore(self.store.path)
+            record,_,_=assessment.load(reopened,saved['id'])
+            self.assertEqual(record['payload'],r['payload'])
+            self.assertIn(saved['id'],[item['id'] for item in assessment.listing(reopened,job_id=self.job['id'])['items']])
+            self.assertEqual(path.read_bytes(),original)
+            # The compatibility path cannot mask rehashed changes to the source,
+            # instructions, schema, budget or partially changed transport options.
+            for key,value in (('messages',[]),('max_tokens',1),('reasoning',{'effort':'high'}),('response_format',{})):
+                altered=copy.deepcopy(r);payload=wire|{key:value}
+                altered['payload']=json.dumps(payload,ensure_ascii=False,indent=2)
+                altered['request_sha256']=assessment.providers.request_fingerprint(altered['payload'].encode(),altered['provider'])
+                with self.subTest(options=options,key=key),self.assertRaisesRegex(ValueError,'exact source context'):
+                    assessment.replay(reopened,json.dumps(altered).encode())
+
+    def test_rate_limit_holds_assessment_and_tailoring_route_without_another_call(self):
+        import time
+        session=assessment.AssessmentSession(self.store,demo=False,cooldowns=self.service.tailoring.cooldowns,lock=self.service.tailoring.lock)
+        self.addCleanup(session.shutdown)
+        with patch('job_assessment.providers.request_model',side_effect=assessment.providers.ModelError('rate_limited',429,120)) as provider:
+            p=session.preview(self.args);session.send({'id':p['id'],'sha256':p['sha256'],'key':'synthetic-key','confirmed':True})
+            session.entries[p['id']]['thread'].join(3)
+            failure=session.status({'id':p['id']});self.assertEqual(failure['retry_after'],120)
+            self.assertIn('120 seconds',failure['error'])
+            fresh=session.preview(self.args)
+            with self.assertRaises(assessment.providers.ModelError) as caught:
+                session.send({'id':fresh['id'],'sha256':fresh['sha256'],'key':'synthetic-key','confirmed':True})
+            self.assertEqual(caught.exception.code,'cooldown');self.assertEqual(provider.call_count,1)
+            self.assertIs(session.cooldowns,self.service.tailoring.cooldowns)
+            tailoring=self.service.tailoring.preview(self.args|{'instruction':'Use the supplied facts.'})
+            with self.assertRaises(assessment.providers.ModelError) as caught:
+                self.service.tailoring.send({'id':tailoring['id'],'sha256':tailoring['sha256'],'key':'synthetic-key','confirmed':True})
+            self.assertEqual(caught.exception.code,'cooldown')
+            session.cooldowns[('openai','gpt-4.1-mini')]=time.monotonic()-1
+            session.send({'id':fresh['id'],'sha256':fresh['sha256'],'key':'synthetic-key','confirmed':True})
+            session.entries[fresh['id']]['thread'].join(3);self.assertEqual(provider.call_count,2)
 
     def test_cancel_drops_late_results_and_previews_expire(self):
         started=threading.Event();release=threading.Event();session=assessment.AssessmentSession(self.store,demo=False);self.addCleanup(session.shutdown)

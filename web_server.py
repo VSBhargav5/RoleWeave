@@ -1,4 +1,5 @@
 """Loopback-only desktop web host with session authorization and origin checks."""
+from job_fit_filters import discovery_view
 import hashlib
 import errno
 import hmac
@@ -20,10 +21,16 @@ from career_profile import unique_json
 from application_draft import load_draft
 from runtime_paths import APP_VERSION, RESOURCE_ROOT, default_database_path, new_practice_path
 from web_service import WebService, browser_profile, require, seed_web_demo
+from mail_observation import MAX_MAIL_BYTES
 
 ASSETS = {"/automatic-backups.js": ("automatic-backups.js", "application/javascript"), "/jsearch.js": ("jsearch.js", "application/javascript"), "/assessment.js": ("assessment.js", "application/javascript"), "/career-profile.js": ("career-profile.js", "application/javascript"), "/review-history.js": ("review-history.mjs", "application/javascript"), "/boards.js": ("boards.js", "application/javascript"), "/resume-theme.js": ("resume-theme.js", "application/javascript"), "/insights.js": ("insights.js", "application/javascript"), "/model-settings.js": ("model-settings.js", "application/javascript"), "/tailoring.js": ("tailoring.js", "application/javascript"), "/app.js": ("app.js", "application/javascript"), "/styles.css": ("styles.css", "text/css"),
           "/icons.js": ("icons.js", "application/javascript"),
           "/document-preview.css": ("document-preview.css", "text/css")}
+
+
+ASSETS['/follow-up-tools.js'] = ('follow-up-tools.js', 'application/javascript')
+ASSETS['/resume-import.js'] = ('resume-import.js', 'application/javascript')
+ASSETS['/answers.js'] = ('answers.js', 'application/javascript')
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -55,6 +62,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         pass
 
     def reply(self, status, payload, content_type="application/json; charset=utf-8", filename=None):
+        if isinstance(payload,dict) and payload.get('format')=='roleweave-discovery-v1':
+            payload=discovery_view(payload)
         if not isinstance(payload, bytes):
             payload = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
         self.send_response(status)
@@ -221,9 +230,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/browser-helper":
             stream = BytesIO()
             with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
-                for filename in ("manifest.json", "popup.html", "popup.css", "popup.js", "page.js", "background.js", "README.md"):
+                for filename in ("manifest.json", "popup.html", "popup.css", "popup.js", "page.js", "frames.js", "background.js", "README.md"):
                     archive.writestr("RoleWeave-helper/" + filename, (RESOURCE_ROOT / "browser-helper" / filename).read_bytes())
-            self.reply(200, stream.getvalue(), "application/zip", "RoleWeave-browser-helper.zip")
+            version = json.loads((RESOURCE_ROOT / "browser-helper" / "manifest.json").read_text(encoding="utf-8"))["version"]
+            self.reply(200, stream.getvalue(), "application/zip", f"RoleWeave-browser-helper-{version}.zip")
         else:
             self.reply(404, {"error": "That application route does not exist"})
 
@@ -232,6 +242,12 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         try:
             path, params = self.query()
+            if path == '/api/correspondence/preview':
+                require(params, ('job_id',), ('job_id',))
+                if self.headers.get('Content-Type', '').split(';')[0] != 'application/octet-stream':
+                    raise ValueError('Choose a permitted local email file')
+                self.reply(200, self.server.service.preview_correspondence(params['job_id'], self.body(MAX_MAIL_BYTES)))
+                return
             if params:
                 raise ValueError("POST actions do not accept URL parameters")
             if path == "/api/boards/replay":
@@ -254,7 +270,20 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Request must be an object")
             service = self.server.service
-            routes = {"/api/automatic-backups/configure": service.automatic_backups.configure, "/api/automatic-backups/create": service.automatic_backups.request, "/api/automatic-backups/preview": service.preview_automatic_backup, "/api/jsearch/preview": service.jsearch.preview, "/api/jsearch/send": service.jsearch.send, "/api/jsearch/status": service.jsearch_status, "/api/jsearch/cancel": service.jsearch.cancel, "/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
+            follow_up_routes = {'/api/correspondence': service.save_correspondence,
+                                '/api/resume-import/organize/preview': service.resume_organization.preview,
+                                '/api/resume-import/organize/send': service.resume_organization.send,
+                                '/api/resume-import/organize/status': service.resume_organization.status,
+                                '/api/resume-import/organize/cancel': service.resume_organization.cancel,
+                                '/api/correspondence/close': service.close_correspondence,
+                                '/api/calendar/open': service.calendar.open,
+                                '/api/calendar/action': service.calendar.action,
+                                '/api/calendar/status': service.calendar.status,
+                                '/api/calendar/close': service.calendar.close}
+            if path in follow_up_routes:
+                self.reply(200, follow_up_routes[path](data))
+                return
+            routes = {"/api/rehearsal/prepare": service.prepare_rehearsal, "/api/answers": service.answers, "/api/automatic-backups/configure": service.automatic_backups.configure, "/api/automatic-backups/create": service.automatic_backups.request, "/api/automatic-backups/preview": service.preview_automatic_backup, "/api/jsearch/preview": service.jsearch_preview, "/api/jsearch/send": service.jsearch.send, "/api/jsearch/status": service.jsearch_status, "/api/jsearch/cancel": service.jsearch.cancel, "/api/assessment/preview": service.assessment.preview, "/api/assessment/send": service.assessment.send, "/api/assessment/status": service.assessment.status, "/api/assessment/cancel": service.assessment.cancel, "/api/assessment/accept": service.assessment.accept, "/api/assessment/list": service.assessment_list, "/api/assessment/load": service.assessment_load, "/api/tailoring/history/remove": service.tailoring.remove_history, "/api/tailoring/history": service.tailoring.history, "/api/tailoring/reopen": service.tailoring.reopen, "/api/career-entry": service.career_entry, "/api/boards": service.board_action, "/api/resume-theme": service.resume_theme, "/api/model-settings": service.save_model_settings, "/api/discovery/search": service.save_discovery_search,
                       "/api/discovery/run": service.run_discovery, "/api/discovery/decision": service.discovery_decision,
                       "/api/email/preview": service.email,
                       "/api/email": lambda value: service.email(value, freeze=True),

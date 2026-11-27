@@ -5,9 +5,11 @@
 1. Open the complete Windows package. It opens a local browser workspace and
    handles an occupied port automatically; keep `_internal` beside the executable.
 2. Career profile → Import existing resume. Choose a selectable-text PDF, DOCX or
-   UTF-8 TXT file. Read the extracted text. Select accurate excerpts, choose each
-   excerpt's section, confirm, and then save the profile draft. Enter your actual
-   identity/contact fields explicitly; the importer does not guess them.
+   UTF-8 TXT/Markdown file. Review suggested career groups and sections, then
+   separately select any accurate contact/summary suggestions. Confirm, add to
+   the draft, and save your profile. Individual source lines remain available.
+   Optional free/local AI can reorganize original lines without rewriting claims.
+   See [organization, free models and limitations](resume-import-and-free-models.md).
 3. Discover jobs by role/location/country/remote preference. Read a description,
    choose India/remote or relocation, and save it. Search pages are observations,
    not exhaustive coverage, eligibility or sponsorship proof.

@@ -36,7 +36,8 @@ def validate_profile(data):
             if structured_count>200:raise ValueError('At most200 structured career entries per profile')
             if not isinstance(fact['claim'],str) or len(fact['claim'])>4000:raise ValueError('Entry accomplishment text exceeds4000 characters')
         else:text(fact["claim"], "Claim")
-        text(fact["source"], "Source")
+        if not isinstance(fact["source"], str):
+            raise ValueError("Private source note must be text or blank")
         for key in ("claim", "source"):
             fact[key].encode("utf-8")
             if any(ord(char) < 32 and char not in "\n\t\r" for char in fact[key]):
@@ -82,5 +83,5 @@ def imported_career_facts(profile, selected_ids):
             raise ValueError("Select existing reviewed career facts only")
         fact = facts[identifier]
         result.append({"id": f"career:{profile['id']}:{identifier}", "claim": fact_text(fact),
-                       "source": f"{fact['source']}\nCareer profile {profile['id']}, fact {identifier}", "reviewed": True})
+                       "source": f"{fact['source'] or 'Self-reported career entry; no supporting note supplied.'}\nCareer profile {profile['id']}, fact {identifier}", "reviewed": True})
     return result

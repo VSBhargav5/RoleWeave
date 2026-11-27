@@ -4,7 +4,7 @@ from mail_observation import mail_observation
 from roleweave import text
 
 
-def record_correspondence(store, job_id, source, quote, note, *, confirmed=False):
+def record_correspondence(store, job_id, source, quote, note, *, confirmed=False, expected_revision=None):
     if confirmed is not True:
         raise ValueError("Review the source and confirm this correspondence observation")
     observation = mail_observation(source)
@@ -24,6 +24,8 @@ def record_correspondence(store, job_id, source, quote, note, *, confirmed=False
                "Selected exact body excerpt:\n" + quote + "\nYour observation:\n" + (note or "No additional note") +
                "\nOriginal email/attachments are not stored in the shelf.")
     history = store.application_history(job_id)
+    if expected_revision is not None and (type(expected_revision) is not int or expected_revision != len(history)):
+        raise ValueError("Application history changed; reopen the email preview before recording")
     if any(event["note"] == message for event in history):
         raise ValueError("This exact correspondence observation is already recorded")
     current = current_application(history)

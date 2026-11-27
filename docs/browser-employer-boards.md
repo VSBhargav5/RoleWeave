@@ -5,8 +5,10 @@ required there. The optional Employer boards page now serves the existing direct
 Greenhouse, Lever global, Lever Europe and Ashby contracts in the same browser UI.
 It never opens the retired native window.
 
-Choose a provider and its exact employer board token, then explicitly confirm Fetch
-selected board. One bounded unauthenticated GET goes to the existing fixed host.
+V0.39 accepts a supported public board homepage URL and detects the provider, or
+a short employer board name with an explicit provider. The old word "token" meant
+the public URL name, never a credential. The form now includes URL examples.
+Explicitly confirm Fetch selected board. One bounded unauthenticated GET goes to the existing fixed host.
 No profile/resume/API key/account is sent. No arbitrary URL, redirect, retry, scan,
 submission or live model call. Practice uses clearly labelled local fixtures for
 all four providers and never silently substitutes them in normal mode.

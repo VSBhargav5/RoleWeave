@@ -1,5 +1,10 @@
 """Local web application operations; reuses the existing validated domain models."""
+from job_fit_filters import preferences, filter_result
 from automatic_backups import AutomaticBackups
+from calendar_session import CalendarSession
+from correspondence import record_correspondence
+from mail_observation import mail_observation
+from calendar_export import follow_up_calendar
 from datetime import date
 from document_locale import options as document_locales
 from board_workspace import BoardWorkspace, PREFIX as BOARD_PREFIX
@@ -9,6 +14,7 @@ from workflow_insights import insights
 from resume_theme import parse_theme, validate_theme
 from jsearch_session import JSearchSession
 import job_assessment
+import answer_library
 import base64
 import hashlib
 import json
@@ -33,8 +39,10 @@ from recipient_bundle import recipient_bytes
 from resume_render import resume_text
 from resume_versions import decoded, make_resume_version
 from resume_import import extract_in_worker, document_name, MAX_FILE
+from resume_structure import suggest_structure
+from resume_organization import ResumeOrganization
 from roleweave import MAX_BYTES, MARKETS, review_snapshot
-from rehearsal_cards import practice_cards
+from rehearsal_cards import practice_cards, suggested_requirements
 from rehearsal_journal import make_rehearsal, rehearsal_snapshot, bound_rehearsal, MAX_REHEARSAL_BYTES
 from runtime_paths import APP_VERSION
 from safe_export import publish_bytes
@@ -64,7 +72,14 @@ def browser_profile(profile):
         if not isinstance(value, str) or len(value) > 2000 or any(ord(c) < 32 for c in value):
             raise ValueError("Use single-line contact values for browser filling")
         if value and key in ("linkedin", "website"):
-            source_link(value)
+            candidate=value.strip()
+            # Profiles historically accepted bare domains. Normalize only a
+            # domain-shaped contact link; posting navigation remains HTTPS-only.
+            if re.fullmatch(r'(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,63}(?::[0-9]{1,5})?(?:[/?#][^\s\\]*)?',candidate):
+                candidate='https://'+candidate
+            try:source_link(candidate)
+            except ValueError:raise ValueError('Enter a public HTTPS '+('LinkedIn' if key=='linkedin' else 'portfolio')+' URL, such as https://github.com/your-name. Contact sheet was not prepared.') from None
+            values[key]=candidate
     return {"format": "roleweave-browser-profile-v1", "fields": values}
 
 
@@ -77,13 +92,66 @@ class WebService:
         self.searches = {}
         self.lock = threading.RLock()
         self.imports = {}
+        self.resume_organization = ResumeOrganization(self.store, self.imports, self.lock, demo=demo)
+        self.mail_previews = {}
+        self.calendar = CalendarSession(self.store, demo=demo)
         self.pending_recovery = None
         self.tailoring = TailoringSession(self.store,demo=self.demo)
-        self.assessment = job_assessment.AssessmentSession(self.store,demo=self.demo)
+        self.assessment = job_assessment.AssessmentSession(self.store,demo=self.demo,cooldowns=self.tailoring.cooldowns,lock=self.tailoring.lock)
         self.jsearch = JSearchSession(demo=self.demo)
         self.artifacts = self.store.path.parent / "web-artifacts"
         self.discovery = DiscoveryStore(self.store.path.with_suffix(".discovery.db"))
         self.automatic_backups = AutomaticBackups(self.store, self.artifacts)
+
+    def preview_correspondence(self, job_id, source):
+        self.store.load(job_id)
+        observation = mail_observation(source)
+        with self.lock:
+            for identifier, entry in list(self.mail_previews.items()):
+                if time.monotonic() - entry['at'] >= 600:
+                    self._close_mail(identifier)
+            if len(self.mail_previews) >= 3:
+                raise ValueError("Close an email preview first; at most three can be held in memory")
+            identifier = uuid4().hex
+            revision = len(self.store.application_history(job_id))
+            self.mail_previews[identifier] = {'source': source, 'job_id': job_id, 'at': time.monotonic(), 'revision': revision}
+            timer = threading.Timer(600, self._close_mail, args=(identifier,))
+            timer.daemon = True
+            self.mail_previews[identifier]['timer'] = timer
+            timer.start()
+        return dict(observation, id=identifier, job_id=job_id, expected_revision=revision)
+
+    def _close_mail(self, identifier):
+        with self.lock:
+            entry = self.mail_previews.pop(identifier, None)
+            if entry:
+                entry['timer'].cancel()
+
+    def close_correspondence(self, data):
+        require(data, ('id',), ('id',))
+        if not isinstance(data['id'], str):
+            raise ValueError("Invalid email preview")
+        self._close_mail(data['id'])
+        return {'closed': True}
+
+    def save_correspondence(self, data):
+        names = ('id', 'job_id', 'sha256', 'quote', 'note', 'expected_revision', 'confirmed')
+        require(data, names, names)
+        confirmed(data)
+        with self.lock:
+            if not isinstance(data['id'], str):
+                raise ValueError("Invalid email preview")
+            entry = self.mail_previews.get(data['id'])
+            if entry is None or time.monotonic() - entry['at'] >= 600:
+                self._close_mail(data['id'])
+                raise ValueError("Email preview expired; choose the original file again")
+            if (entry['job_id'] != data['job_id'] or hashlib.sha256(entry['source']).hexdigest() != data['sha256']
+                    or type(data['expected_revision']) is not int or entry['revision'] != data['expected_revision']):
+                raise ValueError("Email preview binding changed; choose the original file again")
+            record_correspondence(self.store, entry['job_id'], entry['source'], data['quote'], data['note'],
+                                  confirmed=True, expected_revision=entry['revision'])
+            self._close_mail(data['id'])
+        return {'saved': True}
 
     def profile(self):
         item = self.store.active_profile()
@@ -91,24 +159,75 @@ class WebService:
             return None
         return {key: item[key] for key in ("id", "created_at", "snapshot_sha256", "profile")}
 
+    def resume_sources(self):
+        directory = self.artifacts / 'resume-imports'
+        no_link(self.artifacts); no_link(directory)
+        if not directory.exists():return {'items': [], 'issues': []}
+        items, issues = [], []
+        for path in sorted(directory.iterdir()):
+            if not re.fullmatch(r'[a-f0-9]{64}\.(pdf|docx|txt|md|markdown)', path.name):continue
+            try:
+                payload = self._resume_source(path.name)
+                items.append({'id': path.name, 'extension': path.suffix[1:].upper(), 'bytes': len(payload)})
+            except (OSError, ValueError):
+                issues.append('An imported resume source is unavailable or its fingerprint changed.')
+        return {'items': items, 'issues': issues}
+
+    def _resume_source(self, identifier):
+        if not isinstance(identifier, str) or not re.fullmatch(r'[a-f0-9]{64}\.(pdf|docx|txt|md|markdown)', identifier):
+            raise ValueError('Invalid original resume identifier')
+        path = self.artifacts / 'resume-imports' / identifier
+        no_link(self.artifacts); no_link(path.parent); no_link(path)
+        with path.open('rb') as source:payload = source.read(MAX_FILE + 1)
+        if not 0 < len(payload) <= MAX_FILE or hashlib.sha256(payload).hexdigest() != identifier.split('.')[0]:
+            raise ValueError('Original resume source fingerprint changed')
+        return payload
+
     def bootstrap(self):
         jobs = self.store.list_jobs()
         today = date.today().isoformat()
         label='Recovered workspace · '+self.store.path.parent.name[:8] if self.store.path.parent.parent.name=='recovered' else 'Main workspace'
         return {"version": APP_VERSION, "demo": self.demo, "workspace_label": 'Synthetic practice' if self.demo else label,
                 "profile": self.profile(), "jobs": jobs, "career_sections":SECTIONS,"document_locales":document_locales(),"entry_fields":SCHEMAS, "ai_provider": read_settings(self.store),
-                "resumes": self.store.list_resumes(), "letters": self.letters(),
+                "resumes": self.store.list_resumes(), "resume_sources": self.resume_sources(), "letters": self.letters(),
                 "automatic_backups": self.automatic_backups.status(), "recoveries": recovery_list(self.store.path.parent/'recovered'), "stats": {
                     "saved": len(jobs), "active": sum(j["stage"] in ("applied", "interview", "offer") for j in jobs),
                     "interviews": sum(j["stage"] == "interview" for j in jobs),
                     "due": sum(bool(j["follow_up"]) and j["follow_up"] <= today and j["stage"] not in ("closed", "withdrawn") for j in jobs)}}
+
+    def answers(self, data):
+        action=data.get('action') if isinstance(data,dict) else None
+        if action=='read':
+            require(data,('action',),('action',));return answer_library.read(self.store)
+        require(data,('action','expected_sha256','confirmed','answer','id','library','replace'),('action','expected_sha256','confirmed'));confirmed(data)
+        bank=answer_library.read(self.store)
+        if bank['sha256']!=data['expected_sha256']:raise ValueError('Answer library changed; refresh before saving')
+        rows={row['id']:row for row in bank['library']['answers']}
+        if action=='save':
+            row=data.get('answer');answer_library.encoded({'format':'roleweave-answers-v1','answers':[row]});rows[row['id']]=row
+        elif action=='delete':
+            if not isinstance(data.get('id'),str) or data['id'] not in rows:raise ValueError('Answer is no longer available')
+            del rows[data['id']]
+        elif action=='import':
+            incoming=answer_library.parse(answer_library.encoded(data.get('library')))
+            if type(data.get('replace',False)) is not bool:raise ValueError('Choose whether to replace conflicting answers')
+            for row in incoming['answers']:
+                if row['id'] in rows and rows[row['id']]!=row and not data.get('replace'):raise ValueError('Imported answer ID conflicts; review and explicitly choose replacement')
+                rows[row['id']]=row
+        else:raise ValueError('Unsupported answer-library action')
+        return answer_library.save(self.store,{'format':'roleweave-answers-v1','answers':list(rows.values())},data['expected_sha256'])
 
     def board_action(self,data):
         require(data,('action','provider','token','id','row_id','company','market','sha256','confirmed','before','after'))
         action=data.get('action')
         keys={'fetch':{'action','provider','token','confirmed'},'close':{'action','id'},'import':{'action','id','row_id','company','market','sha256','confirmed'},'compare':{'action','before','after'}}
         if action not in keys or set(data)!=keys[action]:raise ValueError('Invalid board action fields')
-        if action=='fetch':return self.boards.start(data['provider'],data['token'],data['confirmed'])
+        if action=='fetch':
+            provider, token = data['provider'], data['token']
+            if isinstance(token, str) and token.strip().startswith('https://'):
+                from provider_boards import board_identity
+                provider, token = board_identity(token.strip())
+            return self.boards.start(provider, token, data['confirmed'])
         if action=='close':return self.boards.close(data['id'])
         if action=='compare':
             from discovery_archive import compare_observations
@@ -149,7 +268,7 @@ class WebService:
             "posting": data["posting"], "review_data": data, "review": item["review"],
             "history": self.store.application_history(identifier), "resumes": self.store.list_resumes(identifier),
             "letters": self.letters(identifier), "drafts": list_drafts(self.store,identifier),
-            "practice_cards": practice_cards(item), "rehearsals": self.rehearsals(identifier),
+            "practice_cards": practice_cards(item), "rehearsal_suggestions": suggested_requirements(json.loads(item['snapshot'])['posting']), "rehearsals": self.rehearsals(identifier),
             "email_drafts": self.email_drafts(identifier)}
 
     def save_job(self, data):
@@ -189,32 +308,49 @@ class WebService:
         payload=base64.b64decode(data['base64'],validate=True)
         if len(payload)>MAX_FILE:raise ValueError('Resume must contain at most 4 MiB')
         result=extract_in_worker(payload,data['name'])
+        result['structure'] = suggest_structure(result)
         identifier=uuid4().hex
         with self.lock:
-            self.imports={k:v for k,v in self.imports.items() if time.monotonic()-v['at']<600}
+            for old_id, old in list(self.imports.items()):
+                if time.monotonic()-old['at']>=600:
+                    if old.get('organization'):old['organization']['cancel'].set()
+                    self.imports.pop(old_id)
             if len(self.imports)>=5:raise ValueError('Too many pending imports. Finish one or retry after ten minutes')
             self.imports[identifier]={'at':time.monotonic(),'payload':payload,'name':data['name'],'result':result}
         return result | {'id':identifier,'name':data['name']}
 
     def commit_resume_import(self, data):
-        require(data, ('id','selected','confirmed'), ('id','selected','confirmed'))
+        require(data, ('id','selected','confirmed','selected_fields'), ('id','selected','confirmed'))
         confirmed(data)
         with self.lock:
             entry=self.imports.get(data['id'])
             if entry is None or time.monotonic()-entry['at']>=600:
                 raise ValueError('Resume preview expired. Select the file again and review it')
+            if entry.get('organization', {}).get('status') == 'running':
+                raise ValueError('Wait for organization to finish, or cancel it before adding import selections')
             rows=data['selected']
-            if not isinstance(rows,list) or not 1<=len(rows)<=100:
-                raise ValueError('Select between 1 and 100 reviewed excerpts')
-            blocks={b['id']:b for b in entry['result']['blocks']}
+            chosen_fields = data.get('selected_fields', [])
+            if not isinstance(chosen_fields, list) or any(not isinstance(i, str) for i in chosen_fields) or len(set(chosen_fields)) != len(chosen_fields):
+                raise ValueError('Select distinct observed profile-field suggestions')
+            candidates = {f['id']: f for f in entry['result']['structure']['profile_suggestions']}
+            profile_fields = {}
+            for identifier in chosen_fields:
+                if identifier not in candidates or candidates[identifier]['field'] in profile_fields:
+                    raise ValueError('Choose at most one original suggestion per profile field')
+                suggestion = candidates[identifier]
+                profile_fields[suggestion['field']] = suggestion['value']
+            if not isinstance(rows,list) or len(rows)>100 or (not rows and not profile_fields):
+                raise ValueError('Select up to 100 reviewed entries or contact fields')
+            blocks={b['id']:dict(b, block_ids=[b['id']]) for b in entry['result']['blocks']}
+            blocks.update({b['id']:b for b in entry['result']['structure']['groups']})
             seen=set();facts=[]
             for row in rows:
                 require(row,('id','section'),('id','section'))
-                if not isinstance(row['id'],str) or row['id'] in seen or row['id'] not in blocks or row['section'] not in SECTIONS:
+                if not isinstance(row['id'],str) or row['id'] not in blocks or row['section'] not in SECTIONS or seen.intersection(blocks[row['id']]['block_ids']):
                     raise ValueError('Select distinct observed excerpts and choose each section')
-                seen.add(row['id']);block=blocks[row['id']];digest=entry['result']['sha256']
+                block=blocks[row['id']];seen.update(block['block_ids']);digest=entry['result']['sha256']
                 facts.append({'id':'resume:'+digest+':'+row['id']+':'+hashlib.sha256(block['text'].encode()).hexdigest()[:16],
-                              'claim':block['text'],'source':f"{entry['name']}; original SHA256 {digest}; extracted block {row['id']}. Human-selected excerpt, not independently verified.",
+                              'claim':block['text'],'source':f"{entry['name']}; original SHA256 {digest}; extracted blocks {', '.join(block['block_ids'])}. Human-selected excerpt, not independently verified.",
                               'reviewed':True,'section':row['section']})
             directory=self.artifacts/'resume-imports'
             no_link(self.artifacts);no_link(directory)
@@ -224,7 +360,7 @@ class WebService:
                 if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest()!=entry['result']['sha256']:
                     raise ValueError('Existing resume source fingerprint differs; no file was overwritten')
             else:publish_bytes(path,entry['payload'])
-            return {'facts':facts,'source_sha256':entry['result']['sha256']}
+            return {'facts':facts,'profile_fields':profile_fields,'source_sha256':entry['result']['sha256']}
 
     def save_review(self, data):
         require(data, ("id", "review", "confirmed"), ("id", "review", "confirmed"))
@@ -247,12 +383,20 @@ class WebService:
 
     def save_discovery_search(self, data):
         fields = {"id", "name", "query", "location", "country", "remote", "market", "archived"}
-        require(data, fields | {"expected_revision"}, fields - {"id"} | {"expected_revision"})
-        return self.discovery.save_search({k: v for k, v in data.items() if k in fields}, data["expected_revision"])
+        require(data, fields | {"expected_revision","preferences"}, fields - {"id"} | {"expected_revision"})
+        return self.discovery.save_search({k: v for k, v in data.items() if k in fields|{"preferences"}}, data["expected_revision"])
+
+    def jsearch_preview(self,data):
+        data=dict(data);selection=preferences(data.pop('preferences')) if 'preferences' in data else None
+        result=self.jsearch.preview(data)
+        self.jsearch.entries[result['id']]['preferences']=selection
+        return result
 
     def jsearch_status(self,data):
         result=self.jsearch.status(data)
         if result['status']=='completed':
+            entry=self.jsearch.entries[result['id']]
+            result=dict(result,result=filter_result(result['result'],entry.get('preferences'),entry['filters']['remote']))
             with self.lock:
                 if len(self.searches)>=30:self.searches.clear()
                 self.searches[result['id']]=result['result']
@@ -282,18 +426,19 @@ class WebService:
         return ""
 
     def run_discovery(self, data):
-        require(data, ("id", "expected_revision", "confirmed"), ("id", "expected_revision", "confirmed")); confirmed(data)
-        run = self.discovery.begin_run(data["id"], data["expected_revision"])
+        require(data, ("id", "expected_revision", "confirmed","preferences","previous_run"), ("id", "expected_revision", "confirmed")); confirmed(data)
+        run = self.discovery.begin_run(data["id"], data["expected_revision"],data.get("preferences"),data.get("previous_run"))
         try:
             saved = run["search"]
             if self.demo:
                 rows = [{"id": "practice-" + str(i), "title": "Practice " + saved["query"].title() + " " + str(i),
-                         "company": "Synthetic discovery employer", "posting": "Python required. Synthetic saved-search practice only; no live opportunity.",
+                         "company": "Synthetic discovery employer", "posting": ("1" if i==1 else "4")+" years of experience. Python required. Synthetic saved-search practice only; no live opportunity.",
                          "url": "https://example.invalid/discovery/" + str(i), "location": saved["location"] or "Synthetic location",
-                         "work_mode": "remote" if saved["remote"] else "Not stated", "posted_at": "Synthetic fixture", "source": "Synthetic preview"} for i in (1, 2)]
-                result = {"jobs": rows, "excluded": [], "page": {"has_next": False}, "source": "Synthetic preview"}
+                         "work_mode": "remote" if saved["remote"] else "Not stated", "posted_at": "Synthetic fixture", "source": "Synthetic preview"} for i in (run.get("offset",0)+1, run.get("offset",0)+2)]
+                result = {"jobs": rows, "excluded": [], "page": {"has_next": run.get("offset",0)<40, "offset":run.get("offset",0)}, "source": "Synthetic preview"}
             else:
-                result = self.search({key: saved[key] for key in ("query", "location", "country", "remote")})
+                result = self.search({key: saved[key] for key in ("query", "location", "country", "remote")} | ({"preferences":saved["preferences"]} if "preferences" in saved else {}) | ({"offset":run["offset"]} if "offset" in run else {}))
+            if self.demo:result=filter_result(result,saved.get("preferences"),saved["remote"])
             self._archive_search_source(result)
             return self.discovery.finish_run(run["id"], result)
         except (ValueError, OSError, sqlite3.Error) as exc:
@@ -326,7 +471,8 @@ class WebService:
         return self.discovery.read()
 
     def search(self, data):
-        require(data, ("query", "location", "country", "remote", "offset"), ("query",))
+        require(data, ("query", "location", "country", "remote", "offset","preferences"), ("query",))
+        selection=preferences(data["preferences"]) if "preferences" in data else None
         search_path(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
         if self.demo:
             rows = []
@@ -341,6 +487,7 @@ class WebService:
                       "source": "Synthetic preview", "source_url": "", "notice": "Synthetic preview. No provider contacted."}
         else:
             result = self.searcher.search(data["query"], data.get("location", ""), data.get("country", ""), data.get("remote", False), data.get("offset", 0))
+        result=filter_result(result,selection,data.get("remote",False))
         identifier = uuid4().hex
         with self.lock:
             if len(self.searches) >= 30:
@@ -377,7 +524,7 @@ class WebService:
         snapshot=make_resume_version(profile,data["fact_ids"],data.get("label", "Reviewed application resume"),job,True,theme,locale)
         record=json.loads(snapshot)
         digest=hashlib.sha256(snapshot).hexdigest()
-        text = resume_text(profile["profile"], data["fact_ids"],locale)
+        text = resume_text(profile["profile"], data["fact_ids"],locale,theme=data.get("theme"))
         if not freeze:
             return {"text": text, "html": decoded(record["html_base64"],8*1024*1024).decode("utf-8"),
                     "pdf_base64": record["pdf_base64"], "preview_sha256": digest,
@@ -397,6 +544,16 @@ class WebService:
     def review_from_profile(self, data):
         require(data, ("job_id", "profile_id", "profile_sha256", "quote", "fact_ids", "confirmed"),
                 ("job_id", "profile_id", "profile_sha256", "quote", "fact_ids", "confirmed"))
+        return self._review_requirements(data,[data['quote']])
+
+    def prepare_rehearsal(self,data):
+        require(data,('job_id','profile_id','profile_sha256','quotes','fact_ids','confirmed'),('job_id','profile_id','profile_sha256','quotes','fact_ids','confirmed'))
+        quotes=data['quotes']
+        if not isinstance(quotes,list) or not 1<=len(quotes)<=10 or any(not isinstance(q,str) or not q.strip() or len(q)>2000 for q in quotes) or len(set(quotes))!=len(quotes):
+            raise ValueError('Choose 1–10 distinct exact requirements')
+        return self._review_requirements(data,quotes,reject_duplicates=True)
+
+    def _review_requirements(self,data,quotes,reject_duplicates=False):
         confirmed(data)
         profile = self.store.load_profile(data["profile_id"])
         if profile["snapshot_sha256"] != data["profile_sha256"]:
@@ -406,7 +563,9 @@ class WebService:
         review = json.loads(original["snapshot"])
         existing = {fact["id"] for fact in review["facts"]}
         review["facts"].extend(fact for fact in facts if fact["id"] not in existing)
-        review["requirements"].append({"id": uuid4().hex, "quote": data["quote"], "fact_ids": [fact["id"] for fact in facts]})
+        known={r['quote'] for r in review['requirements']}
+        if reject_duplicates and any(q in known for q in quotes):raise ValueError('A selected requirement is already linked; use its existing rehearsal card')
+        review["requirements"].extend({"id": uuid4().hex, "quote": quote, "fact_ids": [fact["id"] for fact in facts]} for quote in quotes)
         return self.save_review({"id": original["id"], "review": review, "confirmed": True})
 
     def email_drafts(self, job_id):
@@ -642,6 +801,12 @@ class WebService:
             return {"added": added, "skipped": skipped}
 
     def download(self, kind, identifier, format="pdf"):
+        if kind == 'resume-source':
+            payload = self._resume_source(identifier)
+            return payload, 'application/octet-stream', 'original-resume.' + identifier.split('.')[1]
+        if kind == 'calendar':
+            payload = follow_up_calendar(self.store.load(identifier), self.store.application_history(identifier))
+            return payload, 'text/calendar; charset=utf-8', 'follow-up.ics'
         if kind == "email":
             with self._artifact("emails", identifier).open("rb") as source:
                 snapshot = source.read(MAX_EMAIL_SNAPSHOT + 1)
@@ -656,7 +821,7 @@ class WebService:
             record = self.store.load_resume(identifier)["resume"]
             if format == "txt":
                 profile = self.store.load_profile(record["profile_id"])["profile"]
-                return resume_text(profile, record["selected_fact_ids"],record.get("locale","en")).encode(), "text/plain; charset=utf-8", "resume.txt"
+                return resume_text(profile, record["selected_fact_ids"],record.get("locale","en"),theme=record.get("theme")).encode(), "text/plain; charset=utf-8", "resume.txt"
             if format not in ("pdf", "html"):
                 raise ValueError("Choose PDF, HTML or TXT")
             value = decoded(record[format + "_base64"], 8 * 1024 * 1024)
